@@ -1,0 +1,428 @@
+{
+  "name": "CGPE — Tools Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "operation"
+            },
+            {
+              "name": "params"
+            }
+          ]
+        }
+      },
+      "id": "63b30f7e-8ae9-41a0-9e64-e35e5d3a219a",
+      "name": "Tool Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inp = $input.first().json;\nconst op = String(inp.operation || '').trim();\nlet p = inp.params;\nif (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { p = {}; } }\np = p || {};\nconst nowIso = new Date().toISOString();\nconst esc = (s) => String(s || '').replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nconst nameRx = (s) => ({ $regex: esc(String(s).trim()).split(/\\s+/).join('.*'), $options: 'i' });\nconst last10 = (v) => String(v || '').replace(/\\D/g, '').slice(-10);\nconst pad = (n) => ('0' + n).slice(-2);\nconst normDob = (v) => {\n  const s = String(v || '').trim();\n  let m = s.match(/^(\\d{4})[-\\/](\\d{1,2})[-\\/](\\d{1,2})$/);\n  if (m) return m[1] + '-' + pad(m[2]) + '-' + pad(m[3]);\n  m = s.match(/^(\\d{1,2})[-\\/](\d{1,2})[-\\/](\\d{4})$/);\n  if (m) return m[3] + '-' + pad(m[2]) + '-' + pad(m[1]);\n  return s;\n};\nconst out = (o) => [{ json: o }];\nconst err = (m) => out({ __kind: 'error', __error: m });\nconst mkId = (pre) => pre + '-' + Date.now().toString(36).toUpperCase() + '-' + Math.floor(10 + Math.random() * 90);\n\nif (op === 'find_client') {\n  const q = {};\n  if (p.phoneLast10) q.phoneLast10 = last10(p.phoneLast10);\n  if (p.name) q.name = nameRx(p.name);\n  if (p.dob) q.dob = normDob(p.dob);\n  if (!Object.keys(q).length) return err('find_client needs name or phoneLast10');\n  return out({ __kind: 'find', __collection: 'clients', __query: q, __limit: 6, __sort: {} });\n}\nif (op === 'get_policies') {\n  const q = {};\n  if (p.policyNo) q.policyNo = { $regex: esc(p.policyNo), $options: 'i' };\n  else if (p.phoneLast10) q.phoneLast10 = last10(p.phoneLast10);\n  else if (p.clientName) q.clientName = nameRx(p.clientName);\n  else return err('get_policies needs clientName, phoneLast10 or policyNo');\n  return out({ __kind: 'find', __collection: 'policies', __query: q, __limit: 20, __sort: {} });\n}\nif (op === 'get_ticket') {\n  if (!p.ticketId) return err('get_ticket needs ticketId');\n  return out({ __kind: 'find', __collection: 'tickets', __query: { ticketId: String(p.ticketId) }, __limit: 1, __sort: {} });\n}\nif (op === 'get_claim') {\n  if (!p.claimId) return err('get_claim needs claimId');\n  return out({ __kind: 'find', __collection: 'claims', __query: { claimId: String(p.claimId) }, __limit: 1, __sort: {} });\n}\nif (op === 'ticket_guard') {\n  const q = { state: { $nin: ['closed', 'resolved'] } };\n  if (p.category) q.category = String(p.category);\n  if (p.clientName) q.clientName = nameRx(p.clientName);\n  if (p.phoneLast10) q.phoneLast10 = last10(p.phoneLast10);\n  if (!p.clientName && !p.phoneLast10) return err('ticket_guard needs clientName or phoneLast10');\n  return out({ __kind: 'find', __collection: 'tickets', __query: q, __limit: 5, __sort: { createdAt: -1 } });\n}\nif (op === 'paginate') {\n  const page = Math.max(1, parseInt(p.page || 1, 10) || 1);\n  if (p.type === 'leads') {\n    const q = { status: p.status || 'active' };\n    if (p.stage) q.stage = String(p.stage);\n    return out({ __kind: 'find', __collection: 'leads', __query: q, __limit: 5, __skip: (page - 1) * 5, __sort: { createdAt: -1 }, __projection: { name: 1, phone: 1, interest: 1, stage: 1, status: 1, referredBy: 1, createdAt: 1 }, __page: page });\n  }\n  if (p.type === 'claims') {\n    const q = { status: p.status || 'pending' };\n    if (p.phoneLast10) q.phoneLast10 = last10(p.phoneLast10);\n    if (p.clientName) q.clientName = nameRx(p.clientName);\n    return out({ __kind: 'find', __collection: 'claims', __query: q, __limit: 5, __skip: (page - 1) * 5, __sort: { createdAt: -1 }, __page: page });\n  }\n  if (p.type === 'tickets') {\n    const q = {};\n    if (p.state) q.state = p.state; else q.state = { $nin: ['closed'] };\n    if (p.phoneLast10) q.phoneLast10 = last10(p.phoneLast10);\n    if (p.clientName) q.clientName = nameRx(p.clientName);\n    return out({ __kind: 'find', __collection: 'tickets', __query: q, __limit: 5, __skip: (page - 1) * 5, __sort: { createdAt: -1 }, __page: page });\n  }\n  return err('paginate needs type leads | claims | tickets');\n}\nif (op === 'crm_list') {\n  const page = Math.max(1, parseInt(p.page || 1, 10) || 1);\n  const t = String(p.type || '');\n  const d = new Date();\n  const mm = pad(p.month || (d.getMonth() + 1));\n  const dd = p.day ? pad(p.day) : null;\n  const yr = String(p.year || d.getFullYear());\n  if (t === 'birthday' || t === 'anniversary') {\n    const field = t === 'birthday' ? 'dob' : 'anniversary';\n    const rx = dd ? ('-' + mm + '-' + dd + '$') : ('-' + mm + '-');\n    const q = {}; q[field] = { $regex: rx };\n    return out({ __kind: 'find', __collection: 'clients', __query: q, __limit: 30, __skip: (page - 1) * 30, __sort: {}, __projection: { name: 1, dob: 1, anniversary: 1, phone: 1, phoneLast10: 1 }, __page: page });\n  }\n  if (t === 'maturity') {\n    return out({ __kind: 'find', __collection: 'clients', __query: { maturityDate: { $regex: '^' + yr + '-' + mm }, isActive: { $ne: false } }, __limit: 60, __sort: { maturityDate: 1 }, __projection: { name: 1, policyNo: 1, sumAssured: 1, maturityDate: 1, phone: 1, tableNo: 1 }, __page: page });\n  }\n  if (t === 'dues') {\n    return out({ __kind: 'find', __collection: 'clients', __query: { fupDate: { $regex: '^' + yr + '-' + mm }, isActive: { $ne: false } }, __limit: 60, __sort: { fupDate: 1 }, __projection: { name: 1, policyNo: 1, premium: 1, mode: 1, fupDate: 1, phone: 1 }, __page: page });\n  }\n  if (t === 'clients') {\n    if (p.countOnly) return out({ __kind: 'counts', __collection: 'clients', __query: {}, __limit: 100000, __type: 'clients', __groupField: 'isActive', __projection: { isActive: 1 } });\n    const q = p.withPhone ? { phoneLast10: { $exists: true, $nin: [null, ''] } } : {};\n    return out({ __kind: 'find', __collection: 'clients', __query: q, __limit: Math.min(10, parseInt(p.limit || 10, 10) || 10), __skip: (page - 1) * 10, __sort: { name: 1 }, __projection: { name: 1, phone: 1, phoneLast10: 1 }, __page: page });\n  }\n  return err('crm_list type must be birthday | anniversary | maturity | dues | clients');\n}\nif (op === 'team_ops') {\n  const a = String(p.action || '');\n  if (a === 'list') return out({ __kind: 'find', __collection: 'team_members', __query: { active: { $ne: false } }, __limit: 20, __sort: { name: 1 } });\n  if (a === 'assign' || a === 'meeting') {\n    if (!p.title) return err('team_ops needs title (what is the task/meeting about)');\n    if (a === 'assign' && !p.assigneeName && !p.assigneePhone) return err('assign needs assigneeName or assigneePhone. Call team_ops {\"action\":\"list\"} to see team members.');\n    const doc = {\n      taskId: mkId('CGPE-TASK'), type: a === 'meeting' ? 'meeting' : 'task',\n      title: String(p.title), details: String(p.details || ''),\n      assigneeName: String(p.assigneeName || p.createdBy || 'CGPE Admin'), assigneePhone: last10(p.assigneePhone || ''),\n      ticketId: String(p.ticketId || ''), clientName: String(p.clientName || ''), clientPhone: last10(p.clientPhone || ''),\n      dueAt: String(p.dueAt || ''), priority: String(p.priority || 'P3'), status: 'open',\n      createdBy: String(p.createdBy || 'admin'), createdAt: nowIso, updatedAt: nowIso\n    };\n    return out({ __kind: 'insert', __collection: 'team_tasks', __fields: Object.keys(doc).join(','), ...doc });\n  }\n  if (a === 'tasks') {\n    const q = { status: { $ne: 'done' } };\n    if (p.assigneeName) q.assigneeName = nameRx(p.assigneeName);\n    if (p.today) q.$or = [{ dueAt: { $regex: '^' + nowIso.slice(0, 10) } }, { dueAt: '' }];\n    return out({ __kind: 'find', __collection: 'team_tasks', __query: q, __limit: 20, __sort: { dueAt: 1 } });\n  }\n  if (a === 'complete') {\n    if (!p.taskId) return err('complete needs taskId');\n    return out({ __kind: 'update', __collection: 'team_tasks', __updateKey: 'taskId', __fields: 'status,updatedAt', taskId: String(p.taskId), status: 'done', updatedAt: nowIso });\n  }\n  return err('team_ops action must be list | assign | meeting | tasks | complete');\n}\nif (op === 'create_lead') {\n  if (!p.name) return err('create_lead needs name');\n  const doc = {\n    leadId: mkId('CGPE-L'), name: String(p.name).toUpperCase(), phone: String(p.phone || ''), phoneLast10: last10(p.phone || ''),\n    interest: String(p.interest || 'general'), stage: 'new', status: 'active',\n    source: String(p.source || 'whatsapp'), referredBy: String(p.referredBy || ''), notes: String(p.notes || ''),\n    createdAt: nowIso, updatedAt: nowIso\n  };\n  return out({ __kind: 'insert', __collection: 'leads', __fields: Object.keys(doc).join(','), ...doc });\n}\nif (op === 'get_documents') {\n  const q = { };\n  if (p.policyNo) q.policyNo = { $regex: esc(p.policyNo), $options: 'i' };\n  else if (p.phoneLast10) q.phoneLast10 = last10(p.phoneLast10);\n  else if (p.clientName) q.clientName = nameRx(p.clientName);\n  else return err('get_documents needs clientName, phoneLast10 or policyNo');\n  return out({ __kind: 'find', __collection: 'policy_documents', __query: q, __limit: 10, __sort: { createdAt: -1 } });\n}\nif (op === 'create_ticket') {\n  if (!p.category || !p.aiUnderstanding || !p.task) return err('create_ticket needs category, aiUnderstanding, task');\n  if (!p.clientName && !p.phoneLast10) return err('create_ticket needs clientName or phoneLast10');\n  const doc = {\n    ticketId: mkId('CGPE-T'), category: String(p.category), kind: String(p.kind || 'general'),\n    state: 'new', priority: String(p.priority || 'P3'), zone: String(p.zone || 'amber'),\n    clientName: String(p.clientName || ''), phoneLast10: last10(p.phoneLast10 || ''), policyNo: String(p.policyNo || ''),\n    originalCommand: String(p.originalCommand || ''), aiUnderstanding: String(p.aiUnderstanding), task: String(p.task),\n    requiredItems: Array.isArray(p.requiredItems) ? p.requiredItems : [], receivedItems: [],\n    slots: (typeof p.slots === 'object' && p.slots) || {}, source: String(p.source || 'admin'), channel: 'whatsapp',\n    assignedTo: String(p.assignedTo || ''),\n    audit: [{ ts: nowIso, actor: 'ai', action: 'created' }], createdAt: nowIso, updatedAt: nowIso\n  };\n  return out({ __kind: 'insert', __collection: 'tickets', __fields: Object.keys(doc).join(','), ...doc });\n}\nif (op === 'create_claim') {\n  if (!p.claimType) return err('create_claim needs claimType (health | general | motor | life | death | maturity)');\n  if (!p.policyNo) return err('create_claim needs policyNo');\n  if (!p.clientName) return err('create_claim needs clientName');\n  const slots = (typeof p.slots === 'object' && p.slots) || {};\n  const reqByType = {\n    health: ['hospitalName', 'patientName', 'admitDate', 'illness', 'doctorName'],\n    general: ['policyType', 'cause', 'date'],\n    motor: ['policyType', 'cause', 'date'],\n    life: ['patientName', 'date', 'cause'],\n    death: ['patientName', 'date', 'cause']\n  };\n  const req = reqByType[String(p.claimType)] || [];\n  const missing = req.filter((k) => !slots[k]);\n  if (missing.length) return err('Cannot create ' + p.claimType + ' claim yet. Missing slots: ' + missing.join(', ') + '. Ask the sender for these first.');\n  const doc = {\n    claimId: mkId('CGPE-C'), ticketId: String(p.ticketId || ''), claimType: String(p.claimType),\n    clientName: String(p.clientName), phoneLast10: last10(p.phoneLast10 || ''), policyNo: String(p.policyNo),\n    stage: 'documents_required', status: 'pending', slots,\n    amounts: { claimed: null, approved: null, received: null, shortfall: null },\n    statusHistory: [{ stage: 'documents_required', at: nowIso, actor: 'ai' }],\n    createdAt: nowIso, updatedAt: nowIso\n  };\n  return out({ __kind: 'insert', __collection: 'claims', __fields: Object.keys(doc).join(','), ...doc });\n}\nif (op === 'update_ticket') {\n  if (!p.ticketId) return err('update_ticket needs ticketId');\n  const set = (typeof p.set === 'object' && p.set) || {};\n  const allowed = ['state', 'priority', 'zone', 'task', 'aiUnderstanding', 'requiredItems', 'receivedItems', 'slots', 'policyNo', 'lastNote', 'assignedTo'];\n  const states = ['new', 'info_pending', 'in_progress', 'awaiting_third_party', 'escalated', 'resolved', 'closed'];\n  if (set.state && !states.includes(set.state)) return err('Invalid state. Valid: ' + states.join(', '));\n  const doc = { ticketId: String(p.ticketId), updatedAt: nowIso };\n  const fields = ['updatedAt'];\n  for (const k of allowed) if (set[k] !== undefined) { doc[k] = set[k]; fields.push(k); }\n  if (p.note) { doc.lastNote = String(p.note); if (!fields.includes('lastNote')) fields.push('lastNote'); }\n  if (fields.length === 1) return err('update_ticket: nothing to update. Allowed: ' + allowed.join(', '));\n  return out({ __kind: 'update', __collection: 'tickets', __updateKey: 'ticketId', __fields: fields.join(','), ...doc });\n}\nif (op === 'advance_claim') {\n  if (!p.claimId) return err('advance_claim needs claimId');\n  const stages = ['documents_required', 'under_review', 'company_email_sent', 'amount_claimed', 'amount_verification', 'shortfall_requery', 'settled', 'closed'];\n  const doc = { claimId: String(p.claimId), updatedAt: nowIso };\n  const fields = ['updatedAt'];\n  if (p.stage) { if (!stages.includes(p.stage)) return err('Invalid stage. Valid: ' + stages.join(' -> ')); doc.stage = p.stage; fields.push('stage'); if (p.stage === 'settled' || p.stage === 'closed') { doc.status = p.stage === 'closed' ? 'closed' : 'settled'; fields.push('status'); } }\n  if (typeof p.amounts === 'object' && p.amounts) { doc.amounts = p.amounts; fields.push('amounts'); }\n  if (p.note) { doc.lastNote = String(p.note); fields.push('lastNote'); }\n  if (fields.length === 1) return err('advance_claim: provide stage, amounts or note');\n  return out({ __kind: 'update', __collection: 'claims', __updateKey: 'claimId', __fields: fields.join(','), ...doc });\n}\nif (op === 'counts' || op === 'get_counts') {\n  const type = ['claims', 'tickets', 'leads', 'clients'].includes(p.type) ? p.type : 'tickets';\n  const groupField = type === 'claims' ? 'stage' : (type === 'leads' ? 'stage' : (type === 'clients' ? 'isActive' : 'state'));\n  const proj = {}; proj[groupField] = 1;\n  return out({ __kind: 'counts', __collection: type, __query: (typeof p.query === 'object' && p.query) || {}, __limit: 100000, __type: type, __groupField: groupField, __projection: proj });\n}\nreturn err('Unknown operation: ' + op + '. Valid: find_client, get_policies, get_ticket, get_claim, ticket_guard, paginate, crm_list, team_ops, create_lead, get_documents, create_ticket, create_claim, update_ticket, advance_claim, counts, get_counts');"
+      },
+      "id": "8bf56858-d917-41cc-a764-68942c484668",
+      "name": "Route Operation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.__kind }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "find"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.__kind }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "insert"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.__kind }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "update"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.__kind }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "counts"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "error"
+        }
+      },
+      "id": "9b66b56f-b14d-42c0-9f37-255d01ddf488",
+      "name": "Route Kind",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "={{ $json.__collection }}",
+        "options": {
+          "limit": "={{ $json.__limit || 10 }}",
+          "skip": "={{ $json.__skip || 0 }}",
+          "sort": "={{ JSON.stringify($json.__sort || {}) }}",
+          "projection": "={{ JSON.stringify($json.__projection || {}) }}"
+        },
+        "query": "={{ JSON.stringify($json.__query || {}) }}"
+      },
+      "id": "61200433-a509-4934-a669-01993ab78f08",
+      "name": "Mongo Find",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json).filter(j => j && Object.keys(j).length > 0);\nconst clean = rows.map(r => { const c = { ...r }; if (c._id) c._id = String(c._id); return c; });\nconst meta = $('Route Operation').first().json;\nconst res = { ok: true, count: clean.length, results: clean };\nif (meta.__page) { res.page = meta.__page; res.pageSize = meta.__limit || 5; res.hint = clean.length === (meta.__limit || 5) ? 'There may be more results on page ' + (meta.__page + 1) : 'No more pages.'; }\nif (clean.length === 0) res.hint = 'No records found. Try different spelling or another identifier.';\nreturn [{ json: res }];"
+      },
+      "id": "610f7b14-3149-4d45-a1e5-0826538675d5",
+      "name": "Format Find",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "={{ $json.__collection }}",
+        "fields": "={{ $json.__fields }}",
+        "options": {}
+      },
+      "id": "1731b266-338c-4d91-bb50-27481481ab93",
+      "name": "Mongo Insert",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        192
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Route Operation').first().json;\nconst id = d.ticketId || d.claimId || d.leadId || d.taskId || null;\nconst summary = { ok: true, created: true, id, collection: d.__collection };\nif (d.ticketId) { summary.ticketId = d.ticketId; summary.state = d.state; summary.category = d.category; summary.priority = d.priority; }\nif (d.claimId) { summary.claimId = d.claimId; summary.stage = d.stage; summary.claimType = d.claimType; summary.policyNo = d.policyNo; }\nif (d.leadId) { summary.leadId = d.leadId; summary.name = d.name; summary.stage = d.stage; summary.interest = d.interest; }\nif (d.taskId) { summary.taskId = d.taskId; summary.title = d.title; summary.assigneeName = d.assigneeName; summary.dueAt = d.dueAt; summary.type = d.type; }\nreturn [{ json: summary }];"
+      },
+      "id": "e98b5ebc-ed9c-4399-90e9-b7e78eeda104",
+      "name": "Format Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "findOneAndUpdate",
+        "collection": "={{ $json.__collection }}",
+        "updateKey": "={{ $json.__updateKey }}",
+        "fields": "={{ $json.__fields }}",
+        "options": {}
+      },
+      "id": "88504924-9dd3-4ac5-90a3-163f919893a6",
+      "name": "Mongo Update",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        384
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Route Operation').first().json;\nconst changed = {};\nfor (const k of String(d.__fields || '').split(',')) if (k && d[k] !== undefined) changed[k] = d[k];\nreturn [{ json: { ok: true, updated: true, id: d.ticketId || d.claimId, collection: d.__collection, changes: changed } }];"
+      },
+      "id": "22312371-ea76-4b61-8006-b62f4afc5cd6",
+      "name": "Format Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: false, error: $input.first().json.__error || 'Unknown tool error' } }];"
+      },
+      "id": "b4538012-40dc-4126-9532-66d47106c7b1",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "={{ $json.__collection }}",
+        "options": {
+          "limit": "={{ $json.__limit || 100000 }}",
+          "projection": "={{ JSON.stringify($json.__projection || {}) }}"
+        },
+        "query": "={{ JSON.stringify($json.__query || {}) }}"
+      },
+      "id": "cnts0001-aaaa-4bbb-8ccc-countfetch01",
+      "name": "Mongo Count Fetch",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        592
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Route Operation').first().json;\nconst field = meta.__groupField || 'state';\nconst type = meta.__type || 'tickets';\nconst rows = $input.all().map(i => i.json).filter(j => j && Object.keys(j).length > 0);\nconst byStatus = {};\nfor (const r of rows) { const k = String(r[field] == null ? 'unknown' : r[field]); byStatus[k] = (byStatus[k]||0)+1; }\nconst total = rows.length;\nconst closedish = ['closed','resolved','settled'];\nlet open = 0; for (const e of Object.entries(byStatus)) if (!closedish.includes(e[0])) open += e[1];\nreturn [{ json: { ok:true, type, groupBy: field, total, open, byStatus } }];"
+      },
+      "id": "cnts0002-aaaa-4bbb-8ccc-formatcounts",
+      "name": "Format Counts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        592
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Tool Input": {
+      "main": [
+        [
+          {
+            "node": "Route Operation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Operation": {
+      "main": [
+        [
+          {
+            "node": "Route Kind",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Kind": {
+      "main": [
+        [
+          {
+            "node": "Mongo Find",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mongo Insert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mongo Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mongo Count Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mongo Find": {
+      "main": [
+        [
+          {
+            "node": "Format Find",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mongo Insert": {
+      "main": [
+        [
+          {
+            "node": "Format Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mongo Update": {
+      "main": [
+        [
+          {
+            "node": "Format Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mongo Count Fetch": {
+      "main": [
+        [
+          {
+            "node": "Format Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "f8c618b4-44e4-4608-8107-03dd9e6788e6",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "b51c561a1f913d126dd565a961c174df11effac1c85079f2a730449a45fbe676"
+  },
+  "nodeGroups": [],
+  "id": "GnzJu201cnohUuxA",
+  "tags": []
+}

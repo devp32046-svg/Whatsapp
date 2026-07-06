@@ -1,0 +1,35 @@
+[
+  {
+    "_id": {
+      "$oid": "6a48dd714e3edebdc9e4656e"
+    },
+    "name": "Priya Desai",
+    "role": "ops",
+    "phone": "919876600001",
+    "phoneLast10": "9876600001",
+    "active": true,
+    "seedTag": "cgpe-seed-v3"
+  },
+  {
+    "_id": {
+      "$oid": "6a48dd714e3edebdc9e4656f"
+    },
+    "name": "Amit Shah",
+    "role": "claims",
+    "phone": "919876600002",
+    "phoneLast10": "9876600002",
+    "active": true,
+    "seedTag": "cgpe-seed-v3"
+  },
+  {
+    "_id": {
+      "$oid": "6a48dd714e3edebdc9e46570"
+    },
+    "name": "Kunal Mehta",
+    "role": "sales",
+    "phone": "919876600003",
+    "phoneLast10": "9876600003",
+    "active": true,
+    "seedTag": "cgpe-seed-v3"
+  }
+]

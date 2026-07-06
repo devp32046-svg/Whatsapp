@@ -1,0 +1,2172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CGPE Chat Bot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #2159d3;
+        --primary-dark: #1a47b0;
+        --bg-app: #dae4ed;
+        --bg-panel: #ffffff;
+        --bg-chat: #e5e5e5;
+        --bg-sidebar: #ffffff;
+        --bg-sidebar-header: #f0f2f5;
+        --bg-header: #2159d3;
+        --bg-input-bar: #f0f2f5;
+        --bg-input: #ffffff;
+        --bg-msg-incoming: #ffffff;
+        --bg-msg-outgoing: #d4e4ff;
+        --text-primary: #111b21;
+        --text-secondary: #667781;
+        --text-light: #8696a0;
+        --border-light: #e9edef;
+        --border-sidebar: #e9edef;
+        --hover-bg: #f5f6f6;
+        --active-chat-bg: #e8f0fe;
+        --unread-badge: #2159d3;
+        --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--bg-app);
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* ══════════ TOP COLORED BAR ══════════ */
+      .top-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 127px;
+        /* background: var(--primary); */
+        z-index: 0;
+      }
+
+      /* ══════════ MAIN APP WRAPPER ══════════ */
+      .app-wrapper {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        height: 100vh;
+        padding: 5rem 0;
+      }
+
+      .app-container {
+        display: flex;
+        width: 95%;
+        max-width: 1400px;
+        height: calc(70vh - 38px);
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      /* ══════════ LEFT SIDEBAR ══════════ */
+      .sidebar {
+        width: 340px;
+        min-width: 340px;
+        background: var(--bg-sidebar);
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--border-sidebar);
+      }
+
+      /* Sidebar Header */
+      .sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        background: var(--bg-sidebar-header);
+        height: 59px;
+      }
+
+      .sidebar-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #cfd8dc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .sidebar-avatar svg {
+        color: #6e7f8d;
+      }
+
+      .sidebar-header-actions {
+        display: flex;
+        gap: 2px;
+      }
+
+      .sidebar-icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--text-light);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+      }
+      .sidebar-icon-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      /* Search Bar */
+      .sidebar-search {
+        padding: 7px 12px;
+        background: var(--bg-sidebar-header);
+        border-bottom: 1px solid var(--border-light);
+      }
+
+      .search-wrapper {
+        display: flex;
+        align-items: center;
+        background: var(--bg-input);
+        border-radius: 8px;
+        padding: 0 12px;
+        height: 35px;
+        gap: 12px;
+      }
+
+      .search-wrapper svg {
+        color: var(--text-light);
+        flex-shrink: 0;
+      }
+
+      .search-wrapper input {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 13px;
+        font-family: inherit;
+        color: var(--text-primary);
+        background: transparent;
+      }
+      .search-wrapper input::placeholder {
+        color: var(--text-light);
+      }
+
+      /* Chat List */
+      .chat-list {
+        flex: 1;
+        overflow-y: auto;
+      }
+
+      .chat-list::-webkit-scrollbar {
+        width: 6px;
+      }
+      .chat-list::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 10px;
+      }
+
+      .chat-item {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding: 10px 15px;
+        cursor: pointer;
+        transition: background 0.12s;
+        border-bottom: 1px solid var(--border-light);
+        position: relative;
+      }
+      .chat-item:hover {
+        background: var(--hover-bg);
+      }
+      .chat-item.active {
+        background: var(--active-chat-bg);
+      }
+
+      .chat-item-avatar {
+        width: 49px;
+        height: 49px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+      }
+
+      .chat-item-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .chat-item-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 2px;
+      }
+
+      .chat-item-name {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .chat-item-time {
+        font-size: 11.5px;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+        margin-left: 6px;
+      }
+
+      .chat-item-time.unread {
+        color: var(--unread-badge);
+        font-weight: 600;
+      }
+
+      .chat-item-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .chat-item-preview {
+        font-size: 13px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+
+      .unread-badge {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--unread-badge);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-left: 6px;
+      }
+
+      /* ══════════ RIGHT CHAT PANEL ══════════ */
+      .chat-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-chat);
+        position: relative;
+      }
+
+      /* Chat Header */
+      .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        background: var(--bg-sidebar-header);
+        height: 59px;
+        border-bottom: 1px solid var(--border-light);
+        z-index: 5;
+      }
+
+      .chat-header-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .chat-header-info {
+        flex: 1;
+        min-width: 0;
+        cursor: pointer;
+      }
+
+      .chat-header-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .chat-header-status {
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+
+      .chat-header-actions {
+        display: flex;
+        gap: 2px;
+      }
+
+      .chat-header-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--text-light);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+      }
+      .chat-header-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      /* Chat Wallpaper */
+      .chat-body {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .chat-wallpaper {
+        position: absolute;
+        inset: 0;
+        background: var(--bg-chat);
+        z-index: 0;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8c8c8' fill-opacity='0.22'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      }
+
+      .chat-messages {
+        position: relative;
+        z-index: 1;
+        height: 100%;
+        padding: 20px 60px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        scroll-behavior: smooth;
+      }
+
+      .chat-messages::-webkit-scrollbar {
+        width: 6px;
+      }
+      .chat-messages::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .chat-messages::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 10px;
+      }
+
+      /* ── Date Separator ── */
+      .date-separator {
+        align-self: center;
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--text-secondary);
+        font-size: 12px;
+        padding: 6px 14px;
+        border-radius: 8px;
+        margin: 12px 0;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+      }
+
+      /* ── Message Bubbles ── */
+      .message {
+        padding: 6px 9px 8px;
+        max-width: 55%;
+        word-wrap: break-word;
+        font-size: 14.2px;
+        line-height: 1.45;
+        position: relative;
+        animation: msgFade 0.25s ease-out;
+      }
+
+      @keyframes msgFade {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .message .msg-text {
+        display: block;
+        white-space: pre-wrap;
+      }
+
+      .message .msg-meta {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+        margin-top: 2px;
+        font-size: 11px;
+        float: right;
+        margin-left: 12px;
+        position: relative;
+        top: 5px;
+      }
+
+      .msg-meta .ticks {
+        font-size: 14px;
+        color: #53bdeb;
+      }
+
+      /* Bot (incoming) — WhatsApp Web style */
+      .bot {
+        background: var(--bg-msg-incoming);
+        color: var(--text-primary);
+        align-self: flex-start;
+        border-radius: 0 8px 8px 8px;
+        box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.08);
+      }
+      .bot::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -8px;
+        width: 0;
+        height: 0;
+        border-top: 0px solid transparent;
+        border-bottom: 13px solid transparent;
+        border-right: 8px solid var(--bg-msg-incoming);
+      }
+      .bot .msg-meta {
+        color: var(--text-secondary);
+      }
+
+      /* User (outgoing) */
+      .user {
+        background: var(--bg-msg-outgoing);
+        color: var(--text-primary);
+        align-self: flex-end;
+        border-radius: 8px 0 8px 8px;
+        box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.08);
+      }
+      .user::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: -8px;
+        width: 0;
+        height: 0;
+        border-top: 0px solid transparent;
+        border-bottom: 13px solid transparent;
+        border-left: 8px solid var(--bg-msg-outgoing);
+      }
+      .user .msg-meta {
+        color: var(--text-secondary);
+      }
+
+      /* ── Typing Indicator ── */
+      .typing-indicator {
+        display: none;
+        align-self: flex-start;
+        background: var(--bg-msg-incoming);
+        padding: 14px 18px;
+        border-radius: 0 8px 8px 8px;
+        box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.08);
+        gap: 5px;
+        align-items: center;
+      }
+      .typing-indicator.active {
+        display: flex;
+      }
+
+      .typing-dot {
+        width: 7px;
+        height: 7px;
+        background: #90a0ad;
+        border-radius: 50%;
+        animation: typingBounce 1.4s infinite ease-in-out;
+      }
+      .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typingBounce {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.4;
+        }
+        30% {
+          transform: translateY(-5px);
+          opacity: 1;
+        }
+      }
+
+      /* ══════════ BUTTON REPLIES ══════════ */
+      .bot-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+        padding-top: 6px;
+        border-top: 1px solid var(--border-light);
+      }
+
+      .bot-reply-btn {
+        background: transparent;
+        color: var(--primary);
+        border: 1px solid var(--primary);
+        border-radius: 20px;
+        padding: 6px 16px;
+        font-size: 13px;
+        font-family: inherit;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+        white-space: nowrap;
+      }
+      .bot-reply-btn:hover {
+        background: var(--primary);
+        color: #fff;
+      }
+      .bot-reply-btn:active {
+        transform: scale(0.95);
+      }
+      .bot-reply-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* ══════════ VOICE RECORDING BAR ══════════ */
+      .recording-bar {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 16px;
+        background: var(--bg-input-bar);
+        z-index: 5;
+      }
+      .recording-bar.active {
+        display: flex;
+      }
+      .recording-dot {
+        width: 10px;
+        height: 10px;
+        background: #e53935;
+        border-radius: 50%;
+        animation: recDotPulse 1s infinite;
+      }
+      @keyframes recDotPulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+      .recording-timer {
+        font-size: 14px;
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums;
+        flex: 1;
+      }
+      .recording-cancel-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+        padding: 6px 12px;
+        border-radius: 6px;
+        transition: background 0.15s;
+      }
+      .recording-cancel-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+      .recording-send-btn {
+        background: var(--primary);
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+      }
+      .recording-send-btn:hover {
+        background: var(--primary-dark);
+      }
+
+      /* ══════════ INPUT BAR ══════════ */
+      .chat-input-area {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 6px 10px 6px 16px;
+        background: var(--bg-input-bar);
+        z-index: 5;
+      }
+
+      .input-wrapper {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        background: var(--bg-input);
+        border-radius: 8px;
+        padding: 5px 12px;
+        gap: 8px;
+        min-height: 42px;
+      }
+
+      .input-icon-btn {
+        background: none;
+        border: none;
+        color: var(--text-light);
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        transition: color 0.15s;
+        flex-shrink: 0;
+      }
+      .input-icon-btn:hover {
+        color: var(--text-secondary);
+      }
+
+      .input-wrapper input {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--text-primary);
+        background: transparent;
+        min-width: 0;
+        height: 32px;
+      }
+      .input-wrapper input::placeholder {
+        color: var(--text-light);
+      }
+
+      /* Hidden file input */
+      .hidden-file-input {
+        display: none;
+      }
+
+      /* Send / Mic Button */
+      .action-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--text-light);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          color 0.15s,
+          background 0.2s,
+          transform 0.15s;
+        flex-shrink: 0;
+      }
+      .action-btn:hover {
+        color: var(--text-secondary);
+      }
+      .action-btn.has-text {
+        color: var(--primary);
+      }
+      .action-btn.has-text:hover {
+        color: var(--primary-dark);
+      }
+      .action-btn:active {
+        transform: scale(0.92);
+      }
+
+      /* Mic recording state */
+      .action-btn.recording {
+        color: #e53935;
+        animation: micPulse 1.2s infinite;
+      }
+      @keyframes micPulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.15);
+        }
+      }
+
+      /* ══════════ EMPTY STATE ══════════ */
+      .empty-state {
+        display: none;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-sidebar-header);
+        border-bottom: 6px solid var(--primary);
+        text-align: center;
+        padding: 40px;
+      }
+
+      .empty-state svg {
+        color: #d5dde2;
+        margin-bottom: 28px;
+      }
+
+      .empty-state h2 {
+        font-size: 28px;
+        font-weight: 300;
+        color: var(--text-primary);
+        margin-bottom: 14px;
+      }
+
+      .empty-state p {
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        max-width: 480px;
+      }
+
+      /* ══════════ ROLE SWITCHER ══════════ */
+      .role-switcher {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-right: 8px;
+        background: rgba(0, 0, 0, 0.04);
+        border-radius: 8px;
+        padding: 3px;
+      }
+      .role-btn {
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 11.5px;
+        font-family: inherit;
+        font-weight: 500;
+        padding: 5px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .role-btn:hover {
+        background: rgba(0, 0, 0, 0.04);
+      }
+      .role-btn.active {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 1px 3px rgba(33, 89, 211, 0.25);
+      }
+      .role-indicator {
+        font-size: 11px;
+        color: var(--text-secondary);
+        padding: 2px 8px;
+        background: rgba(0, 0, 0, 0.03);
+        border-radius: 4px;
+        margin-left: 4px;
+      }
+      .role-indicator.admin {
+        color: #e65100;
+        background: #fff3e0;
+      }
+      .role-indicator.client {
+        color: #1565c0;
+        background: #e3f2fd;
+      }
+
+      /* ══════════ ADMIN QUICK ACTIONS ══════════ */
+      .admin-quick-actions {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 16px;
+        background: var(--bg-input-bar);
+        border-top: 1px solid var(--border-light);
+        overflow-x: auto;
+        z-index: 5;
+      }
+      .admin-quick-actions.active {
+        display: flex;
+      }
+      .quick-action-btn {
+        border: 1px solid var(--border-light);
+        background: #fff;
+        color: var(--text-primary);
+        font-size: 12px;
+        font-family: inherit;
+        font-weight: 500;
+        padding: 6px 14px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .quick-action-btn:hover {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+      .quick-action-btn:active {
+        transform: scale(0.95);
+      }
+
+      /* ══════════ CLICKABLE LINKS IN BOT MESSAGES ══════════ */
+      .msg-text a {
+        color: #1a73e8;
+        text-decoration: underline;
+        word-break: break-all;
+      }
+      .msg-text a:hover {
+        color: var(--primary-dark);
+      }
+
+      /* ══════════ RESPONSIVE ══════════ */
+      @media (max-width: 768px) {
+        .sidebar {
+          display: none;
+        }
+        .app-container {
+          width: 100%;
+          height: 100vh;
+          border-radius: 0;
+        }
+        .app-wrapper {
+          padding-top: 0;
+        }
+        .top-bar {
+          height: 0;
+        }
+        .chat-messages {
+          padding: 12px 16px;
+        }
+        .message {
+          max-width: 85%;
+        }
+        .role-switcher {
+          margin-right: 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Top colored bar like WhatsApp Web -->
+    <div class="top-bar"></div>
+
+    <div class="app-wrapper">
+      <div class="app-container">
+        <!-- ═══ LEFT SIDEBAR ═══ -->
+        <div class="sidebar">
+          <!-- Sidebar Header -->
+          <div class="sidebar-header">
+            <div class="sidebar-avatar">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                />
+              </svg>
+            </div>
+            <div class="sidebar-header-actions">
+              <button class="sidebar-icon-btn" title="Communities">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                >
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                  <path d="M16 3.13a4 4 0 010 7.75" />
+                </svg>
+              </button>
+              <button class="sidebar-icon-btn" title="Status">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+              </button>
+              <button class="sidebar-icon-btn" title="New chat">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                >
+                  <path
+                    d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+                  />
+                </svg>
+              </button>
+              <button class="sidebar-icon-btn" title="Menu">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <circle cx="12" cy="5" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="12" cy="19" r="1.5" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Search -->
+          <div class="sidebar-search">
+            <div class="search-wrapper">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              <input type="text" placeholder="Search or start new chat" />
+            </div>
+          </div>
+
+          <!-- Chat List -->
+          <div class="chat-list" id="chatList">
+            <!-- Active bot chat -->
+            <div class="chat-item active" data-chat="bot">
+              <div class="chat-item-avatar" style="background: #2159d3">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                  <path
+                    d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h3a4 4 0 014 4v1h1a2 2 0 110 4h-1v1a4 4 0 01-4 4H8a4 4 0 01-4-4v-1H3a2 2 0 110-4h1v-1a4 4 0 014-4h3V5.73A2.002 2.002 0 0112 2zM9 13a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"
+                  />
+                </svg>
+              </div>
+              <div class="chat-item-info">
+                <div class="chat-item-top">
+                  <span class="chat-item-name">CGPE-Channel Bot</span>
+                  <span class="chat-item-time" id="sidebarTime">now</span>
+                </div>
+                <div class="chat-item-bottom">
+                  <span class="chat-item-preview" id="sidebarPreview"
+                    >Namaste! 🙏 CGPE Bot ready hai.</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Decorative other chats -->
+            <div class="chat-item" data-chat="team">
+              <div class="chat-item-avatar" style="background: #00a884">T</div>
+              <div class="chat-item-info">
+                <div class="chat-item-top">
+                  <span class="chat-item-name">Team Updates</span>
+                  <span class="chat-item-time">11:30 AM</span>
+                </div>
+                <div class="chat-item-bottom">
+                  <span class="chat-item-preview"
+                    >Raj: Meeting at 3 PM today 📅</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="chat-item" data-chat="support">
+              <div class="chat-item-avatar" style="background: #7c4dff">S</div>
+              <div class="chat-item-info">
+                <div class="chat-item-top">
+                  <span class="chat-item-name">Support Channel</span>
+                  <span class="chat-item-time">Yesterday</span>
+                </div>
+                <div class="chat-item-bottom">
+                  <span class="chat-item-preview"
+                    >Ticket #1042 resolved ✅</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="chat-item" data-chat="dev">
+              <div class="chat-item-avatar" style="background: #ff6f00">D</div>
+              <div class="chat-item-info">
+                <div class="chat-item-top">
+                  <span class="chat-item-name">Dev Alerts</span>
+                  <span class="chat-item-time">Yesterday</span>
+                </div>
+                <div class="chat-item-bottom">
+                  <span class="chat-item-preview"
+                    >Build #287 passed successfully</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="chat-item" data-chat="priya">
+              <div class="chat-item-avatar" style="background: #e91e63">P</div>
+              <div class="chat-item-info">
+                <div class="chat-item-top">
+                  <span class="chat-item-name">Priya Sharma</span>
+                  <span class="chat-item-time unread">10:05 AM</span>
+                </div>
+                <div class="chat-item-bottom">
+                  <span class="chat-item-preview"
+                    >Can you check the API docs?</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="chat-item" data-chat="general">
+              <div class="chat-item-avatar" style="background: #546e7a">G</div>
+              <div class="chat-item-info">
+                <div class="chat-item-top">
+                  <span class="chat-item-name">General</span>
+                  <span class="chat-item-time">Monday</span>
+                </div>
+                <div class="chat-item-bottom">
+                  <span class="chat-item-preview"
+                    >Welcome to the workspace!</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ RIGHT CHAT PANEL ═══ -->
+        <div class="chat-panel" id="chatPanel">
+          <!-- Chat Header -->
+          <div class="chat-header">
+            <div class="chat-header-avatar">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h3a4 4 0 014 4v1h1a2 2 0 110 4h-1v1a4 4 0 01-4 4H8a4 4 0 01-4-4v-1H3a2 2 0 110-4h1v-1a4 4 0 014-4h3V5.73A2.002 2.002 0 0112 2zM9 13a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"
+                />
+              </svg>
+            </div>
+            <div class="chat-header-info">
+              <div class="chat-header-name">CGPE-Channel Bot</div>
+              <div class="chat-header-status" id="headerStatus">online</div>
+            </div>
+            <!-- Role Switcher: Client / Admin -->
+            <div class="role-switcher">
+              <button
+                class="role-btn active"
+                id="roleClientBtn"
+                onclick="switchRole('client')"
+              >
+                👤 Client
+              </button>
+              <button
+                class="role-btn"
+                id="roleAdminBtn"
+                onclick="switchRole('admin')"
+              >
+                🔧 Admin
+              </button>
+            </div>
+            <span class="role-indicator client" id="roleIndicator"
+              >Agrawal Rajesh</span
+            >
+            <div class="chat-header-actions">
+              <button
+                class="chat-header-btn"
+                title="Clear chat"
+                onclick="clearChat()"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+                  <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+              </button>
+              <button class="chat-header-btn" title="More options">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <circle cx="12" cy="5" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="12" cy="19" r="1.5" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Messages Area -->
+          <div class="chat-body">
+            <div class="chat-wallpaper"></div>
+            <div class="chat-messages" id="chatBox">
+              <div class="date-separator" id="dateSeparator"></div>
+            </div>
+          </div>
+
+          <!-- Admin Quick Actions Bar (hidden by default, shown when admin role active) -->
+          <div class="admin-quick-actions" id="adminQuickActions">
+            <button class="quick-action-btn" onclick="quickSend('aaj na tasks batao')">📋 Today's Tasks</button>
+            <button class="quick-action-btn" onclick="quickSend('aaj ni birthday list moklo')">🎂 Birthdays</button>
+            <button class="quick-action-btn" onclick="quickSend('lead list moklo')">📊 Leads</button>
+            <button class="quick-action-btn" onclick="quickSend('aaj ni maturity list')">📅 Maturity</button>
+            <button class="quick-action-btn" onclick="quickSend('premium due list')">💰 Premium Due</button>
+            <button class="quick-action-btn" onclick="quickSend('client count batao')">👥 Client Count</button>
+          </div>
+
+          <!-- Voice Recording Bar (hidden by default) -->
+          <div class="recording-bar" id="recordingBar">
+            <div class="recording-dot"></div>
+            <span class="recording-timer" id="recordingTimer">0:00</span>
+            <button class="recording-cancel-btn" onclick="cancelRecording()">
+              Cancel
+            </button>
+            <button
+              class="recording-send-btn"
+              onclick="stopAndSendRecording()"
+              title="Send voice note"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Input Area -->
+          <div class="chat-input-area" id="chatInputArea">
+            <button
+              class="input-icon-btn"
+              title="Emoji"
+              id="emojiBtn"
+              style="padding: 8px"
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                <line x1="9" y1="9" x2="9.01" y2="9" />
+                <line x1="15" y1="9" x2="15.01" y2="9" />
+              </svg>
+            </button>
+            <div class="input-wrapper">
+              <input
+                type="text"
+                id="userInput"
+                placeholder="Type a message"
+                autocomplete="off"
+                onkeypress="handleEnter(event)"
+                oninput="toggleSendMic()"
+              />
+            </div>
+            <button
+              class="input-icon-btn"
+              title="Attach file"
+              id="attachBtn"
+              onclick="fileInput.click()"
+              style="padding: 8px"
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"
+                />
+              </svg>
+            </button>
+            <!-- Hidden file input for attachments -->
+            <input
+              type="file"
+              id="fileInput"
+              class="hidden-file-input"
+              accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+              onchange="handleFileAttach(event)"
+            />
+            <button
+              class="action-btn"
+              id="sendMicBtn"
+              onclick="handleSendMic()"
+              title="Send or voice"
+            >
+              <!-- Mic icon (default) -->
+              <svg
+                id="micIcon"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <rect x="9" y="1" width="6" height="12" rx="3" />
+                <path d="M19 10v1a7 7 0 01-14 0v-1" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+              <!-- Send icon (hidden) -->
+              <svg
+                id="sendIcon"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                style="display: none"
+              >
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ═══════════════════════════════════════════════════════
+      //  CGPE Chat Client — integrated with n8n webhook
+      // ═══════════════════════════════════════════════════════
+
+      const CGPE_PROXY_URL = "/api/chat"; // goes through our Express proxy
+
+      // ── Role config (Client vs Admin) ──
+      const ROLES = {
+        client: { from: "919876500009", name: "Agrawal Rajesh" },
+        admin: { from: "919601775061", name: "CGPE Admin" },
+      };
+      let currentRole = "client";
+      let SENDER_PHONE = ROLES.client.from;
+      let SENDER_NAME = ROLES.client.name;
+
+      let conversations = null;
+
+      function initConversations() {
+        const time = getTimeString();
+        conversations = {
+          client: [
+            {
+              text: "Namaste! 🙏 CGPE Bot ready hai. Aapko koi madad chahiye?",
+              sender: "bot",
+              buttons: [],
+              time,
+            },
+          ],
+          admin: [
+            {
+              text: "Namaste! 🙏 CGPE Bot ready hai. Aapko koi madad chahiye?",
+              sender: "bot",
+              buttons: [],
+              time,
+            },
+          ],
+        };
+        renderConversation("client");
+      }
+
+      function switchRole(role) {
+        currentRole = role;
+        SENDER_PHONE = ROLES[role].from;
+        SENDER_NAME = ROLES[role].name;
+
+        // Update UI
+        document
+          .getElementById("roleClientBtn")
+          .classList.toggle("active", role === "client");
+        document
+          .getElementById("roleAdminBtn")
+          .classList.toggle("active", role === "admin");
+        const indicator = document.getElementById("roleIndicator");
+        indicator.textContent = ROLES[role].name;
+        indicator.className = "role-indicator " + role;
+
+        // Update placeholder
+        if (role === "admin") {
+          userInput.placeholder = "Admin mode — try: /cm or policy queries";
+        } else {
+          userInput.placeholder = "Type a message";
+        }
+
+        // Show/hide admin quick actions
+        const quickBar = document.getElementById("adminQuickActions");
+        if (quickBar) {
+          quickBar.classList.toggle("active", role === "admin");
+        }
+
+        console.log(
+          `[Role] Switched to ${role}: ${SENDER_NAME} (${SENDER_PHONE})`,
+        );
+
+        if (conversations) {
+          renderConversation(role);
+        }
+      }
+
+      function renderConversation(role) {
+        chatBox.innerHTML = "";
+        const sep = document.createElement("div");
+        sep.className = "date-separator";
+        sep.id = "dateSeparator";
+        sep.textContent = today
+          .toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })
+          .toUpperCase();
+        chatBox.appendChild(sep);
+
+        const list = conversations[role] || [];
+        list.forEach((msg) => {
+          appendMessageDOM(msg.text, msg.sender, msg.buttons, msg.time);
+        });
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      function clearChat() {
+        if (conversations) {
+          conversations[currentRole] = [];
+          renderConversation(currentRole);
+        }
+      }
+
+      // ── DOM Refs ──
+      const chatBox = document.getElementById("chatBox");
+      const userInput = document.getElementById("userInput");
+      const sendMicBtn = document.getElementById("sendMicBtn");
+      const micIcon = document.getElementById("micIcon");
+      const sendIcon = document.getElementById("sendIcon");
+      const headerStatus = document.getElementById("headerStatus");
+      const dateSeparator = document.getElementById("dateSeparator");
+      const sidebarPreview = document.getElementById("sidebarPreview");
+      const sidebarTime = document.getElementById("sidebarTime");
+      const recordingBar = document.getElementById("recordingBar");
+      const recordingTimer = document.getElementById("recordingTimer");
+      const chatInputArea = document.getElementById("chatInputArea");
+      const fileInput = document.getElementById("fileInput");
+
+      // Set today's date
+      const today = new Date();
+      dateSeparator.textContent = today
+        .toLocaleDateString("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+        .toUpperCase();
+
+      // ══════════════════════════════════════════════════
+      //  CGPE Payload Builder (from provided client spec)
+      // ══════════════════════════════════════════════════
+
+      function buildCgpePayload(msg) {
+        if (!msg || !msg.from) throw new Error("'from' phone is required");
+        const type = (
+          msg.type || (msg.mediaUrl ? "document" : "text")
+        ).toLowerCase();
+        const payload = {
+          from: String(msg.from),
+          name: msg.name || "",
+          messageId:
+            msg.messageId ||
+            "ui-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+        };
+        if (msg.text) payload.text = String(msg.text);
+
+        switch (type) {
+          case "text":
+            if (!msg.text) throw new Error("text message needs 'text'");
+            break;
+          case "audio":
+            if (!msg.mediaUrl) throw new Error("audio needs 'mediaUrl'");
+            payload.audioUrl = msg.mediaUrl;
+            break;
+          case "image":
+            if (!msg.mediaUrl) throw new Error("image needs 'mediaUrl'");
+            payload.imageUrl = msg.mediaUrl;
+            break;
+          case "video":
+            if (!msg.mediaUrl) throw new Error("video needs 'mediaUrl'");
+            payload.videoUrl = msg.mediaUrl;
+            break;
+          case "document":
+            if (!msg.mediaUrl) throw new Error("document needs 'mediaUrl'");
+            payload.documentUrl = msg.mediaUrl;
+            if (msg.filename) payload.filename = msg.filename;
+            break;
+          default:
+            throw new Error("unsupported type: " + type);
+        }
+        return payload;
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Send to CGPE (via proxy)
+      // ══════════════════════════════════════════════════
+
+      async function sendToCgpe(msg) {
+        const payload = buildCgpePayload(msg);
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 90000); // 90s timeout
+        try {
+          const res = await fetch(CGPE_PROXY_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            signal: ctrl.signal,
+          });
+          if (!res.ok) throw new Error("CGPE HTTP " + res.status);
+          return await res.json(); // { ok, reply, buttons }
+        } finally {
+          clearTimeout(t);
+        }
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Upload media to temp file hosting → get public URL
+      // ══════════════════════════════════════════════════
+
+      async function uploadMedia(base64Data, mimeType, filename) {
+        headerStatus.textContent = "uploading...";
+        try {
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64Data, mimeType, filename }),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || "Upload failed");
+          console.log("[Upload] Public URL:", data.url);
+          return data.url;
+        } catch (err) {
+          console.error("[Upload] Failed:", err);
+          throw new Error("File upload failed: " + err.message);
+        }
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Helpers
+      // ══════════════════════════════════════════════════
+
+      function getTimeString() {
+        return new Date().toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
+      }
+
+      // ── Linkify URLs in text (for bot messages) ──
+      function linkifyText(text) {
+        // Escape HTML first to prevent XSS
+        const escaped = text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        // Convert URLs to clickable links
+        const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+        const linked = escaped.replace(urlRegex, (url) => {
+          const display = url.length > 60 ? url.slice(0, 57) + '...' : url;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${display}</a>`;
+        });
+        // Preserve newlines
+        return linked.replace(/\n/g, '<br>');
+      }
+
+      // ── Quick action send (admin shortcuts) ──
+      async function quickSend(text) {
+        appendMessage(text, "user");
+        showTyping();
+        try {
+          const data = await sendToCgpe({
+            from: SENDER_PHONE,
+            name: SENDER_NAME,
+            text: text,
+          });
+          if (data && data.reply) {
+            appendMessage(data.reply, "bot", data.buttons || []);
+          } else {
+            appendMessage("No response received.", "bot");
+          }
+        } catch (error) {
+          console.error("Quick action error:", error);
+          appendMessage("Connection failed. Please try again.", "bot");
+        }
+      }
+
+      function updateSidebar(text) {
+        sidebarPreview.textContent =
+          text.length > 40 ? text.slice(0, 40) + "…" : text;
+        sidebarTime.textContent = getTimeString();
+      }
+
+      function appendMessage(text, sender, buttons) {
+        hideTyping();
+        const time = getTimeString();
+
+        if (conversations) {
+          conversations[currentRole].push({
+            text,
+            sender,
+            buttons: buttons || [],
+            time,
+          });
+        }
+
+        appendMessageDOM(text, sender, buttons, time);
+      }
+
+      function appendMessageDOM(text, sender, buttons, timeString) {
+        const msgDiv = document.createElement("div");
+        msgDiv.classList.add("message", sender);
+
+        const textSpan = document.createElement("span");
+        textSpan.classList.add("msg-text");
+        // Auto-linkify URLs in bot messages so report PDFs etc. are clickable
+        if (sender === "bot") {
+          textSpan.innerHTML = linkifyText(text);
+        } else {
+          textSpan.innerText = text;
+        }
+
+        const metaDiv = document.createElement("div");
+        metaDiv.classList.add("msg-meta");
+
+        const timeSpan = document.createElement("span");
+        timeSpan.innerText = timeString || getTimeString();
+        metaDiv.appendChild(timeSpan);
+
+        if (sender === "user") {
+          const tickSpan = document.createElement("span");
+          tickSpan.classList.add("ticks");
+          tickSpan.innerHTML = "✓✓";
+          metaDiv.appendChild(tickSpan);
+        }
+
+        msgDiv.appendChild(textSpan);
+        msgDiv.appendChild(metaDiv);
+
+        // Render bot response buttons if present
+        if (sender === "bot" && buttons && buttons.length > 0) {
+          const btnContainer = document.createElement("div");
+          btnContainer.classList.add("bot-buttons");
+          buttons.forEach((btn) => {
+            const btnEl = document.createElement("button");
+            btnEl.classList.add("bot-reply-btn");
+            btnEl.textContent = btn.title;
+            btnEl.onclick = () => {
+              // Disable all buttons in this group after click
+              btnContainer
+                .querySelectorAll("button")
+                .forEach((b) => (b.disabled = true));
+              btnEl.style.background = "var(--primary)";
+              btnEl.style.color = "#fff";
+              // Send button id as text message
+              handleButtonTap(btn.id, btn.title);
+            };
+            btnContainer.appendChild(btnEl);
+          });
+          msgDiv.appendChild(btnContainer);
+        }
+
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        updateSidebar(sender === "user" ? "You: " + text : text);
+      }
+
+      // ── Handle button tap → send button ID as text ──
+      async function handleButtonTap(btnId, btnTitle) {
+        appendMessage(btnTitle, "user");
+        showTyping();
+
+        try {
+          const data = await sendToCgpe({
+            from: SENDER_PHONE,
+            name: SENDER_NAME,
+            text: btnId,
+          });
+          if (data && data.reply) {
+            appendMessage(data.reply, "bot", data.buttons || []);
+          } else {
+            appendMessage("No response received.", "bot");
+          }
+        } catch (error) {
+          console.error("Button tap error:", error);
+          appendMessage("Connection failed. Please try again.", "bot");
+        }
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Typing Indicator
+      // ══════════════════════════════════════════════════
+
+      let typingEl = null;
+
+      function showTyping() {
+        if (typingEl) return;
+        typingEl = document.createElement("div");
+        typingEl.classList.add("typing-indicator", "active");
+        typingEl.innerHTML =
+          '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+        chatBox.appendChild(typingEl);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        headerStatus.textContent = "typing...";
+      }
+
+      function hideTyping() {
+        if (typingEl) {
+          typingEl.remove();
+          typingEl = null;
+        }
+        headerStatus.textContent = "online";
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Toggle Send / Mic icon
+      // ══════════════════════════════════════════════════
+
+      function toggleSendMic() {
+        const hasText = userInput.value.trim().length > 0;
+        micIcon.style.display = hasText ? "none" : "block";
+        sendIcon.style.display = hasText ? "block" : "none";
+        sendMicBtn.classList.toggle("has-text", hasText);
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Send / Mic handler
+      // ══════════════════════════════════════════════════
+
+      function handleSendMic() {
+        const text = userInput.value.trim();
+        if (text) {
+          sendTextMessage();
+        } else {
+          startVoiceRecording();
+        }
+      }
+
+      // ── Send Text Message via CGPE ──
+      async function sendTextMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        appendMessage(text, "user");
+        userInput.value = "";
+        toggleSendMic();
+        showTyping();
+
+        try {
+          const data = await sendToCgpe({
+            from: SENDER_PHONE,
+            name: SENDER_NAME,
+            text: text,
+          });
+
+          if (data && data.reply) {
+            appendMessage(data.reply, "bot", data.buttons || []);
+          } else {
+            appendMessage("System Error: Invalid response format.", "bot");
+          }
+        } catch (error) {
+          console.error("Error communicating with CGPE:", error);
+          appendMessage("Connection to CGPE server failed.", "bot");
+        }
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Voice Recording (records actual audio → sends as audioUrl)
+      // ══════════════════════════════════════════════════
+
+      let audioContext = null;
+      let scriptProcessor = null;
+      let mediaStreamSource = null;
+      let audioBuffer = [];
+      let sampleRate = 0;
+      let recordingInterval = null;
+      let recordingStartTime = 0;
+      let recognition = null;
+      let transcribedText = "";
+      let recordedWavBlob = null;
+
+      async function startVoiceRecording() {
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+
+          audioContext = new (
+            window.AudioContext || window.webkitAudioContext
+          )();
+          sampleRate = audioContext.sampleRate;
+          mediaStreamSource = audioContext.createMediaStreamSource(stream);
+          scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+          audioBuffer = [];
+
+          scriptProcessor.onaudioprocess = (e) => {
+            const inputData = e.inputBuffer.getChannelData(0);
+            audioBuffer.push(new Float32Array(inputData));
+          };
+
+          mediaStreamSource.connect(scriptProcessor);
+          scriptProcessor.connect(audioContext.destination);
+
+          transcribedText = "";
+          if (SpeechRecognition) {
+            // Initialize Speech Recognition
+            recognition = new SpeechRecognition();
+            recognition.lang = currentRole === "client" ? "gu-IN" : "hi-IN";
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 3;
+            recognition.continuous = true;
+
+            recognition.onresult = (event) => {
+              transcribedText = event.results[0][0].transcript;
+              console.log("[Speech] Transcript:", transcribedText);
+            };
+
+            recognition.onerror = (event) => {
+              console.error("Speech recognition error:", event.error);
+            };
+
+            recognition.onend = () => {
+              handleVoiceRecordingStopped();
+            };
+
+            // Start Speech Recognition
+            recognition.start();
+          } else {
+            console.warn(
+              "Speech recognition is not supported in this browser. Transcription will be bypassed.",
+            );
+          }
+
+          recordingStartTime = Date.now();
+
+          // Show recording UI
+          chatInputArea.style.display = "none";
+          recordingBar.classList.add("active");
+          headerStatus.textContent = "🎙️ Listening...";
+          recordingTimer.textContent = "0:00";
+
+          recordingInterval = setInterval(() => {
+            const elapsed = Math.floor(
+              (Date.now() - recordingStartTime) / 1000,
+            );
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            recordingTimer.textContent = `${mins}:${secs.toString().padStart(2, "0")}`;
+          }, 500);
+        } catch (err) {
+          console.error("Microphone access denied:", err);
+          alert("Please allow microphone access to use voice input.");
+        }
+      }
+
+      function stopAudioNodes() {
+        if (scriptProcessor) {
+          scriptProcessor.disconnect();
+          scriptProcessor = null;
+        }
+        if (mediaStreamSource) {
+          mediaStreamSource.disconnect();
+          mediaStreamSource = null;
+        }
+        if (audioContext) {
+          audioContext.close();
+          audioContext = null;
+        }
+      }
+
+      function stopRecordingUI() {
+        clearInterval(recordingInterval);
+        recordingBar.classList.remove("active");
+        chatInputArea.style.display = "flex";
+        headerStatus.textContent = "online";
+        recordingTimer.textContent = "0:00";
+      }
+
+      function cancelRecording() {
+        if (recognition) {
+          recognition.abort();
+          recognition = null;
+        }
+        stopAudioNodes();
+        stopRecordingUI();
+        audioBuffer = [];
+        transcribedText = "";
+      }
+
+      function stopAndSendRecording() {
+        stopAudioNodes();
+        if (recognition) {
+          recognition.stop();
+        } else {
+          handleVoiceRecordingStopped();
+        }
+      }
+
+      function handleVoiceRecordingStopped() {
+        stopRecordingUI();
+
+        if (audioBuffer.length === 0) return;
+
+        recordedWavBlob = encodeWAV(audioBuffer, sampleRate);
+        audioBuffer = [];
+
+        const textToConfirm =
+          transcribedText.trim() || "[Could not transcribe. Audio recorded.]";
+        showVoiceConfirmation(textToConfirm);
+      }
+
+      function showVoiceConfirmation(transcript) {
+        hideTyping();
+
+        const msgDiv = document.createElement("div");
+        msgDiv.classList.add("message", "bot");
+
+        const textSpan = document.createElement("span");
+        textSpan.classList.add("msg-text");
+
+        let questionText = "";
+        let yesText = "";
+        let noText = "";
+
+        if (currentRole === "client") {
+          questionText = `શું તમે આ જ બોલ્યા?\n\n"${transcript}"`;
+          yesText = "હા, મોકલો (Send)";
+          noText = "ના, સુધારો (Edit)";
+        } else {
+          questionText = `Did you mean:\n\n"${transcript}"`;
+          yesText = "Yes, Send";
+          noText = "No, Edit";
+        }
+
+        textSpan.innerText = questionText;
+        msgDiv.appendChild(textSpan);
+
+        const btnContainer = document.createElement("div");
+        btnContainer.classList.add("bot-buttons");
+
+        // YES: Sends actual audio file to CGPE
+        const yesBtn = document.createElement("button");
+        yesBtn.classList.add("bot-reply-btn");
+        yesBtn.textContent = yesText;
+        yesBtn.onclick = async () => {
+          msgDiv.remove();
+          await uploadAndSendAudioMessage(transcript);
+        };
+
+        // NO: Put transcribed text into input box for manual editing
+        const noBtn = document.createElement("button");
+        noBtn.classList.add("bot-reply-btn");
+        noBtn.textContent = noText;
+        noBtn.onclick = () => {
+          msgDiv.remove();
+          if (transcript !== "[Could not transcribe. Audio recorded.]") {
+            userInput.value = transcript;
+            toggleSendMic();
+            userInput.focus();
+          }
+        };
+
+        btnContainer.appendChild(yesBtn);
+        btnContainer.appendChild(noBtn);
+        msgDiv.appendChild(btnContainer);
+
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      async function uploadAndSendAudioMessage(transcript) {
+        if (!recordedWavBlob) return;
+
+        const blobToSend = recordedWavBlob;
+        recordedWavBlob = null;
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64Audio = reader.result;
+          const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+          appendMessage(`🎤 Voice message (${elapsed}s)`, "user");
+
+          try {
+            const publicUrl = await uploadMedia(
+              base64Audio,
+              "audio/wav",
+              "voice.wav",
+            );
+
+            showTyping();
+            const data = await sendToCgpe({
+              from: SENDER_PHONE,
+              name: SENDER_NAME,
+              type: "audio",
+              mediaUrl: publicUrl,
+              text: transcript,
+            });
+
+            if (data && data.reply) {
+              appendMessage(data.reply, "bot", data.buttons || []);
+            } else {
+              appendMessage("Could not process voice message.", "bot");
+            }
+          } catch (error) {
+            console.error("Audio send failed:", error);
+            appendMessage(
+              "Failed to send audio message: " + error.message,
+              "bot",
+            );
+          }
+        };
+        reader.readAsDataURL(blobToSend);
+      }
+
+      // ── WAV Encoding Helpers ──
+      function encodeWAV(buffers, sampleRate) {
+        let totalLength = 0;
+        for (let i = 0; i < buffers.length; i++) {
+          totalLength += buffers[i].length;
+        }
+        const result = new Float32Array(totalLength);
+        let offset = 0;
+        for (let i = 0; i < buffers.length; i++) {
+          result.set(buffers[i], offset);
+          offset += buffers[i].length;
+        }
+
+        const buffer = new ArrayBuffer(44 + result.length * 2);
+        const view = new DataView(buffer);
+
+        writeString(view, 0, "RIFF");
+        view.setUint32(4, 36 + result.length * 2, true);
+        writeString(view, 8, "WAVE");
+        writeString(view, 12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); // Raw PCM
+        view.setUint16(22, 1, true); // Mono channel
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true); // 16-bit
+        writeString(view, 36, "data");
+        view.setUint32(40, result.length * 2, true);
+
+        floatTo16BitPCM(view, 44, result);
+
+        return new Blob([view], { type: "audio/wav" });
+      }
+
+      function floatTo16BitPCM(output, offset, input) {
+        for (let i = 0; i < input.length; i++, offset += 2) {
+          let s = Math.max(-1, Math.min(1, input[i]));
+          output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        }
+      }
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      // ══════════════════════════════════════════════════
+      //  File Attachment Handler
+      // ══════════════════════════════════════════════════
+
+      async function handleFileAttach(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Determine type from MIME or file extension
+        let type = "document";
+        const ext = file.name.split(".").pop().toLowerCase();
+        const audioExtensions = [
+          "wav",
+          "mp3",
+          "ogg",
+          "m4a",
+          "webm",
+          "aac",
+          "amr",
+        ];
+        const imageExtensions = ["jpg", "jpeg", "png", "gif", "webp", "heic"];
+        const videoExtensions = ["mp4", "mkv", "mov", "avi", "3gp"];
+
+        if (audioExtensions.includes(ext) || file.type.startsWith("audio/")) {
+          type = "audio";
+        } else if (
+          imageExtensions.includes(ext) ||
+          file.type.startsWith("image/")
+        ) {
+          type = "image";
+        } else if (
+          videoExtensions.includes(ext) ||
+          file.type.startsWith("video/")
+        ) {
+          type = "video";
+        }
+
+        const typeEmoji = {
+          image: "📷",
+          video: "🎬",
+          audio: "🎵",
+          document: "📎",
+        };
+        appendMessage(`${typeEmoji[type]} ${file.name}`, "user");
+        showTyping();
+
+        // Convert to base64, upload to get public URL, then send to CGPE
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64Url = reader.result;
+
+          try {
+            // Step 1: Upload to temp hosting to get a public URL
+            const publicUrl = await uploadMedia(
+              base64Url,
+              file.type,
+              file.name,
+            );
+
+            // Step 2: Send the public URL to CGPE
+            showTyping();
+            const data = await sendToCgpe({
+              from: SENDER_PHONE,
+              name: SENDER_NAME,
+              type: type,
+              mediaUrl: publicUrl,
+              filename: file.name,
+              text: file.name, // caption
+            });
+
+            if (data && data.reply) {
+              appendMessage(data.reply, "bot", data.buttons || []);
+            } else {
+              appendMessage("Could not process attachment.", "bot");
+            }
+          } catch (error) {
+            console.error("File attach error:", error);
+            appendMessage("Failed to send attachment: " + error.message, "bot");
+          }
+        };
+        reader.readAsDataURL(file);
+
+        // Reset file input so same file can be re-selected
+        fileInput.value = "";
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Keyboard handler
+      // ══════════════════════════════════════════════════
+
+      function handleEnter(event) {
+        if (event.key === "Enter") sendTextMessage();
+      }
+
+      // ══════════════════════════════════════════════════
+      //  Initial greeting
+      // ══════════════════════════════════════════════════
+      // ── Initialize ──
+      initConversations();
+    </script>
+  </body>
+</html>

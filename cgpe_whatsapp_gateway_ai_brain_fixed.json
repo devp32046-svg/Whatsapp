@@ -1,0 +1,1820 @@
+{
+  "name": "CGPE — WhatsApp Gateway + AI Brain",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "cgpe-whatsapp",
+        "responseMode": "responseN ode",
+        "options": {}
+      },
+      "id": "cd505acf-d929-4f7c-965c-246cfdab13dc",
+      "name": "Meta Verify (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        96
+      ],
+      "webhookId": "ada44791-22f9-42ce-91db-897887c3cabe"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.query['hub.verify_token'] }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "cgpe-verify-2026",
+              "id": "8a002139-4ec1-4b9e-9799-03f4103801fa"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "30ca433b-6a30-482f-947b-2b4bacc69246",
+      "name": "Valid Verify Token?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.challenge'] }}",
+        "options": {}
+      },
+      "id": "b4387987-3c12-4ef7-b58a-b9b90771e231",
+      "name": "Respond Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "forbidden",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "e405d9fc-5d5b-487c-b3cf-006a4ee8464e",
+      "name": "Respond Forbidden",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cgpe-whatsapp",
+        "options": {}
+      },
+      "id": "c11d9f94-5323-4e29-aabf-0c85367ab3f1",
+      "name": "WhatsApp Inbound (POST)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        496
+      ],
+      "webhookId": "2bb5ccad-6833-451e-9483-91be318eff9f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nconst body = root.body || root;\nconst rand = () => Math.random().toString(36).slice(2, 8);\nif (body && !body.entry && (body.from || body.phone) && (body.text || body.audioUrl || body.imageUrl || body.videoUrl || body.documentUrl)) {\n  const from = String(body.from || body.phone);\n  let msgType = 'text';\n  if (body.audioUrl) msgType = 'audio';\n  else if (body.imageUrl) msgType = 'image';\n  else if (body.videoUrl) msgType = 'video';\n  else if (body.documentUrl) msgType = 'document';\n  const docInfo = body.documentUrl ? { id: body.documentUrl, filename: body.filename || 'document' } : null;\n  const imgInfo = body.imageUrl ? { id: body.imageUrl } : (body.videoUrl ? { id: body.videoUrl, video: true } : null);\n  return [{ json: {\n    waMessageId: body.messageId || ('ui-' + Date.now() + '-' + rand()),\n    senderPhone: from,\n    phoneLast10: from.replace(/\\D/g, '').slice(-10),\n    senderName: body.name || '', msgType,\n    text: String(body.text || body.caption || ''), audioId: '', audioUrl: String(body.audioUrl || ''),\n    docInfo, imgInfo, ts: String(Date.now()), channel: 'ui'\n  } }];\n}\nconst entry0 = (body.entry || [])[0] || {};\nconst change0 = (entry0.changes || [])[0] || {};\nconst value = change0.value || {};\nconst msg = (value.messages || [])[0];\nif (!msg) return [];\nconst contact = (value.contacts || [])[0] || {};\nlet text = '';\nif (msg.type === 'text') text = (msg.text || {}).body || '';\nelse if (msg.type === 'interactive') {\n  const ir = msg.interactive || {};\n  const id = (ir.button_reply || {}).id || (ir.list_reply || {}).id || '';\n  const title = (ir.button_reply || {}).title || (ir.list_reply || {}).title || '';\n  text = id ? id + ' (' + title + ')' : title;\n}\nelse if (msg.type === 'button') text = (msg.button || {}).text || '';\nconst audioId = (msg.type === 'audio' || msg.type === 'voice') ? ((msg.audio || msg.voice || {}).id || '') : '';\nconst docInfo = msg.type === 'document' ? { id: (msg.document || {}).id || '', filename: (msg.document || {}).filename || '' } : null;\nconst imgInfo = msg.type === 'image' ? { id: (msg.image || {}).id || '' } : (msg.type === 'video' ? { id: (msg.video || {}).id || '', video: true } : null);\nreturn [{ json: {\n  waMessageId: msg.id, senderPhone: msg.from,\n  phoneLast10: String(msg.from || '').replace(/\\D/g, '').slice(-10),\n  senderName: ((contact.profile || {}).name) || '', msgType: msg.type,\n  text, audioId, audioUrl: '', docInfo, imgInfo, ts: msg.timestamp, channel: 'meta'\n} }];"
+      },
+      "id": "28d8bab5-07ae-4760-a590-fa4cb411ca3a",
+      "name": "Normalize Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "wa_bot_config",
+        "options": {
+          "limit": 1
+        },
+        "query": "{\"botId\":\"cgpe_brain_v2\"}"
+      },
+      "id": "2ea1f4be-5e3b-4e60-8f4c-0d938a1798b6",
+      "name": "Load Config",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        592
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "collection": "wa_messages",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ JSON.stringify({ waMessageId: $('Normalize Message').first().json.waMessageId }) }}"
+      },
+      "id": "c93e8f88-8566-4080-81bb-267307772052",
+      "name": "Check Duplicate",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        592
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const dupes = $input.all().map(i => i.json).filter(j => j && j.waMessageId);\nif (dupes.length) return [];\nconst n = $('Normalize Message').first().json;\nconst cfgRow = $('Load Config').first().json || {};\nconst cfg = cfgRow.meta || {};\nreturn [{ json: Object.assign({}, n, {\n  token: cfg.token || '', phoneNumberId: cfg.phoneNumberId || '',\n  graphVersion: cfg.graphVersion || 'v20.0',\n  systemPrompt: cfgRow.systemPrompt || 'You are the CGPE WhatsApp assistant. Reply briefly in Gujlish.',\n  ackText: cfgRow.ackText || 'Request received, processing...',\n  model: cfgRow.model || 'gpt-5.4'\n}) }];"
+      },
+      "id": "2f9bdef3-70d6-4611-8d2b-78e3ee536f4a",
+      "name": "Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ($json.audioId || '') + ($json.audioUrl || '') }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e93ed792-2705-43fd-adbd-490503d38072",
+      "name": "Has Audio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $json.graphVersion }}/{{ $json.phoneNumberId }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", to: $json.senderPhone, type: \"text\", text: { body: $json.ackText } }) }}",
+        "options": {}
+      },
+      "id": "e871c9b7-51d1-445e-a4e5-5fcb5d7bc164",
+      "name": "Send Ack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        496
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/{{ $('Gate').first().json.graphVersion }}/{{ $('Gate').first().json.audioId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Gate').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f57c55bf-064d-4899-88d3-7e08e6499e1a",
+      "name": "Get Media URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1792,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url || $('Gate').first().json.audioUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Gate').first().json.token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "028421ac-ac3c-4221-94be-6f925f380e86",
+      "name": "Download Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2016,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Meta media downloads arrive as a nameless binary blob.\n// OpenAI Whisper needs a filename WITH a valid extension or it returns 400 Bad Request.\nconst item = $input.first();\nconst bin = (item.binary && item.binary.data) ? item.binary.data : null;\nif (bin) {\n  const mime = String(bin.mimeType || 'audio/ogg').toLowerCase();\n  let ext = 'ogg';\n  if (mime.includes('mpeg') || mime.includes('mp3')) ext = 'mp3';\n  else if (mime.includes('mp4') || mime.includes('m4a')) ext = 'm4a';\n  else if (mime.includes('wav')) ext = 'wav';\n  else if (mime.includes('webm')) ext = 'webm';\n  else if (mime.includes('amr')) ext = 'amr';\n  else if (mime.includes('flac')) ext = 'flac';\n  else ext = 'ogg'; // ogg/opus = WhatsApp voice notes\n  bin.fileName = 'voice.' + ext;\n  bin.fileExtension = ext;\n  if (!bin.mimeType || bin.mimeType === 'application/octet-stream') bin.mimeType = 'audio/ogg';\n}\nreturn [{ json: item.json || {}, binary: item.binary }];"
+      },
+      "id": "b1f2a3c4-0000-4a00-9000-abcdef012345",
+      "name": "Fix Audio Filename",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2128,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "5ae3d3c0-ed68-46f3-bd24-17986c55b894",
+      "name": "Transcribe Audio",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        496
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ih2MECxY1EjMsbf2",
+          "name": "OpenAI account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { finalText: String($input.first().json.text || ''), isVoice: true } }];"
+      },
+      "id": "f517f7e9-8bf1-4ed2-ab79-b7b2a2a9afc9",
+      "name": "Set Voice Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "admins",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ JSON.stringify({ phoneLast10: $('Gate').first().json.phoneLast10, isActive: true }) }}"
+      },
+      "id": "b585f072-6202-4e87-a605-2a24670a0aa0",
+      "name": "Find Admin",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        2688,
+        592
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const g = $('Gate').first().json;\nlet t = String(g.text || '');\nif (g.docInfo) t = (t ? t + ' ' : '') + '[attachment: document received' + (g.docInfo.filename ? ' - ' + g.docInfo.filename : '') + ', ref=' + g.docInfo.id + ']';\nif (g.imgInfo) t = (t ? t + ' ' : '') + '[attachment: ' + (g.imgInfo.video ? 'video' : 'image') + ' received, ref=' + g.imgInfo.id + ']';\nif (!t) t = '[empty or unsupported message type: ' + g.msgType + ']';\nreturn [{ json: { finalText: t, isVoice: false } }];"
+      },
+      "id": "a2eabf2d-9d22-48a8-9578-a655b0ff2a81",
+      "name": "Set Plain Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "clients",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ JSON.stringify({ phoneLast10: $('Gate').first().json.phoneLast10 }) }}"
+      },
+      "id": "cead8dc3-4240-4385-ae62-23b68a88ffa9",
+      "name": "Find Client Row",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        2912,
+        592
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const g = $('Gate').first().json;\nconst admins = $('Find Admin').all().map(i => i.json).filter(j => j && (j.role || j.name));\nconst clients = $input.all().map(i => i.json).filter(j => j && j.name);\nlet finalText = '';\nlet isVoice = false;\ntry { const v = $('Set Voice Text').first().json; finalText = v.finalText; isVoice = !!v.isVoice; } catch (e) {}\nif (!finalText) { try { finalText = $('Set Plain Text').first().json.finalText; } catch (e) {} }\nconst role = admins.length ? 'admin' : (clients.length ? 'client' : 'unknown');\nconst senderName = admins.length ? admins[0].name : (clients.length ? clients[0].name : (g.senderName || 'Unknown'));\nconst adminRole = admins.length ? (admins[0].role || '') : '';\n\n// --- Intent detection ---\nconst lc = finalText.toLowerCase();\nconst intents = [];\nif (/\\b(birthday|bday|janmdin|જન્મદિન)\\b/i.test(lc)) intents.push('birthday_list');\nif (/\\b(anniversary|લગ્ન|વર્ષગાંઠ)\\b/i.test(lc)) intents.push('anniversary_list');\nif (/\\b(task|tasks|કામ|kaam)\\b/i.test(lc)) intents.push('task_list');\nif (/\\b(meeting|મીટીંગ|milan)\\b/i.test(lc)) intents.push('meeting_add');\nif (/\\b(transfer|assign|સોંપો|sonpo)\\b/i.test(lc)) intents.push('ticket_transfer');\nif (/\\b(client list|client count|ક્લાયન્ટ)\\b/i.test(lc)) intents.push('client_list');\nif (/\\b(maturity|મેચ્યુરિટી|પાકતી)\\b/i.test(lc)) intents.push('maturity_list');\nif (/\\b(premium|પ્રીમિયમ|due|renewal|રિન્યુઅલ|હપ્તો|hapto)\\b/i.test(lc)) intents.push('premium_due');\nif (/\\b(report|રિપોર્ટ|portfolio)\\b/i.test(lc)) intents.push('generate_report');\nif (/\\b(lead|લીડ|inquiry|reference|રેફરન્સ|invest|રોકાણ|SIP|sip)\\b/i.test(lc)) intents.push('lead');\nif (/\\b(claim|ક્લેમ|દાવો|hospital|હોસ્પિટલ)\\b/i.test(lc)) intents.push('claim_request');\nif (/\\b(policy|પોલિસી|plan|પ્લાન)\\b/i.test(lc)) intents.push('policy_query');\nif (/\\b(scan|સ્કેન|copy|કોપી|document)\\b/i.test(lc)) intents.push('scan_copy');\nif (/\\b(ticket|ટિકિટ|complaint|ફરિયાદ)\\b/i.test(lc)) intents.push('ticket');\n\n// --- Gujarati number normalization ---\nlet normalized = finalText;\nconst gujNums = { 'એક': '1', 'બે': '2', 'ત્રણ': '3', 'ચાર': '4', 'પાંચ': '5', 'છ': '6', 'સાત': '7', 'આઠ': '8', 'નવ': '9', 'દસ': '10', 'વીસ': '20', 'ત્રીસ': '30', 'ચાલીસ': '40', 'પચાસ': '50', 'સાઠ': '60', 'સિત્તેર': '70', 'એંસી': '80', 'નેવું': '90', 'સો': '00', 'હજાર': '000', 'લાખ': '00000', 'કરોડ': '0000000' };\nfor (const [guj, num] of Object.entries(gujNums)) { normalized = normalized.replace(new RegExp(guj, 'gi'), num); }\nconst hasNormalized = normalized !== finalText;\n\n// --- Day of week ---\nconst days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];\nconst now = new Date();\nconst dayName = days[now.getDay()];\nconst dateStr = now.toISOString().split('T')[0];\n\nconst chatInput = '[senderRole=' + role + (adminRole ? '/' + adminRole : '') + '] [senderName=' + senderName + '] [senderPhoneLast10=' + g.phoneLast10 + '] [voice=' + isVoice + '] [now=' + now.toISOString() + '] [today=' + dayName + '] [date=' + dateStr + ']' + (intents.length ? ' [detectedIntents=' + intents.join(',') + ']' : '') + (hasNormalized ? ' [normalizedNumbers=true]' : '') + '\\nMessage: ' + finalText + (hasNormalized && normalized !== finalText ? '\\nNormalized: ' + normalized : '');\nreturn [{ json: { chatInput, sessionKey: 'wa-' + g.phoneLast10, systemPrompt: g.systemPrompt, role, senderName, senderPhone: g.senderPhone, finalText, isVoice, detectedIntents: intents } }];"
+      },
+      "id": "a2fba855-91d7-404e-b570-dea214b4c824",
+      "name": "Build Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "={{ $json.systemPrompt }}",
+          "maxIterations": 6,
+          "enableStreaming": false
+        }
+      },
+      "id": "a278b146-f8b4-4916-9c40-afa64f6fd290",
+      "name": "CGPE AI Brain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        3936,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.4",
+          "cachedResultName": "gpt-5.4"
+        },
+        "builtInTools": {},
+        "options": {
+          "reasoningEffort": "low",
+          "timeout": 90000
+        }
+      },
+      "id": "0a315cdb-1589-45f6-81e2-6a67472ea15b",
+      "name": "GPT Brain Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        3360,
+        816
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ih2MECxY1EjMsbf2",
+          "name": "OpenAI account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Build Context').first().json.sessionKey }}",
+        "collectionName": "wa_chat_memory",
+        "databaseName": "cgpe-connect",
+        "contextWindowLength": 10
+      },
+      "id": "f64e9b9e-1962-490a-ab05-1984f20fee3b",
+      "name": "WA Session Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryMongoDbChat",
+      "typeVersion": 1.1,
+      "position": [
+        3488,
+        816
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Search clients in the CGPE database by name (fuzzy, case-insensitive), phoneLast10, dob, or dob month-day for birthday lists. Legacy LIC records also carry policy fields (policyNo, sumAssured, premium, maturityDate) directly on the client row. FORMATTING: When multiple results are found, ALWAYS number them: 1️⃣ Name | Detail\n2️⃣ Name | Detail etc. Show total count at end: 'Total: X found'. For birthday/anniversary lists format as: 1️⃣ Name | Date | Phone\n2️⃣ Name | Date | Phone. Returns {ok, count, results}.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "find_client",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_find_client', 'JSON string, e.g. {\"name\":\"RAMESH PATEL\"} or {\"phoneLast10\":\"9876500001\"}') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "796c3e3f-1e5b-4dd5-90be-17d502d521c5",
+      "name": "find_client",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3616,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Fetch insurance policies by clientName (fuzzy), phoneLast10, or policyNo. Returns ALL matching policies with type, insurer, sumAssured, premium, dueDate, maturityDate, status. FORMATTING: ALWAYS number each policy: 1️⃣ PolicyNo | Type | SA ₹X | Premium ₹X | Status\n2️⃣ PolicyNo | Type | SA ₹X | Premium ₹X | Status. Show total at end. For maturity list: 1️⃣ Name | Policy | Est. Amount | Maturity Date. For premium due list: 1️⃣ Name | Policy | Premium Amt | Due Date. Highlight overdue premiums with ⚠️.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "get_policies",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_get_policies', 'JSON string, e.g. {\"clientName\":\"RAMESH PATEL\"} or {\"policyNo\":\"HLT-RP-1001\"} or {\"phoneLast10\":\"9876500001\"}') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "7e2ba4d6-38f3-4205-9116-0c27df5592c8",
+      "name": "get_policies",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3744,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "MANDATORY FIRST STEP before ANY create_ticket or create_claim call — call this EVERY TIME, no exceptions. Search by clientName OR phoneLast10 WITHOUT passing category, so you find ALL open tickets for this client regardless of topic. If ANY open ticket is found (count > 0): 1) Tell sender the existing ticket ID and its current details, 2) Ask if they want to update that ticket, 3) Use update_ticket to modify it. ONLY if this returns count:0 may you proceed to create_ticket. NEVER skip this step.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "ticket_guard",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_ticket_guard', 'JSON string, e.g. {\"clientName\":\"RAMESH PATEL\",\"category\":\"claim_health\"}') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "9aa35f2b-dd48-4030-8eed-94918088038c",
+      "name": "ticket_guard",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3872,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "CRITICAL: You MUST call ticket_guard FIRST for this client before calling create_ticket. If ticket_guard returned ANY open ticket for the same client (count > 0), STOP — do NOT create a new ticket, use update_ticket on the existing one instead. Only create a new ticket if ticket_guard returned count:0. Categories: claim_health, claim_general, claim_life, claim_death, premium, renewal, maturity, portfolio_report, investment_sip, service_change, scan_copy, callback, meeting, task_assignment, complaint, lead_followup, other. kind: document_collection | claim_request | callback | info | general | task | meeting. Include originalCommand (exact transcript), aiUnderstanding, task, requiredItems, priority (P1-P4), zone (green/amber/red), source (admin/client), assignedTo.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "create_ticket",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_create_ticket', 'JSON string with category, kind, priority, zone, clientName, phoneLast10, policyNo, originalCommand, aiUnderstanding, task, requiredItems array, slots object, source') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "4deb1e69-edab-4895-ac3c-209958f1f935",
+      "name": "create_ticket",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4000,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Update an existing ticket by ticketId. PREFERRED over create_ticket when the client already has an open ticket — always use this instead of creating a duplicate. Use to: change state (new/info_pending/in_progress/awaiting_third_party/escalated/resolved/closed), update task description, add receivedItems, modify slots, change priority/zone, reassign via assignedTo, update policyNo, or add a note. When ticket_guard finds an existing ticket, use this tool to apply any changes the sender requested.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "update_ticket",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_update_ticket', 'JSON string, e.g. {\"ticketId\":\"CGPE-T-XXX\",\"set\":{\"state\":\"in_progress\",\"receivedItems\":[\"death certificate\"]},\"note\":\"docs received\"}') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "a323a39e-a956-4543-8520-1b7edc6ae271",
+      "name": "update_ticket",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4128,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Create a claim request AFTER sender confirmation AND after required info/documents are in. REQUIRED SLOTS BY CLAIM TYPE: Health claims REQUIRE: hospitalName, patientName, admitDate, illness, doctorName. General/Motor claims REQUIRE: policyType, cause, incidentDate, vehicleNo (for motor only). Life/Death claims REQUIRE: patientName, deathDate, cause. If ANY required slot is missing, ASK the user for it before calling this tool — do NOT skip slots. Claim starts at stage documents_required. claimType: health | general | life | death | motor | maturity. CONVERSATION FLOW: 1) Identify claim type 2) Ask for ALL required slots one by one 3) Confirm with user 4) Call ticket_guard first 5) Then create_claim.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "create_claim",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_create_claim', 'JSON string with claimType, clientName, phoneLast10, policyNo, ticketId, slots object {hospitalName, patientName, admitDate, illness, doctorName}') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "a9fd7185-810c-4832-ae70-f666c484da80",
+      "name": "create_claim",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4256,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Move a claim through stages: documents_required -> under_review -> company_email_sent -> amount_claimed -> amount_verification -> (shortfall_requery when received amount is short by more than 10 percent) -> settled -> closed. Can also set amounts {claimed, approved, received, shortfall} and a note. Admin confirmation required first.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "advance_claim",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_advance_claim', 'JSON string, e.g. {\"claimId\":\"CGPE-C-1001\",\"stage\":\"under_review\",\"note\":\"docs verified\"} or with amounts object') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "af6b201c-2458-4901-8ce5-ac8f8311bf0c",
+      "name": "advance_claim",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4384,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "List records with pagination (5 per page). type=leads for active leads. type=claims with status pending for pending claims; filter by phoneLast10 for a client's own claims. type=tickets lists open tickets. Pass page for next pages. FORMATTING: ALWAYS number each record starting from ((page-1)*5 + 1): 1️⃣ Record details\n2️⃣ Record details. Show 'Page X' and total count at the bottom. If more pages exist, mention 'Aglu page mate bolo'.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "paginate",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_paginate', 'JSON string, e.g. {\"type\":\"leads\",\"page\":1} or {\"type\":\"claims\",\"page\":1} or {\"type\":\"claims\",\"phoneLast10\":\"9876500002\"}') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "e0ba8716-d96d-4848-b9f2-b89435c58815",
+      "name": "paginate",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4512,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = String(($input.first().json || {}).output ?? '').trim();\nconst g = $('Gate').first().json;\nconst ctx = $('Build Context').first().json;\n\n// --- Loop detection: if AI output looks like repeated tool errors or is empty after iterations ---\nif (!text || text.length < 3) {\n  text = 'Sorry, I could not process your request. Please try again or rephrase your query. 🙏';\n}\n// Detect if AI got stuck repeating itself (same sentence 3+ times)\nconst sentences = text.split(/[.!?।]/).map(s => s.trim()).filter(s => s.length > 10);\nif (sentences.length >= 6) {\n  const freq = {};\n  sentences.forEach(s => { const k = s.slice(0, 40); freq[k] = (freq[k] || 0) + 1; });\n  const maxFreq = Math.max(...Object.values(freq));\n  if (maxFreq >= 3) {\n    text = 'I encountered an issue processing your request. Could you please rephrase or provide more details? 🙏';\n  }\n}\n\nlet payload;\nlet uiButtons = [];\nconst m = text.match(/\\[BUTTONS:([^\\]]+)\\]/i);\nif (m) {\n  text = text.replace(m[0], '').trim();\n  const btns = m[1].split('|').map(s => s.trim()).filter(Boolean).slice(0, 3).map((b, i) => {\n    const mm = b.match(/^([\\w-]+)\\s*=\\s*(.+)$/);\n    const id = mm ? mm[1] : ('opt' + i);\n    const title = String(mm ? mm[2] : b).trim().slice(0, 20);\n    return { type: 'reply', reply: { id, title } };\n  });\n  uiButtons = btns.map(b => ({ id: b.reply.id, title: b.reply.title }));\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'interactive', interactive: { type: 'button', body: { text: text.slice(0, 1024) || '...' }, action: { buttons: btns } } };\n} else {\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'text', text: { body: text.slice(0, 4000) || 'Sorry, please try again.' } };\n}\nreturn [{ json: {\n  waPayload: payload, replyText: text, uiButtons, channel: g.channel || 'meta',\n  waMessageId: g.waMessageId, senderPhone: g.senderPhone, phoneLast10: g.phoneLast10,\n  role: ctx.role, inbound: ctx.finalText, isVoice: ctx.isVoice,\n  direction: 'in-out', ts: new Date().toISOString(),\n  __fields: 'waMessageId,senderPhone,phoneLast10,role,inbound,isVoice,replyText,direction,channel,ts'\n} }];"
+      },
+      "id": "a5745c35-652c-480f-ae33-954d0e48e2b2",
+      "name": "Parse Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4848,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $('Gate').first().json.graphVersion }}/{{ $('Gate').first().json.phoneNumberId }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Gate').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.waPayload) }}",
+        "options": {}
+      },
+      "id": "f37c6b0b-5266-4eaf-b9b6-4e04bc6e2a14",
+      "name": "Send WhatsApp Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5296,
+        496
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = Object.assign({}, $('Parse Reply').first().json);\ndelete p.waPayload;\nreturn [{ json: p }];"
+      },
+      "id": "9f95a7de-9e59-4065-a667-b7afd291a254",
+      "name": "Prep Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5520,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "wa_messages",
+        "fields": "={{ $json.__fields }}",
+        "options": {}
+      },
+      "id": "a219a324-bd2a-4097-970c-146e9ec2d0aa",
+      "name": "Log Conversation",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        5744,
+        592
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cgpe-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "4b091044-8f95-4990-a05d-384e85b26b20",
+      "name": "UI Chat (POST)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        688
+      ],
+      "webhookId": "b0b914cc-3b78-4e8b-affc-8ca32758c2eb"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Gate').first().json.audioId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6a117631-0700-43f9-9552-d6f7d5ae4fc2",
+      "name": "Is Meta Audio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1568,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.channel }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ui"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6b573caa-0bf7-4e6f-847f-1fbdb50c1709",
+      "name": "Is UI Channel?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5072,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, reply: $json.replyText, buttons: $json.uiButtons || [] }) }}",
+        "options": {}
+      },
+      "id": "a8128e8f-4e39-4bdf-9bbc-7a0b33bb5d04",
+      "name": "Respond UI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        5296,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Generate the CGPE family financial and insurance report. Gathers ALL policies of the client's ENTIRE FAMILY (grouped by LIC family group), computes life/health cover, maturity timeline and premiums, and returns a report URL plus summary numbers. Use for 'maro report moklo', portfolio/report requests. Takes 30-60 seconds. RESPONSE FORMAT: You MUST share the PDF URL DIRECTLY as the FIRST thing in your reply, like: '📄 Your report is ready: {pdfUrl}' followed by a brief summary of summary numbers. NEVER summarize without giving the link. NEVER say 'report is being generated' if you already have the result. If the tool returns pdfUrl or url, ALWAYS include pdfUrl (or url) verbatim in your response.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "5POkiNLDhKOuVadg",
+          "cachedResultName": "CGPE Report Generator"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "generate_report",
+            "params": "={{ $fromAI('params_generate_report', 'JSON string, e.g. {\"clientName\":\"RAMESH PATEL\"} or {\"phoneLast10\":\"9876500001\"}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "393e86ff-08f7-4fe8-b0fc-a2370d227f17",
+      "name": "generate_report",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4640,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Manage team operations: tasks, meetings, and assignments. CRITICAL MEMBER GUARD: Before calling {\"action\":\"assign\"} or {\"action\":\"meeting\"} for a person, you MUST FIRST call {\"action\":\"list\"} to verify they are an active team member! If the person (e.g. Rahul Gandhi) is NOT in the active list, DO NOT assign or create the meeting/task. Tell the sender the person is not in the team and list available members. Actions: {\"action\":\"tasks\",\"today\":true} for today's tasks; {\"action\":\"meeting\",\"title\":...,\"dueAt\":\"YYYY-MM-DDTHH:mm\",\"details\":...,\"assigneeName\":...} to add meeting; {\"action\":\"list\"} to list team members; {\"action\":\"assign\",\"assigneeName\":...,\"title\":...,\"ticketId\":...} to assign task or ticket.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "team_ops",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_team_ops', 'JSON string, e.g. {\"action\":\"tasks\",\"today\":true} or {\"action\":\"meeting\",\"title\":\"Client meeting\",\"dueAt\":\"2026-07-04T15:00\"} or {\"action\":\"assign\",\"assigneeName\":\"Raj\",\"title\":\"Follow up\"}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "1a111111-1111-4111-a111-111111111101",
+      "name": "team_ops",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4768,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Query CRM lists: birthdays, anniversaries, clients, maturities, and premium dues. Types: {\"type\":\"birthday\",\"day\":4,\"month\":7} for birthdays; {\"type\":\"anniversary\",\"day\":4,\"month\":7} for anniversaries; {\"type\":\"clients\",\"countOnly\":true} or {\"withPhone\":true} for client list/count; {\"type\":\"maturity\",\"month\":7,\"year\":2026} for maturity list; {\"type\":\"dues\",\"month\":7} for premium renewal dues. Always use numbers for day and month. FORMATTING: ALWAYS number each record: 1️⃣ Name | Date | Phone\n2️⃣ Name | Date | Phone. Show 'Total: X records' at end. For maturity: 1️⃣ Name | Policy | Est. ₹X | Date. For dues: 1️⃣ Name | Policy | ₹Premium | Due Date.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "crm_list",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_crm_list', 'JSON string, e.g. {\"type\":\"birthday\",\"day\":4,\"month\":7} or {\"type\":\"clients\",\"countOnly\":true} or {\"type\":\"maturity\",\"month\":7,\"year\":2026}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "1a111111-1111-4111-a111-111111111102",
+      "name": "crm_list",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4896,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Get summary counts of tickets, claims, or leads. Types: {\"type\":\"tickets\"} for open ticket counts; {\"type\":\"claims\"} for pending claim counts; {\"type\":\"leads\"} for active lead counts.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "counts",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_get_counts', 'JSON string, e.g. {\"type\":\"tickets\"} or {\"type\":\"claims\"}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "1a111111-1111-4111-a111-111111111103",
+      "name": "get_counts",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5024,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Create a new sales/investment lead after confirming details with sender. Params: {\"name\":\"Client Name\",\"phone\":\"9876543210\",\"interest\":\"SIP / Health Plan / Term Insurance\",\"referredBy\":\"Referrer Name or Self\"}. Always ask confirmation before calling.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "create_lead",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_create_lead', 'JSON string, e.g. {\"name\":\"Suresh Patel\",\"phone\":\"9876512345\",\"interest\":\"SIP Investment\",\"referredBy\":\"Ramesh Patel\"}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "1a111111-1111-4111-a111-111111111104",
+      "name": "create_lead",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5152,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Fetch stored policy documents and scan copies by client name, phoneLast10, or policyNo. Returns list of available document URLs and types.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GnzJu201cnohUuxA",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "get_documents",
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_get_documents', 'JSON string, e.g. {\"phoneLast10\":\"9876500001\"} or {\"policyNo\":\"123456789\"}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "1a111111-1111-4111-a111-111111111105",
+      "name": "get_documents",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5280,
+        816
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Meta Verify (GET)": {
+      "main": [
+        [
+          {
+            "node": "Valid Verify Token?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Verify Token?": {
+      "main": [
+        [
+          {
+            "node": "Respond Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Forbidden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Inbound (POST)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Message": {
+      "main": [
+        [
+          {
+            "node": "Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Config": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate": {
+      "main": [
+        [
+          {
+            "node": "Has Audio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Audio?": {
+      "main": [
+        [
+          {
+            "node": "Send Ack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Plain Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Media URL": {
+      "main": [
+        [
+          {
+            "node": "Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio": {
+      "main": [
+        [
+          {
+            "node": "Fix Audio Filename",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fix Audio Filename": {
+      "main": [
+        [
+          {
+            "node": "Transcribe Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe Audio": {
+      "main": [
+        [
+          {
+            "node": "Set Voice Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Voice Text": {
+      "main": [
+        [
+          {
+            "node": "Find Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Admin": {
+      "main": [
+        [
+          {
+            "node": "Find Client Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Plain Text": {
+      "main": [
+        [
+          {
+            "node": "Find Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Client Row": {
+      "main": [
+        [
+          {
+            "node": "Build Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context": {
+      "main": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CGPE AI Brain": {
+      "main": [
+        [
+          {
+            "node": "Parse Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Brain Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WA Session Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "find_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_policies": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ticket_guard": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_ticket": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_ticket": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_claim": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "advance_claim": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "paginate": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Reply": {
+      "main": [
+        [
+          {
+            "node": "Prep Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Log": {
+      "main": [
+        [
+          {
+            "node": "Log Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UI Chat (POST)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Ack": {
+      "main": [
+        [
+          {
+            "node": "Is Meta Audio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Meta Audio?": {
+      "main": [
+        [
+          {
+            "node": "Get Media URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Reply": {
+      "main": [
+        [
+          {
+            "node": "Is UI Channel?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is UI Channel?": {
+      "main": [
+        [
+          {
+            "node": "Respond UI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send WhatsApp Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond UI": {
+      "main": [
+        [
+          {
+            "node": "Prep Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_report": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "team_ops": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "crm_list": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_counts": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_documents": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "269ca9f0-0964-4cb2-8ad0-bf08dcd1cb56",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "b51c561a1f913d126dd565a961c174df11effac1c85079f2a730449a45fbe676"
+  },
+  "nodeGroups": [],
+  "id": "TIiGkCl3wM0X72ca",
+  "tags": []
+}

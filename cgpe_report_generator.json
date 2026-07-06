@@ -1,0 +1,447 @@
+{
+  "name": "CGPE — Report Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "operation"
+            },
+            {
+              "name": "params"
+            }
+          ]
+        }
+      },
+      "id": "1fea3e4b-b81c-4559-a908-9d44fa3acb92",
+      "name": "Report Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inp = $input.first().json;\nlet p = inp.params;\nif (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { p = {}; } }\np = p || {};\nconst esc = (s) => String(s || '').replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nconst q = {};\nif (p.phoneLast10) q.phoneLast10 = String(p.phoneLast10).replace(/\\D/g, '').slice(-10);\nelse if (p.clientName) q.name = { $regex: esc(String(p.clientName).trim()).split(/\\s+/).join('.*'), $options: 'i' };\nelse if (p.groupName) q.groupName = String(p.groupName);\nelse q.__invalid = true;\nreturn [{ json: { seedQuery: q, requested: p } }];"
+      },
+      "id": "67798dee-0fd7-46e7-a9e2-88a18af0f171",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "clients",
+        "options": {
+          "limit": 5
+        },
+        "query": "={{ JSON.stringify($json.seedQuery) }}"
+      },
+      "id": "1c17de6c-774e-4396-92fd-88877190b4ee",
+      "name": "Find Seed Client",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        112
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const seeds = $input.all().map(i => i.json).filter(j => j && j.name);\nif (!seeds.length) return [{ json: { __error: 'No client found for this request. Check the name or phone number.' } }];\nconst seed = seeds.find(s => s.groupName) || seeds[0];\nconst esc = (s) => String(s || '').replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nlet famQuery, extraNames = [seed.name];\nif (seed.groupName && String(seed.groupName).trim()) {\n  famQuery = { groupName: seed.groupName };\n} else if (Array.isArray(seed.familyMembers) && seed.familyMembers.length) {\n  extraNames = [seed.name].concat(seed.familyMembers.map(f => f.name).filter(Boolean));\n  famQuery = { name: { $in: extraNames } };\n} else {\n  famQuery = { name: { $regex: esc(seed.name), $options: 'i' } };\n}\nconst extraOr = [{ clientName: { $in: extraNames } }];\nif (seed.phoneLast10) extraOr.push({ phoneLast10: seed.phoneLast10 });\nreturn [{ json: { famQuery, extraQuery: { $or: extraOr }, familyHead: seed.name, groupName: seed.groupName || null, phoneLast10: seed.phoneLast10 || null } }];"
+      },
+      "id": "c7d041d0-f6c5-474b-a3bc-67d2fd8736df",
+      "name": "Build Family Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "clients",
+        "options": {
+          "limit": 300
+        },
+        "query": "={{ JSON.stringify($json.famQuery || {_id: null}) }}"
+      },
+      "id": "7d0241fb-3e43-421d-bc71-d0c3b4dd2300",
+      "name": "Find Family Rows",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        112
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "collection": "policies",
+        "options": {
+          "limit": 50
+        },
+        "query": "={{ JSON.stringify($('Build Family Query').first().json.extraQuery || {_id: null}) }}"
+      },
+      "id": "7954149a-99bf-4b73-be79-c15f6fbc6b37",
+      "name": "Find Extra Policies",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        112
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "collection": "wa_bot_config",
+        "options": {
+          "limit": 1
+        },
+        "query": "{\"botId\":\"cgpe_brain_v2\"}"
+      },
+      "id": "4296b4b5-53c5-4287-9090-66789f84bd23",
+      "name": "Load Report Config",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        112
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fq = $('Build Family Query').first().json;\nif (fq.__error) return [{ json: { __error: fq.__error } }];\nconst cfg = $('Load Report Config').first().json || {};\nconst now = new Date();\nconst nowYear = now.getFullYear();\nconst mmm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];\nconst licRows = $('Find Family Rows').all().map(i => i.json).filter(j => j && j.policyNo);\nconst extraRows = $('Find Extra Policies').all().map(i => i.json).filter(j => j && j.policyNo);\nif (!licRows.length && !extraRows.length) return [{ json: { __error: 'No policies found for this family.' } }];\nconst planDocs = $('Find Plan Library').all().map(i => i.json).filter(j => j && (j.plan_table || j.docType));\nconst planMeta = planDocs.find(d => d.docType === 'meta') || {};\nconst DEF = planMeta.defaults || { fallback_method: 'endowment_par', fallback_srb_rate: 48, fallback_fab_rate: 0 };\nconst planMap = {};\nfor (const d of planDocs) if (d.plan_table) planMap[String(d.plan_table)] = d;\n\nconst runCalc = (method, params, inp) => {\n  const srb = Number(params.srb_rate) || 0, fab = Number(params.fab_rate) || 0, ga = Number(params.ga_rate) || 0;\n  const sched = params.survival_schedule || null;\n  let survivalTotal = 0, sumPct = 0;\n  if (Array.isArray(sched)) for (const s of sched) { const pct = Array.isArray(s) ? s[1] : (s.pct || 0); survivalTotal += pct * inp.BSA; sumPct += pct; }\n  const fabAmt = (fab / 1000) * inp.BSA;\n  const accrued = (srb / 1000) * inp.BSA * inp.years_elapsed;\n  if (method === 'term') return { maturity: null, death: inp.BSA, basis: 'guaranteed' };\n  if (method === 'endowment_par' || method === 'wholelife_endowment_par') {\n    const srbFull = (srb / 1000) * inp.BSA * inp.term;\n    const saDeath = Math.max(1.25 * inp.BSA, 7 * inp.AP);\n    const floor = Math.max(saDeath, 1.05 * inp.premiums_paid);\n    return { maturity: Math.round(inp.BSA + srbFull + fabAmt), death: Math.round(floor + accrued + fabAmt), postMaturityCover: method === 'wholelife_endowment_par' ? inp.BSA : 0, basis: 'guaranteed+illustrated' };\n  }\n  if (method === 'moneyback_par' || method === 'child_par') {\n    const srbFull = (srb / 1000) * inp.BSA * inp.term;\n    const matPct = 1 - sumPct;\n    return { maturity: Math.round(matPct * inp.BSA + srbFull + fabAmt), death: Math.round(inp.BSA + accrued + fabAmt), survivalTotal: Math.round(survivalTotal), basis: 'guaranteed+illustrated' };\n  }\n  if (method === 'wholelife_income_par') {\n    const srbFull = (srb / 1000) * inp.BSA * (inp.ppt || inp.term);\n    return { maturity: Math.round(inp.BSA + srbFull + fabAmt), death: Math.round(inp.BSA + (srb / 1000) * inp.BSA * Math.min(inp.years_elapsed, inp.ppt || inp.term) + fabAmt), income: Math.round(0.08 * inp.BSA), basis: 'guaranteed+illustrated' };\n  }\n  if (method === 'nonpar_guaranteed') {\n    const gaFull = (ga / 1000) * inp.BSA * inp.term;\n    return { maturity: Math.round(inp.BSA + gaFull), death: Math.round(inp.BSA + (ga / 1000) * inp.BSA * inp.years_elapsed), basis: 'guaranteed' };\n  }\n  return null;\n};\n\nconst modeX = (m) => { m = String(m || '').toLowerCase(); if (m.startsWith('year')) return 1; if (m.startsWith('half')) return 2; if (m.startsWith('quat') || m.startsWith('quar')) return 4; if (m.startsWith('month')) return 12; return 0; };\nconst matLabel = (d) => { if (!d) return '-'; const dt = new Date(d); if (isNaN(dt)) return String(d); return mmm[dt.getMonth()] + '-' + String(dt.getFullYear()).slice(2); };\nconst ageOf = (dob) => { if (!dob) return null; const d = new Date(dob); if (isNaN(d)) return null; let a = nowYear - d.getFullYear(); const md = new Date(now); md.setFullYear(d.getFullYear()); if (md < d) a--; return (a > 0 && a < 110) ? a : null; };\n\nconst pols = [];\nfor (const r of licRows) {\n  const single = String(r.mode || '').toLowerCase().startsWith('single') || Number(r.ppt) === 1;\n  const mat = r.maturityDate ? new Date(r.maturityDate) : null;\n  let status = 'In-force';\n  if (r.isActive === false) status = 'Lapsed';\n  else if (mat && !isNaN(mat) && mat < now) status = 'Matured';\n  const x = modeX(r.mode);\n  const term = Number(r.term) || 0;\n  const ppt = Number(r.ppt) || term;\n  const start = r.commencementDate ? new Date(r.commencementDate) : null;\n  let yearsElapsed = (start && !isNaN(start)) ? Math.floor((now - start) / 31557600000) : term;\n  yearsElapsed = Math.max(0, Math.min(yearsElapsed, term));\n  if (status === 'Matured') yearsElapsed = term;\n  const perYear = single ? 0 : (Number(r.premium) || 0) * (x || 1);\n  const premiumsPaid = single ? (Number(r.premium) || 0) : perYear * Math.min(yearsElapsed, ppt);\n  const tbl = String(r.tableNo || '-');\n  const plan = planMap[tbl];\n  let planName = plan && plan.plan_name ? plan.plan_name : null;\n  let est = null, basis = null, planConfirmed = false, method = null, params = null;\n  if (plan && plan.calc && plan.calc.method) { method = plan.calc.method; params = plan.calc.params || {}; planConfirmed = true; }\n  else { method = DEF.fallback_method; params = { srb_rate: DEF.fallback_srb_rate, fab_rate: DEF.fallback_fab_rate }; }\n  const bsa = Number(r.sumAssured) || 0;\n  if (bsa > 0 && term > 0 && method !== 'annuity' && method !== 'ulip') {\n    est = runCalc(method, params, { BSA: bsa, AP: perYear || (Number(r.premium) || 0), term, ppt, years_elapsed: yearsElapsed, premiums_paid: premiumsPaid });\n    if (est) basis = est.basis + (planConfirmed ? '' : ' (plan to be confirmed - default legacy rate ' + (params.srb_rate || '') + '/1000 used)');\n  }\n  pols.push({\n    member: String(r.name || 'Unknown').trim(), policyNo: String(r.policyNo), tbl,\n    planName: planName || (planConfirmed ? 'Table ' + tbl : null), planConfirmed,\n    kind: 'life', type: single ? 'Single' : 'Regular',\n    sa: bsa, premium: Number(r.premium) || 0, perYear,\n    single, singleAmt: single ? (Number(r.premium) || 0) : 0,\n    start: r.commencementDate || null, maturity: r.maturityDate || null,\n    matYear: (mat && !isNaN(mat)) ? mat.getFullYear() : null, matLabel: matLabel(r.maturityDate),\n    status, dob: r.dob || null, mode: r.mode || '',\n    estMaturity: est && est.maturity ? est.maturity : null,\n    estDeath: est && est.death ? est.death : null,\n    estBasis: basis, method\n  });\n}\nfor (const r of extraRows) {\n  const t = String(r.policyType || '').toLowerCase();\n  const kind = t === 'health' ? 'health' : (t === 'life' || t === 'term' ? 'life' : (t === 'sip' ? 'investment' : 'general'));\n  pols.push({\n    member: String(r.clientName || fq.familyHead).trim(), policyNo: String(r.policyNo), tbl: r.insurerName || '-',\n    planName: r.insurerName || null, planConfirmed: true,\n    kind, type: 'Regular', sa: Number(r.sumAssured) || 0, premium: Number(r.premium) || 0,\n    perYear: Number(r.premium) || 0, single: false, singleAmt: 0,\n    start: r.startDate || null, maturity: r.maturityDate || null,\n    matYear: r.maturityDate ? new Date(r.maturityDate).getFullYear() : null, matLabel: matLabel(r.maturityDate),\n    status: String(r.status || 'active') === 'active' ? 'In-force' : (String(r.status) === 'lapsed' ? 'Lapsed' : 'In-force'),\n    dob: null, mode: 'Yearly', estMaturity: null, estDeath: null, estBasis: null, method: null\n  });\n}\n\nconst memberMap = {};\nfor (const p of pols) { (memberMap[p.member] = memberMap[p.member] || []).push(p); }\nconst members = Object.keys(memberMap).map((nm) => {\n  const rows = memberMap[nm];\n  const life = rows.filter(r => r.kind === 'life');\n  const lifeIn = life.filter(r => r.status === 'In-force');\n  const health = rows.filter(r => r.kind === 'health' && r.status === 'In-force');\n  const upcoming = lifeIn.filter(r => r.matYear && r.matYear >= nowYear);\n  upcoming.sort((a, b) => a.matYear - b.matYear);\n  const nextY = upcoming.length ? upcoming[0].matYear : 0;\n  const nextRows = upcoming.filter(r => r.matYear === nextY);\n  const dobRow = rows.find(r => r.dob);\n  return {\n    name: nm, age: dobRow ? ageOf(dobRow.dob) : null, policies_count: rows.length,\n    life_sa_total: life.reduce((s, r) => s + r.sa, 0),\n    life_inforce: lifeIn.reduce((s, r) => s + r.sa, 0),\n    est_maturity_inforce: lifeIn.reduce((s, r) => s + (r.estMaturity || r.sa), 0),\n    health_cover: health.reduce((s, r) => s + r.sa, 0),\n    annual_premium: rows.filter(r => r.status === 'In-force').reduce((s, r) => s + r.perYear, 0),\n    single_premium: rows.reduce((s, r) => s + r.singleAmt, 0),\n    next_maturity_year: nextY,\n    next_maturity_amount: nextRows.reduce((s, r) => s + r.sa, 0),\n    next_maturity_est: nextRows.reduce((s, r) => s + (r.estMaturity || r.sa), 0),\n    low_cover_flag: false\n  };\n});\nconst maxCover = Math.max(...members.map(m => m.life_inforce), 1);\nfor (const m of members) m.low_cover_flag = m.life_inforce > 0 && m.life_inforce <= maxCover / 10;\n\nconst lifeAll = pols.filter(p => p.kind === 'life');\nconst lifeInf = lifeAll.filter(p => p.status === 'In-force');\nconst lifeMat = lifeAll.filter(p => p.status === 'Matured');\nconst healthIn = pols.filter(p => p.kind === 'health' && p.status === 'In-force');\nconst totals = {\n  members: members.length, policies: pols.length,\n  inforce_count: pols.filter(p => p.status === 'In-force').length,\n  matured_count: pols.filter(p => p.status === 'Matured').length,\n  life_sa_total: lifeAll.reduce((s, r) => s + r.sa, 0),\n  life_inforce: lifeInf.reduce((s, r) => s + r.sa, 0),\n  est_maturity_inforce: lifeInf.reduce((s, r) => s + (r.estMaturity || r.sa), 0),\n  inforce_pct: 0, health_cover: healthIn.reduce((s, r) => s + r.sa, 0),\n  annual_premium: pols.filter(p => p.status === 'In-force').reduce((s, r) => s + r.perYear, 0),\n  single_premium: pols.reduce((s, r) => s + r.singleAmt, 0),\n  matured_total: lifeMat.reduce((s, r) => s + r.sa, 0),\n  unconfirmed_plans: lifeAll.filter(p => !p.planConfirmed).length\n};\ntotals.inforce_pct = totals.life_sa_total ? Math.round(totals.life_inforce * 100 / totals.life_sa_total) : 0;\n\nconst tlMap = {};\nfor (const p of lifeAll) {\n  if (!p.matYear) continue;\n  const key = p.matYear + '|' + (p.status === 'Matured' ? 1 : 0);\n  tlMap[key] = tlMap[key] || { year: p.matYear, amount: 0, amountEst: 0, matured: p.status === 'Matured', policy_count: 0 };\n  tlMap[key].amount += p.sa; tlMap[key].amountEst += (p.estMaturity || p.sa); tlMap[key].policy_count += 1;\n}\nconst timeline = Object.values(tlMap).sort((a, b) => a.year - b.year || (a.matured ? -1 : 1));\nconst upcomingTl = timeline.filter(t => !t.matured && t.year >= nowYear);\nconst big = upcomingTl.slice().sort((a, b) => b.amountEst - a.amountEst);\nconst fp = {\n  next_year: upcomingTl.length ? upcomingTl[0].year : 0,\n  next_amount: upcomingTl.length ? upcomingTl[0].amount : 0,\n  next_amount_est: upcomingTl.length ? upcomingTl[0].amountEst : 0,\n  upcoming_total: upcomingTl.reduce((s, t) => s + t.amount, 0),\n  upcoming_total_est: upcomingTl.reduce((s, t) => s + t.amountEst, 0),\n  matured_total: totals.matured_total,\n  big_years: [big[0] ? { year: big[0].year, amount: big[0].amountEst } : { year: 0, amount: 0 }, big[1] ? { year: big[1].year, amount: big[1].amountEst } : { year: 0, amount: 0 }],\n  soon_by: nowYear + 2,\n  soon_total: upcomingTl.filter(t => t.year <= nowYear + 2).reduce((s, t) => s + t.amountEst, 0),\n  future_years: upcomingTl.length\n};\nconst scorecard = {\n  life: { status: totals.life_inforce >= 5000000 ? 'strong' : (totals.life_inforce >= 1000000 ? 'moderate' : 'low'), label: '' },\n  health: { status: totals.health_cover > 0 ? 'covered' : 'gap', label: '' }\n};\nconst computed = { totals, members, timeline, financial_planning: fp, scorecard, familyHead: fq.familyHead };\n\nconst lines = pols.map(p => [p.member, p.policyNo, (p.planName || 'Tbl ' + p.tbl) + (p.planConfirmed ? '' : ' (UNCONFIRMED)'), p.method || '-', p.type + '/' + p.mode, 'SA ' + p.sa, 'Prem ' + p.premium, p.single ? 'one-time' : ('PerYr ' + p.perYear), 'Mat ' + p.matLabel, 'EstMaturity ' + (p.estMaturity || '-'), p.status].join(' | '));\nconst aiUserPrompt = 'Generate the CGPE family financial and insurance report JSON for the family below. IMPORTANT: all numeric aggregates have already been computed by the deterministic benefit engine and are provided - copy them exactly, do NOT recompute. EstMaturity figures include ILLUSTRATED bonus (srb/fab per plan library; unconfirmed plans use a default legacy rate and are flagged) - always describe them as illustrated, not guaranteed. Your value-add: insights (3-5 compliant strings), scorecard labels, data_notes (must mention how many plans are unconfirmed/to-source if any).\\n\\nFamily head: ' + fq.familyHead + '\\nReport date: ' + now.toDateString() + '\\n\\nPRECOMPUTED AGGREGATES (use exactly):\\n' + JSON.stringify({ totals, members, financial_planning: fp, scorecard_status: { life: scorecard.life.status, health: scorecard.health.status } }) + '\\n\\nPolicy rows with plan-library enrichment:\\n' + lines.join('\\n') + '\\n\\nHealth/mediclaim: ' + (totals.health_cover > 0 ? 'present, cover ' + totals.health_cover : 'none on record') + '\\nMutual fund / SIP: ' + (pols.some(p => p.kind === 'investment') ? 'present' : 'none on record');\n\nreturn [{ json: {\n  aiUserPrompt,\n  reportSystemPrompt: cfg.reportSystemPrompt || 'You are a report writer. Output only valid JSON.',\n  publicBaseUrl: cfg.publicBaseUrl || 'https://ai.cgpe.in/webhook',\n  reportCss: cfg.reportCss || '',\n  computedStr: JSON.stringify(computed),\n  polsStr: JSON.stringify(pols)\n} }];"
+      },
+      "id": "93fdcf0e-6860-40a7-b09b-dbc6c37d2837",
+      "name": "Compute and Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.aiUserPrompt }}",
+        "options": {
+          "systemMessage": "={{ $json.reportSystemPrompt }}",
+          "maxIterations": 3,
+          "enableStreaming": false
+        }
+      },
+      "id": "baedb5b4-0632-404b-9957-4623623becf3",
+      "name": "Report Writer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1792,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.4",
+          "cachedResultName": "gpt-5.4"
+        },
+        "builtInTools": {},
+        "options": {
+          "reasoningEffort": "low",
+          "timeout": 120000
+        }
+      },
+      "id": "04a58abb-a2da-451a-a6db-a70ab36f2a70",
+      "name": "Report Writer Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1872,
+        336
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ih2MECxY1EjMsbf2",
+          "name": "OpenAI account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const src = $('Compute and Prompt').first().json;\nif (src.__error) return [{ json: { __error: src.__error } }];\nconst computed = JSON.parse(src.computedStr);\nconst pols = JSON.parse(src.polsStr);\nlet ai = {};\ntry {\n  let t = String($input.first().json.output || '').trim();\n  t = t.replace(/^\\s*`{3}[a-z]*\\s*/i, '').replace(/`{3}\\s*$/,'').trim();\n  const a = t.indexOf('{'); const b = t.lastIndexOf('}');\n  if (a >= 0 && b > a) t = t.slice(a, b + 1);\n  ai = JSON.parse(t);\n} catch (e) { ai = {}; }\nconst now = new Date();\nconst mmm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];\nconst genDate = ('0' + now.getDate()).slice(-2) + ' ' + mmm[now.getMonth()] + ' ' + now.getFullYear();\nconst T = computed.totals, M = computed.members, TL = computed.timeline, FP = computed.financial_planning, SC = computed.scorecard;\nconst head = computed.familyHead;\nconst mono = head.split(/\\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'CG';\nconst esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst fmtIN = (n) => { n = Math.round(n || 0); const s = String(Math.abs(n)); if (s.length <= 3) return (n < 0 ? '-' : '') + '₹' + s; const last3 = s.slice(-3); let rest = s.slice(0, -3); const parts = []; while (rest.length > 2) { parts.unshift(rest.slice(-2)); rest = rest.slice(0, -2); } if (rest) parts.unshift(rest); return (n < 0 ? '-' : '') + '₹' + parts.join(',') + ',' + last3; };\nconst shortIN = (n) => { n = n || 0; if (n >= 1e7) return '₹' + (n / 1e7).toFixed(2) + ' Cr'; if (n >= 1e5) return '₹' + (n / 1e5).toFixed(2) + ' L'; return fmtIN(n); };\nconst shortBare = (n) => { if (n >= 1e7) return (n / 1e7).toFixed(1) + 'Cr'; if (n >= 1e5) return (n / 1e5).toFixed(1) + 'L'; return String(Math.round((n||0) / 1000)) + 'k'; };\nconst insights = Array.isArray(ai.insights) && ai.insights.length ? ai.insights.slice(0, 5) : ['Review the family cover position with your CGPE adviser.'];\nconst dataNotes = Array.isArray(ai.data_notes) ? ai.data_notes : [];\nif (T.unconfirmed_plans > 0 && !dataNotes.some(d => /unconfirmed|to.source|default/i.test(d))) dataNotes.push(T.unconfirmed_plans + ' policies are on legacy plan tables not yet confirmed in the CGPE plan library - their estimated values use a default legacy bonus rate and must be verified against the policy bond.');\nconst lifeLabel = (SC.life.status === 'strong' ? 'Strong' : SC.life.status === 'moderate' ? 'Moderate' : 'Low') + ' · ' + shortIN(T.life_inforce);\nconst healthLabel = SC.health.status === 'gap' ? 'Gap · ₹0 on record' : 'Covered · ' + shortIN(T.health_cover);\nconst disclaimer = 'Prepared by CGPE from your policy data · Cover figures are base sum assured; estimated values include illustrated bonus (not guaranteed) · Verify against policy bonds · Information summary, not financial advice.';\nconst CSS = src.reportCss || '';\nconst hdr = () => '<div class=\"hdr\"><div><div class=\"eyebrow\">Family Financial &amp; Insurance Report</div><h1>' + esc(head) + ' — Family</h1><div class=\"sub\">' + T.members + ' members · ' + T.policies + ' policies · Prepared by CGPE · Generated ' + genDate + '</div></div><div class=\"hdr-r\"><div class=\"mono-badge\">' + esc(mono) + '</div></div></div><div class=\"accent\" style=\"margin-top:0\"></div>';\nconst foot = (n) => '<div class=\"foot\"><div>' + disclaimer + '</div><div>Page ' + n + '</div></div>';\n\nlet bars = '';\nconst maxCover = Math.max(...M.map(m => m.life_inforce), 1);\nfor (const m of M.slice(0, 8)) {\n  const pct = Math.max(1.5, (m.life_inforce * 100 / maxCover)).toFixed(1);\n  bars += '<div class=\"rowbar\"><div class=\"rb-l\">' + esc(m.name.split(' ').slice(1).join(' ') || m.name) + (m.age ? ' <span class=\"age\">· ' + m.age + '</span>' : '') + '</div><div class=\"rb-track\"><div class=\"rb-fill\" style=\"width:' + pct + '%;height:18px\"></div></div><div class=\"rb-r\">' + shortIN(m.life_inforce) + '</div></div>';\n}\nconst healthPanel = T.health_cover > 0\n  ? '<div class=\"panel health\" style=\"background:#f3faf7;border-left-color:#0f7b6c\"><div class=\"p-top\"><div><div class=\"p-title\">Health insurance <span class=\"guj\">· Mediclaim / Aarogya Vima</span></div><div class=\"p-desc\">Cover for hospitalization and medical bills.</div></div><div><div class=\"p-big\">' + fmtIN(T.health_cover) + '</div><div class=\"p-note\">in-force health cover</div></div></div></div>'\n  : '<div class=\"panel health\"><div class=\"p-top\"><div><div class=\"p-title\">Health insurance <span class=\"guj\">· Mediclaim / Aarogya Vima</span></div><div class=\"p-desc\">Cover for hospitalization and medical bills.</div></div><div><div class=\"p-big red\">₹0</div><div class=\"p-note\">no health policy on record</div></div></div><div class=\"emptybar\">NO HEALTH COVER ON RECORD</div><div class=\"warn\"><b>This is the family’s biggest gap.</b> Medical and hospital bills are currently <b>not insured</b> — in Surat a single serious hospitalization can cost several lakhs. Worth reviewing with your CGPE adviser before anything else.</div></div>';\nconst page1 = '<div class=\"page\">' + hdr()\n  + '<div class=\"pagetitle\">How protected is your family? <span class=\"guj\">— Tamaru parivar ketlu surakshit chhe?</span></div>'\n  + '<div class=\"leadline\">Two kinds of protection matter: <b>Life</b> (money your family receives if something happens to a member) and <b>Health</b> (cover for hospital &amp; medical bills). Here is where your family stands today.</div>'\n  + '<div class=\"panel life\"><div class=\"p-top\"><div><div class=\"p-title\">Life insurance <span class=\"guj\">· Jeevan Vima</span></div><div class=\"p-desc\">What your family receives if something happens to a covered member.</div></div><div><div class=\"p-big\">' + fmtIN(T.life_inforce) + '</div><div class=\"p-note\">in-force base cover · ' + T.inforce_pct + '% of ' + fmtIN(T.life_sa_total) + ' total</div><div class=\"p-note\">est. value incl. bonus (illustrated): <b>' + fmtIN(T.est_maturity_inforce) + '</b></div></div></div>'\n  + bars\n  + '<div class=\"p-note\" style=\"text-align:left;margin-top:6px\">Bars show each member’s in-force base life cover. ' + fmtIN(T.matured_total) + ' from ' + T.matured_count + ' policies has already matured and been paid out.</div></div>'\n  + healthPanel\n  + '<div class=\"score\"><div class=\"sc ok\"><div class=\"ic\">✓</div><div><div class=\"t\">Life protection</div><div class=\"v\">' + lifeLabel + '</div></div></div><div class=\"sc ' + (SC.health.status === 'gap' ? 'gap' : 'ok') + '\"><div class=\"ic\">' + (SC.health.status === 'gap' ? '✕' : '✓') + '</div><div><div class=\"t\">Health protection</div><div class=\"v\">' + healthLabel + '</div></div></div></div>'\n  + '<div class=\"insights\"><div class=\"ins-h\">Points to review with your CGPE adviser <span class=\"na\">— information only, not financial advice</span></div><ul class=\"ins\">' + insights.map(i => '<li>' + esc(i) + '</li>').join('') + '</ul></div>'\n  + foot(1) + '</div>';\n\nconst years = TL.slice(-14);\nconst maxAmt = Math.max(...years.map(y => y.amountEst || y.amount), 1);\nconst W = 700, base = 284, chartH = 240, bw = 31.5;\nconst gap = years.length ? (W - 24) / years.length : 56;\nlet svg = '<svg viewBox=\"0 0 700 330\" width=\"100%\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"DejaVu Sans, Arial, sans-serif\"><line x1=\"12\" y1=\"284\" x2=\"688\" y2=\"284\" stroke=\"#d6dde1\" stroke-width=\"1\"/>';\nyears.forEach((y, i) => {\n  const amt = y.amountEst || y.amount;\n  const h = Math.max(4, amt * chartH / maxAmt);\n  const x = 12 + gap * i + (gap - bw) / 2;\n  const cx = x + bw / 2;\n  const fill = y.matured ? '#c4ced4' : '#0f7b6c';\n  const tfill = y.matured ? '#8a969d' : '#0f7b6c';\n  svg += '<rect x=\"' + x.toFixed(1) + '\" y=\"' + (base - h).toFixed(1) + '\" width=\"' + bw + '\" height=\"' + h.toFixed(1) + '\" rx=\"3\" fill=\"' + fill + '\"/>';\n  svg += '<text x=\"' + cx.toFixed(1) + '\" y=\"' + (base - h - 6).toFixed(1) + '\" text-anchor=\"middle\" font-size=\"12.5\" font-weight=\"700\" fill=\"' + tfill + '\">' + shortBare(amt) + '</text>';\n  svg += '<text x=\"' + cx.toFixed(1) + '\" y=\"302\" text-anchor=\"middle\" font-size=\"12\" fill=\"#5c6a72\">' + y.year + '</text>';\n  if (!y.matured && FP.next_year === y.year) svg += '<text x=\"' + cx.toFixed(1) + '\" y=\"318\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"800\" fill=\"#0f7b6c\">NEXT</text>';\n});\nsvg += '</svg>';\nconst page2 = '<div class=\"page\">' + hdr()\n  + '<div class=\"pagetitle\">When does your money come back? <span class=\"guj\">— Paisa kyare pacha aavse?</span></div>'\n  + '<div class=\"leadline\">Your policies don’t only protect — most of them return money on maturity. Estimated values below include illustrated bonus per the CGPE plan library (not guaranteed).</div>'\n  + '<div class=\"stats\">'\n  + '<div class=\"stat hl\"><div class=\"t\">Next money-back</div><div class=\"v\">' + (FP.next_year || '-') + '</div><div class=\"s\">est ' + fmtIN(FP.next_amount_est) + ' (base ' + fmtIN(FP.next_amount) + ')</div></div>'\n  + '<div class=\"stat\"><div class=\"t\">Coming back (est, in-force)</div><div class=\"v\">' + shortIN(FP.upcoming_total_est) + '</div><div class=\"s\">base ' + shortIN(FP.upcoming_total) + ' across ' + FP.future_years + ' years</div></div>'\n  + '<div class=\"stat\"><div class=\"t\">Already received</div><div class=\"v\">' + shortIN(FP.matured_total) + '</div><div class=\"s\">' + T.matured_count + ' matured policies (base)</div></div>'\n  + '<div class=\"stat\"><div class=\"t\">You pay / year</div><div class=\"v\">' + shortIN(T.annual_premium) + '</div><div class=\"s\">recurring premium</div></div></div>'\n  + '<div class=\"chartcard\"><div class=\"chart-h\">Money coming back, by year (estimated incl. bonus)</div><div class=\"chart-sub\">Green bars = money still to come · Grey bars = already matured &amp; paid.</div>' + svg\n  + '<div class=\"legend\"><span><span class=\"k\" style=\"background:#0f7b6c\"></span>Still to come (est)</span><span><span class=\"k\" style=\"background:#c4ced4\"></span>Already paid</span></div></div>'\n  + '<div class=\"milestones\">'\n  + '<div class=\"mile\"><div class=\"y\">' + (FP.big_years[0].year || '-') + '</div><div class=\"a\">' + fmtIN(FP.big_years[0].amount) + '</div><div class=\"d\">Your biggest money-back year (est)</div></div>'\n  + '<div class=\"mile\"><div class=\"y\">' + (FP.big_years[1].year || '-') + '</div><div class=\"a\">' + fmtIN(FP.big_years[1].amount) + '</div><div class=\"d\">Second-biggest year (est)</div></div>'\n  + '<div class=\"mile\" style=\"border-left-color:#8a969d\"><div class=\"y\">By ' + FP.soon_by + '</div><div class=\"a\" style=\"color:#14324e\">' + fmtIN(FP.soon_total) + '</div><div class=\"d\">Comes back in the next few years (est)</div></div></div>'\n  + '<div class=\"insights\" style=\"margin-top:14px\"><div class=\"ins-h\" style=\"color:#0f5f53\">Good to know</div><ul class=\"ins\">'\n  + '<li style=\"color:#2c3940\">Estimated values use each plan’s <b>illustrated bonus rate</b> from the CGPE plan library' + (T.unconfirmed_plans ? ' (' + T.unconfirmed_plans + ' legacy plans use a default rate pending confirmation)' : '') + '. Actual LIC payouts depend on declared bonuses — <b>not guaranteed</b>.</li>'\n  + '<li style=\"color:#2c3940\">To keep these benefits in force, the family pays <b>' + fmtIN(T.annual_premium) + ' per year</b> (recurring). ' + fmtIN(T.single_premium) + ' of one-time single premiums has already been paid historically.</li>'\n  + '<li style=\"color:#2c3940\">Big maturity years are natural moments to plan reinvestment or a major goal — your CGPE adviser can help time this.</li></ul></div>'\n  + foot(2) + '</div>';\n\nlet mcards = '';\nfor (const m of M.slice(0, 8)) {\n  mcards += '<div class=\"mcard\"><div class=\"mc-head\"><div class=\"mc-name\">' + esc(m.name) + (m.low_cover_flag ? ' <span class=\"flag\">low cover</span>' : '') + '</div><div class=\"mc-age\">' + (m.age ? m.age + ' yrs · ' : '') + m.policies_count + ' policies</div></div><div class=\"mc-grid\">'\n    + '<div class=\"mc-cell\"><div class=\"mc-lab\">Life cover (in-force)</div><div class=\"mc-val teal\">' + fmtIN(m.life_inforce) + '</div></div>'\n    + '<div class=\"mc-cell\"><div class=\"mc-lab\">Health cover</div><div class=\"mc-val' + (m.health_cover ? '' : ' red') + '\">' + (m.health_cover ? fmtIN(m.health_cover) : '₹0 — none') + '</div></div>'\n    + '<div class=\"mc-cell\"><div class=\"mc-lab\">Premium / year</div><div class=\"mc-val\">' + fmtIN(m.annual_premium) + '</div></div>'\n    + '<div class=\"mc-cell\"><div class=\"mc-lab\">Next money-back (est)</div><div class=\"mc-val\">' + (m.next_maturity_year ? m.next_maturity_year + ' · ' + fmtIN(m.next_maturity_est || m.next_maturity_amount) : '—') + '</div></div>'\n    + '</div></div>';\n}\nconst page3 = '<div class=\"page\">' + hdr()\n  + '<div class=\"pagetitle\">Each person’s protection <span class=\"guj\">— Darek sabhya ni suraksha</span></div>'\n  + '<div class=\"leadline\">A quick view of every family member — their life cover, health cover, yearly premium and next money-back.</div>'\n  + '<div class=\"mgrid\">' + mcards + '</div>'\n  + '<div class=\"chartcard\" style=\"margin-top:12px\"><div class=\"chart-h\">Family totals</div><div class=\"stats\" style=\"margin:8px 0 2px\">'\n  + '<div class=\"stat\"><div class=\"t\">Members</div><div class=\"v\">' + T.members + '</div></div>'\n  + '<div class=\"stat\"><div class=\"t\">Policies</div><div class=\"v\">' + T.policies + '</div><div class=\"s\">' + T.inforce_count + ' in-force · ' + T.matured_count + ' matured</div></div>'\n  + '<div class=\"stat hl\"><div class=\"t\">Life cover (in-force)</div><div class=\"v\">' + shortIN(T.life_inforce) + '</div><div class=\"s\">est incl. bonus ' + shortIN(T.est_maturity_inforce) + '</div></div>'\n  + '<div class=\"stat\"><div class=\"t\">Health cover</div><div class=\"v\"' + (T.health_cover ? '' : ' style=\"color:#c0392b\"') + '>' + (T.health_cover ? shortIN(T.health_cover) : '₹0') + '</div></div>'\n  + '<div class=\"stat\"><div class=\"t\">Premium / year</div><div class=\"v\">' + shortIN(T.annual_premium) + '</div></div></div></div>'\n  + (dataNotes.length ? '<div class=\"gloss\"><h4>Data notes</h4>' + dataNotes.map(d => '<p>' + esc(d) + '</p>').join('') + '</div>' : '')\n  + foot(3) + '</div>';\n\nconst byMember = {};\nfor (const p of pols) { (byMember[p.member] = byMember[p.member] || []).push(p); }\nconst tblFor = (nm, rows) => {\n  let t = '<div class=\"ptbl-wrap\"><div class=\"ptbl-head\">' + esc(nm) + ' <span class=\"ptbl-sub\">· ' + rows.length + ' policies</span></div><table class=\"ptbl\"><thead><tr><th>Policy no</th><th>Plan</th><th>Type</th><th>Sum assured</th><th>Est. maturity*</th><th>Premium/yr</th><th>Maturity</th><th>Status</th></tr></thead><tbody>';\n  for (const p of rows) {\n    const planCell = p.planName ? esc(p.planName) : ('Tbl ' + esc(p.tbl) + (p.planConfirmed ? '' : '†'));\n    t += '<tr><td class=\"mono\">' + esc(p.policyNo) + '</td><td>' + planCell + '</td><td>' + p.type + '</td><td class=\"num\">' + fmtIN(p.sa) + '</td><td class=\"num\">' + (p.estMaturity ? fmtIN(p.estMaturity) : '—') + '</td><td class=\"num\">' + (p.single ? 'one-time' : fmtIN(p.perYear)) + '</td><td>' + esc(p.matLabel) + '</td><td><span class=\"pill ' + (p.status === 'Matured' ? 'st-matured' : 'st-inforce') + '\">' + p.status + '</span></td></tr>';\n  }\n  return t + '</tbody></table></div>';\n};\nconst gloss = '<div class=\"gloss\"><h4>How to read this report</h4><p><b>Sum assured</b> — the base cover amount. <b>Est. maturity*</b> — base + illustrated bonus per the CGPE plan library; <b>not guaranteed</b>, actual depends on LIC declared bonuses.</p><p>† — legacy plan table not yet confirmed; a default legacy bonus rate was used. Verify against the policy bond.</p><p><b>In-force</b> — still active. <b>Matured</b> — completed and already paid out. <b>Single</b> — premium paid once.</p></div>';\nconst detailPages = [];\nlet cur = '', budget = 30;\nfor (const nm of Object.keys(byMember)) {\n  const rows = byMember[nm];\n  if (budget - (rows.length + 3) < 0 && cur) { detailPages.push(cur); cur = ''; budget = 30; }\n  cur += tblFor(nm, rows); budget -= rows.length + 3;\n}\nif (cur) detailPages.push(cur);\nlet detailHtml = '';\nlet pageNo = 4;\ndetailPages.forEach((content, i) => {\n  const last = i === detailPages.length - 1;\n  detailHtml += '<div class=\"page\">' + hdr()\n    + (i === 0 ? '<div class=\"pagetitle\">Every policy, one by one <span class=\"guj\">— Badhi policy ni vigat</span></div><div class=\"leadline\">Grouped by family member. Verify each against the physical policy bond.</div>' : '')\n    + content + (last ? gloss : '') + foot(pageNo) + '</div>';\n  pageNo++;\n});\n\nconst html = '<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>' + CSS + '</style></head><body>' + page1 + page2 + page3 + detailHtml + '</body></html>';\nconst reportId = 'CGPE-R-' + Date.now().toString(36).toUpperCase() + Math.floor(10 + Math.random() * 90);\nreturn [{ json: {\n  reportId, familyHead: head, html,\n  jsonStr: JSON.stringify({ family: { head, generated: genDate, monogram: mono, currency: 'INR' }, totals: T, members: M, timeline: TL, financial_planning: FP, scorecard: { life: { status: SC.life.status, label: lifeLabel }, health: { status: SC.health.status, label: healthLabel } }, insights, data_notes: dataNotes, disclaimer }),\n  createdAt: new Date().toISOString(),\n  summary: { members: T.members, policies: T.policies, life_inforce: T.life_inforce, est_maturity_inforce: T.est_maturity_inforce, health_cover: T.health_cover, next_year: FP.next_year, next_amount: FP.next_amount, next_amount_est: FP.next_amount_est, annual_premium: T.annual_premium, unconfirmed_plans: T.unconfirmed_plans },\n  publicBaseUrl: src.publicBaseUrl,\n  __fields: 'reportId,familyHead,html,jsonStr,createdAt'\n} }];"
+      },
+      "id": "5db6efc3-f724-451d-8e94-c46229d17584",
+      "name": "Validate and Render",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "reports",
+        "fields": "={{ $json.__fields }}",
+        "options": {}
+      },
+      "id": "8af49706-6da3-4460-a4d1-64fe31bafe48",
+      "name": "Save Report",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        2368,
+        112
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $('Validate and Render').first().json;\nif (v.__error) return [{ json: { ok: false, error: v.__error } }];\nconst viewUrl = v.publicBaseUrl + '/cgpe-report?id=' + v.reportId;\nreturn [{ json: { ok: true, reportId: v.reportId, familyHead: v.familyHead, url: viewUrl, pdfUrl: viewUrl + '&pdf=1', summary: v.summary, note: 'ALWAYS share pdfUrl with the sender (opens print-ready PDF). Quote only these summary numbers.' } }];"
+      },
+      "id": "3baef501-d6d6-4488-b7a1-aa086d6ae5f3",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "lic_plans_library",
+        "options": {
+          "limit": 100
+        },
+        "query": "={{ JSON.stringify({ $or: [ { plan_table: { $in: $('Find Family Rows').all().map(i => String((i.json || {}).tableNo || '')).filter(t => t) } }, { docType: 'meta' } ] }) }}"
+      },
+      "id": "35e941b9-4356-4f47-a484-f49421350d3c",
+      "name": "Find Plan Library",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1408,
+        512
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Report Input": {
+      "main": [
+        [
+          {
+            "node": "Parse Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Request": {
+      "main": [
+        [
+          {
+            "node": "Find Seed Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Seed Client": {
+      "main": [
+        [
+          {
+            "node": "Build Family Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Family Query": {
+      "main": [
+        [
+          {
+            "node": "Find Family Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Family Rows": {
+      "main": [
+        [
+          {
+            "node": "Find Extra Policies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Report Config": {
+      "main": [
+        [
+          {
+            "node": "Compute and Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute and Prompt": {
+      "main": [
+        [
+          {
+            "node": "Report Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Writer": {
+      "main": [
+        [
+          {
+            "node": "Validate and Render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Writer Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Report Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Render": {
+      "main": [
+        [
+          {
+            "node": "Save Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Report": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Extra Policies": {
+      "main": [
+        [
+          {
+            "node": "Find Plan Library",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Plan Library": {
+      "main": [
+        [
+          {
+            "node": "Load Report Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "c2284cc2-50bd-4b21-8120-9647e713ed10",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "b51c561a1f913d126dd565a961c174df11effac1c85079f2a730449a45fbe676"
+  },
+  "nodeGroups": [],
+  "id": "5POkiNLDhKOuVadg",
+  "tags": []
+}
