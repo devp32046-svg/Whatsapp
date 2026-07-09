@@ -35,6 +35,30 @@
         --scrollbar-thumb: rgba(0, 0, 0, 0.15);
       }
 
+      body.dark-mode {
+        --primary: #3b82f6;
+        --primary-dark: #2563eb;
+        --bg-app: #0a1014;
+        --bg-panel: #111b21;
+        --bg-chat: #0b141a;
+        --bg-sidebar: #111b21;
+        --bg-sidebar-header: #202c33;
+        --bg-header: #202c33;
+        --bg-input-bar: #202c33;
+        --bg-input: #2a3942;
+        --bg-msg-incoming: #202c33;
+        --bg-msg-outgoing: #005c4b;
+        --text-primary: #e9edef;
+        --text-secondary: #8696a0;
+        --text-light: #667781;
+        --border-light: #222d34;
+        --border-sidebar: #222d34;
+        --hover-bg: #202c33;
+        --active-chat-bg: #2a3942;
+        --unread-badge: #00a884;
+        --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+      }
+
       * {
         box-sizing: border-box;
         margin: 0;
@@ -65,16 +89,16 @@
         z-index: 1;
         display: flex;
         justify-content: center;
-        align-items: flex-start;
+        align-items: center;
         height: 100vh;
-        padding: 5rem 0;
+        padding: 2rem 0;
       }
 
       .app-container {
         display: flex;
         width: 95%;
         max-width: 1400px;
-        height: calc(70vh - 38px);
+        height: calc(100vh - 4rem);
         box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12);
         border-radius: 4px;
         overflow: hidden;
@@ -133,7 +157,7 @@
         transition: background 0.15s;
       }
       .sidebar-icon-btn:hover {
-        background: rgba(0, 0, 0, 0.05);
+        background: var(--hover-bg);
       }
 
       /* Search Bar */
@@ -281,6 +305,8 @@
       /* ══════════ RIGHT CHAT PANEL ══════════ */
       .chat-panel {
         flex: 1;
+        min-width: 0;
+        width: 100%;
         display: flex;
         flex-direction: column;
         background: var(--bg-chat);
@@ -297,6 +323,7 @@
         height: 59px;
         border-bottom: 1px solid var(--border-light);
         z-index: 5;
+        min-width: 0;
       }
 
       .chat-header-avatar {
@@ -322,11 +349,17 @@
         font-size: 15px;
         font-weight: 600;
         color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .chat-header-status {
         font-size: 12.5px;
         color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .chat-header-actions {
@@ -348,7 +381,7 @@
         transition: background 0.15s;
       }
       .chat-header-btn:hover {
-        background: rgba(0, 0, 0, 0.05);
+        background: var(--hover-bg);
       }
 
       /* Chat Wallpaper */
@@ -364,6 +397,9 @@
         background: var(--bg-chat);
         z-index: 0;
         background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8c8c8' fill-opacity='0.22'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      }
+      body.dark-mode .chat-wallpaper {
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
       }
 
       .chat-messages {
@@ -392,7 +428,7 @@
       /* ── Date Separator ── */
       .date-separator {
         align-self: center;
-        background: rgba(255, 255, 255, 0.9);
+        background: var(--bg-sidebar-header);
         color: var(--text-secondary);
         font-size: 12px;
         padding: 6px 14px;
@@ -620,7 +656,7 @@
         transition: background 0.15s;
       }
       .recording-cancel-btn:hover {
-        background: rgba(0, 0, 0, 0.05);
+        background: var(--hover-bg);
       }
       .recording-send-btn {
         background: var(--primary);
@@ -647,10 +683,13 @@
         padding: 6px 10px 6px 16px;
         background: var(--bg-input-bar);
         z-index: 5;
+        min-width: 0;
+        width: 100%;
       }
 
       .input-wrapper {
         flex: 1;
+        min-width: 0;
         display: flex;
         align-items: center;
         background: var(--bg-input);
@@ -781,9 +820,10 @@
         align-items: center;
         gap: 6px;
         margin-right: 8px;
-        background: rgba(0, 0, 0, 0.04);
+        background: var(--border-light);
         border-radius: 8px;
         padding: 3px;
+        flex-shrink: 0;
       }
       .role-btn {
         border: none;
@@ -799,7 +839,7 @@
         white-space: nowrap;
       }
       .role-btn:hover {
-        background: rgba(0, 0, 0, 0.04);
+        background: var(--hover-bg);
       }
       .role-btn.active {
         background: var(--primary);
@@ -823,23 +863,184 @@
         background: #e3f2fd;
       }
 
-      /* ══════════ ADMIN QUICK ACTIONS ══════════ */
-      .admin-quick-actions {
+      /* ══════════ QUICK ACTIONS BARS (ADMIN & CLIENT) ══════════ */
+      .admin-quick-actions,
+      .client-quick-actions {
         display: none;
         align-items: center;
-        gap: 6px;
-        padding: 6px 16px;
+        gap: 8px;
+        padding: 8px 16px;
         background: var(--bg-input-bar);
         border-top: 1px solid var(--border-light);
         overflow-x: auto;
         z-index: 5;
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) transparent;
       }
-      .admin-quick-actions.active {
+      .admin-quick-actions.active,
+      .client-quick-actions.active,
+      .team-quick-actions.active {
         display: flex;
+      }
+      .team-quick-actions {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--bg-input-bar);
+        border-top: 1px solid var(--border-light);
+        overflow-x: auto;
+        z-index: 5;
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) transparent;
+      }
+      .team-quick-actions::-webkit-scrollbar {
+        height: 6px;
+      }
+      .team-quick-actions::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .team-quick-actions::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 3px;
+      }
+
+      .client-dropdown {
+        background: var(--bg-input);
+        color: var(--text-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 11.5px;
+        font-family: inherit;
+        font-weight: 500;
+        cursor: pointer;
+        outline: none;
+        max-width: 170px;
+      }
+      .client-dropdown:hover {
+        border-color: var(--primary);
+      }
+
+      /* ══════════ ASSIGN TASK MODAL ══════════ */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(3px);
+      }
+      .modal-overlay.active {
+        display: flex;
+      }
+      .modal-box {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 440px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .modal-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .modal-close-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .modal-label {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+      }
+      .modal-input, .modal-select, .modal-textarea {
+        width: 100%;
+        background: var(--bg-input);
+        color: var(--text-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-family: inherit;
+        font-size: 13.5px;
+        outline: none;
+      }
+      .modal-textarea {
+        resize: vertical;
+        min-height: 75px;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 6px;
+      }
+      .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+      .btn-submit {
+        background: var(--primary);
+        border: none;
+        color: #fff;
+        padding: 8px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .btn-submit:hover {
+        background: var(--primary-dark);
+      }
+      .admin-quick-actions::-webkit-scrollbar,
+      .client-quick-actions::-webkit-scrollbar {
+        height: 6px;
+      }
+      .admin-quick-actions::-webkit-scrollbar-track,
+      .client-quick-actions::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .admin-quick-actions::-webkit-scrollbar-thumb,
+      .client-quick-actions::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 3px;
+      }
+      .admin-quick-actions::-webkit-scrollbar-thumb:hover,
+      .client-quick-actions::-webkit-scrollbar-thumb:hover {
+        background: rgba(128, 128, 128, 0.5);
       }
       .quick-action-btn {
         border: 1px solid var(--border-light);
-        background: #fff;
+        background: var(--bg-msg-incoming);
         color: var(--text-primary);
         font-size: 12px;
         font-family: inherit;
@@ -870,10 +1071,110 @@
         color: var(--primary-dark);
       }
 
-      /* ══════════ RESPONSIVE ══════════ */
+      /* ══════════ MOBILE MENU & BACKDROP ══════════ */
+      .mobile-menu-btn {
+        display: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--text-primary);
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+        flex-shrink: 0;
+      }
+      .mobile-menu-btn:hover {
+        background: var(--hover-bg);
+      }
+
+      .mobile-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 999;
+        backdrop-filter: blur(3px);
+        transition: opacity 0.25s ease;
+      }
+      .mobile-backdrop.active {
+        display: block;
+      }
+
+      /* ══════════ RESPONSIVE BREAKPOINTS ══════════ */
+      /* Tablet & Small Desktops (e.g. iPad Air 820px, iPad Pro 1024px) */
+      @media (max-width: 1024px) {
+        .app-wrapper {
+          padding: 0;
+          align-items: stretch;
+        }
+        .app-container {
+          width: 100%;
+          max-width: 100%;
+          height: 100vh;
+          border-radius: 0;
+          box-shadow: none;
+        }
+        .sidebar {
+          width: 280px;
+          min-width: 280px;
+        }
+        .top-bar {
+          display: none;
+        }
+        .chat-header {
+          padding: 8px 10px;
+          gap: 8px;
+        }
+        .chat-header-btn {
+          width: 36px;
+          height: 36px;
+        }
+        .role-indicator {
+          display: none !important;
+        }
+        .role-btn {
+          padding: 4px 8px;
+          font-size: 11px;
+        }
+        .chat-input-area {
+          padding: 6px 10px;
+          gap: 6px;
+        }
+        .admin-quick-actions,
+        .client-quick-actions {
+          padding: 6px 10px;
+          gap: 6px;
+        }
+        .quick-action-btn {
+          padding: 5px 12px;
+          font-size: 11.5px;
+        }
+      }
+
+      /* Mobile Screens (e.g. iPhone 14 Pro 393px, Pixel 7 Pro 480px, <= 768px) */
       @media (max-width: 768px) {
         .sidebar {
           display: none;
+          position: fixed;
+          top: 0;
+          left: -100%;
+          bottom: 0;
+          width: 85%;
+          max-width: 320px;
+          min-width: 280px;
+          z-index: 1000;
+          box-shadow: 4px 0 25px rgba(0, 0, 0, 0.35);
+          transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .sidebar.mobile-open {
+          display: flex;
+          left: 0;
+        }
+        .mobile-menu-btn {
+          display: flex !important;
         }
         .app-container {
           width: 100%;
@@ -881,32 +1182,167 @@
           border-radius: 0;
         }
         .app-wrapper {
-          padding-top: 0;
+          padding: 0;
         }
         .top-bar {
-          height: 0;
+          display: none;
         }
         .chat-messages {
-          padding: 12px 16px;
+          padding: 12px 14px;
         }
         .message {
-          max-width: 85%;
+          max-width: 88%;
+          font-size: 13.8px;
+        }
+        .chat-header {
+          padding: 6px 8px;
+          gap: 6px;
+        }
+        .chat-header-avatar {
+          width: 34px;
+          height: 34px;
+        }
+        .chat-header-name {
+          font-size: 14px;
+        }
+        .chat-header-btn {
+          width: 34px;
+          height: 34px;
         }
         .role-switcher {
           margin-right: 0;
+          gap: 2px;
+          padding: 2px;
+        }
+        .role-btn {
+          padding: 4px 7px;
+          font-size: 11px;
+        }
+        .role-indicator {
+          display: none !important;
+        }
+        .chat-input-area {
+          padding: 5px 8px;
+          gap: 5px;
+        }
+        .input-wrapper {
+          padding: 4px 10px;
+          min-height: 38px;
+        }
+        .action-btn {
+          width: 38px;
+          height: 38px;
+        }
+        .admin-quick-actions,
+        .client-quick-actions {
+          padding: 6px 8px;
+          gap: 6px;
+        }
+        .quick-action-btn {
+          padding: 5px 10px;
+          font-size: 11px;
+        }
+      }
+
+      /* Extra Small Mobile (e.g. iPhone SE 375px or narrower <= 410px) */
+      @media (max-width: 410px) {
+        .chat-header {
+          gap: 4px;
+          padding: 5px 6px;
+        }
+        .mobile-menu-btn,
+        .chat-header-btn {
+          width: 30px;
+          height: 30px;
+        }
+        .chat-header-avatar {
+          width: 30px;
+          height: 30px;
+        }
+        .chat-header-name {
+          font-size: 13px;
+        }
+        .role-btn {
+          padding: 3px 5px;
+          font-size: 10px;
+        }
+        .input-icon-btn {
+          font-size: 18px;
+          padding: 2px !important;
+        }
+        .action-btn {
+          width: 36px;
+          height: 36px;
         }
       }
     </style>
   </head>
 
   <body>
+    <!-- Assign Task Modal -->
+    <div class="modal-overlay" id="assignTaskModal">
+      <div class="modal-box">
+        <div class="modal-title">
+          <span>📌 Assign Task to Team Member</span>
+          <button class="modal-close-btn" onclick="closeAssignTaskModal()">&times;</button>
+        </div>
+        <div>
+          <div class="modal-label">Select Team Member</div>
+          <select class="modal-select" id="taskAssignMember">
+            <option value="919876600001|Priya Desai (Ops Lead)">🧑‍💼 Priya Desai (Ops Lead)</option>
+            <option value="919876600002|Amit Shah (Claims Officer)">🧑‍💼 Amit Shah (Claims Officer)</option>
+            <option value="919876600003|Kunal Mehta (Sales Specialist)">🧑‍💼 Kunal Mehta (Sales Specialist)</option>
+          </select>
+        </div>
+        <div>
+          <div class="modal-label">Task Description & Instructions</div>
+          <textarea class="modal-textarea" id="taskAssignDesc" placeholder="e.g. Verify LIC policy #9012 KYC details and contact client for signature..."></textarea>
+        </div>
+        <div>
+          <div class="modal-label">Priority Level</div>
+          <select class="modal-select" id="taskAssignPriority">
+            <option value="High 🔴">High 🔴 (Immediate action required)</option>
+            <option value="Medium 🟡">Medium 🟡 (Complete today)</option>
+            <option value="Normal 🟢">Normal 🟢 (Routine check)</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeAssignTaskModal()">Cancel</button>
+          <button class="btn-submit" onclick="submitTaskAssignment()">🚀 Send Task Assignment</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Custom Client / New Lead Modal -->
+    <div class="modal-overlay" id="customClientModal">
+      <div class="modal-box">
+        <div class="modal-title">
+          <span>➕ Add New Client / Lead to Simulator</span>
+          <button class="modal-close-btn" onclick="closeCustomClientModal()">&times;</button>
+        </div>
+        <div>
+          <div class="modal-label">Client / Lead Name</div>
+          <input type="text" class="modal-select" id="customClientName" placeholder="e.g. Ramesh Patel (New Lead #5001)" style="font-family: inherit; font-size: 13.5px;" />
+        </div>
+        <div>
+          <div class="modal-label">WhatsApp Phone Number</div>
+          <input type="text" class="modal-select" id="customClientPhone" placeholder="e.g. 919812345678" style="font-family: inherit; font-size: 13.5px;" />
+        </div>
+        <div class="modal-actions" style="margin-top: 20px;">
+          <button class="btn-cancel" onclick="closeCustomClientModal()">Cancel</button>
+          <button class="btn-submit" onclick="submitCustomClient()">✨ Add & Chat as New Lead</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Top colored bar like WhatsApp Web -->
     <div class="top-bar"></div>
 
+    <div class="mobile-backdrop" id="mobileBackdrop" onclick="closeMobileSidebar()"></div>
     <div class="app-wrapper">
       <div class="app-container">
         <!-- ═══ LEFT SIDEBAR ═══ -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebarElement">
           <!-- Sidebar Header -->
           <div class="sidebar-header">
             <div class="sidebar-avatar">
@@ -962,6 +1398,22 @@
                   <path
                     d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
                   />
+                </svg>
+              </button>
+              <button class="sidebar-icon-btn" title="Toggle Theme" onclick="toggleTheme()">
+                <svg class="theme-moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                </svg>
+                <svg class="theme-sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none">
+                  <circle cx="12" cy="12" r="5" />
+                  <line x1="12" y1="1" x2="12" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="23" />
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                  <line x1="1" y1="12" x2="3" y2="12" />
+                  <line x1="21" y1="12" x2="23" y2="12" />
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                 </svg>
               </button>
               <button class="sidebar-icon-btn" title="Menu">
@@ -1103,6 +1555,17 @@
         <div class="chat-panel" id="chatPanel">
           <!-- Chat Header -->
           <div class="chat-header">
+            <button
+              class="mobile-menu-btn"
+              title="Open menu"
+              onclick="toggleMobileSidebar()"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
             <div class="chat-header-avatar">
               <svg
                 width="20"
@@ -1135,7 +1598,22 @@
               >
                 🔧 Admin
               </button>
+              <button
+                class="role-btn"
+                id="roleTeamBtn"
+                onclick="switchRole('team')"
+              >
+                🧑‍💼 Team
+              </button>
             </div>
+            <select id="clientDropdown" class="client-dropdown" onchange="changeClientUser(this.value)">
+              <option value="919876500009">Agrawal Rajesh (#9012)</option>
+              <option value="919825100001">AARDESHANA ANILBHAI (#864805904)</option>
+              <option value="919825100002">AGHERA KANTIBHAI (#864805911)</option>
+              <option value="919825100003">AGRAVAT PARIXIT (#864805922)</option>
+              <option value="919825100004">AMDAWADI KARSHANBHAI (#864805933)</option>
+              <option value="custom">+ Add Custom User...</option>
+            </select>
             <span class="role-indicator client" id="roleIndicator"
               >Agrawal Rajesh</span
             >
@@ -1156,6 +1634,26 @@
                   <path d="M3 6h18" />
                   <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
                   <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+              </button>
+              <button
+                class="chat-header-btn"
+                title="Toggle Theme"
+                onclick="toggleTheme()"
+              >
+                <svg class="theme-moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                </svg>
+                <svg class="theme-sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none">
+                  <circle cx="12" cy="12" r="5" />
+                  <line x1="12" y1="1" x2="12" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="23" />
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                  <line x1="1" y1="12" x2="3" y2="12" />
+                  <line x1="21" y1="12" x2="23" y2="12" />
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                 </svg>
               </button>
               <button class="chat-header-btn" title="More options">
@@ -1181,6 +1679,16 @@
             </div>
           </div>
 
+          <!-- Client Quick Actions Bar (shown when client role active) -->
+          <div class="client-quick-actions active" id="clientQuickActions">
+            <button class="quick-action-btn" onclick="quickSend('mara policies ki details moklo')">📜 My Policies</button>
+            <button class="quick-action-btn" onclick="quickSend('maru next premium kyare baki chhe?')">📅 Premium Due</button>
+            <button class="quick-action-btn" onclick="quickSend('mara policy ki maturity details batao')">🎉 Maturity Status</button>
+            <button class="quick-action-btn" onclick="quickSend('maru last payment receipt moklo')">🧾 Last Receipt</button>
+            <button class="quick-action-btn" onclick="quickSend('navu best investment aur policy plan batao')">💡 New Plans</button>
+            <button class="quick-action-btn" onclick="quickSend('rajesh bhai ne kaho ki mujhe call kare')">📞 Contact Agent</button>
+          </div>
+
           <!-- Admin Quick Actions Bar (hidden by default, shown when admin role active) -->
           <div class="admin-quick-actions" id="adminQuickActions">
             <button class="quick-action-btn" onclick="quickSend('aaj na tasks batao')">📋 Today's Tasks</button>
@@ -1189,6 +1697,15 @@
             <button class="quick-action-btn" onclick="quickSend('aaj ni maturity list')">📅 Maturity</button>
             <button class="quick-action-btn" onclick="quickSend('premium due list')">💰 Premium Due</button>
             <button class="quick-action-btn" onclick="quickSend('client count batao')">👥 Client Count</button>
+            <button class="quick-action-btn assign-task-btn" onclick="openAssignTaskModal()" style="background: #fff3e0; border-color: #ff9800; color: #e65100; font-weight: 600;">📌 Assign Task to Team</button>
+          </div>
+
+          <!-- Team Member Quick Actions Bar (hidden by default, shown when team member role active) -->
+          <div class="team-quick-actions" id="teamQuickActions">
+            <button class="quick-action-btn" onclick="quickSend('check my assigned tasks')">📋 Check My Tasks</button>
+            <button class="quick-action-btn" onclick="quickSend('view completed tasks')">✅ Completed Tasks</button>
+            <button class="quick-action-btn" onclick="quickSend('help guidelines')">📑 Guidelines</button>
+            <button class="quick-action-btn" onclick="quickSend('call admin for help')">📞 Call Admin</button>
           </div>
 
           <!-- Voice Recording Bar (hidden by default) -->
@@ -1321,14 +1838,50 @@
 
       const CGPE_PROXY_URL = "/api/chat"; // goes through our Express proxy
 
-      // ── Role config (Client vs Admin) ──
+      // ── Role config (Client vs Admin vs Team) ──
       const ROLES = {
-        client: { from: "919876500009", name: "Agrawal Rajesh" },
+        client: { from: "919876500009", name: "Agrawal Rajesh (#LIC-9012)" },
         admin: { from: "919601775061", name: "CGPE Admin" },
+        team: { from: "919876600001", name: "Priya Desai (Ops Lead)" },
       };
       let currentRole = "client";
       let SENDER_PHONE = ROLES.client.from;
       let SENDER_NAME = ROLES.client.name;
+
+      const CLIENT_USERS = {
+        "919876500009": "Agrawal Rajesh (#9012)",
+        "919825100001": "AARDESHANA ANILBHAI (#864805904)",
+        "919825100002": "AGHERA KANTIBHAI (#864805911)",
+        "919825100003": "AGRAVAT PARIXIT (#864805922)",
+        "919825100004": "AMDAWADI KARSHANBHAI (#864805933)",
+      };
+
+      function changeClientUser(val) {
+        if (val === "custom") {
+          openCustomClientModal();
+          return;
+        }
+        
+        ROLES.client.from = val;
+        ROLES.client.name = CLIENT_USERS[val] || "Client (" + val + ")";
+        if (currentRole === "client") {
+          SENDER_PHONE = ROLES.client.from;
+          SENDER_NAME = ROLES.client.name;
+          document.getElementById("roleIndicator").textContent = SENDER_NAME;
+          
+          if (!conversations["client_" + val]) {
+            conversations["client_" + val] = [
+              {
+                text: `Namaste! 🙏 ${SENDER_NAME}, CGPE Bot ready hai. Aapko koi madad chahiye?`,
+                sender: "bot",
+                buttons: [],
+                time: getTimeString(),
+              }
+            ];
+          }
+          renderConversation("client");
+        }
+      }
 
       let conversations = null;
 
@@ -1351,7 +1904,16 @@
               time,
             },
           ],
+          team: [
+            {
+              text: "Hello Priya Desai! 🙏 Welcome to CGPE Team Member (Ops Lead) Task Inbox. You will receive real-time task assignments from Admin here.",
+              sender: "bot",
+              buttons: [],
+              time,
+            },
+          ],
         };
+        conversations["client_" + ROLES.client.from] = conversations.client;
         renderConversation("client");
       }
 
@@ -1361,28 +1923,40 @@
         SENDER_NAME = ROLES[role].name;
 
         // Update UI
-        document
-          .getElementById("roleClientBtn")
-          .classList.toggle("active", role === "client");
-        document
-          .getElementById("roleAdminBtn")
-          .classList.toggle("active", role === "admin");
+        const clientBtn = document.getElementById("roleClientBtn");
+        const adminBtn = document.getElementById("roleAdminBtn");
+        const teamBtn = document.getElementById("roleTeamBtn");
+        if (clientBtn) clientBtn.classList.toggle("active", role === "client");
+        if (adminBtn) adminBtn.classList.toggle("active", role === "admin");
+        if (teamBtn) teamBtn.classList.toggle("active", role === "team");
+
         const indicator = document.getElementById("roleIndicator");
-        indicator.textContent = ROLES[role].name;
-        indicator.className = "role-indicator " + role;
+        if (indicator) {
+          indicator.textContent = ROLES[role].name;
+          indicator.className = "role-indicator " + role;
+        }
+
+        const clientDropdown = document.getElementById("clientDropdown");
+        if (clientDropdown) {
+          clientDropdown.style.display = role === "client" ? "inline-block" : "none";
+        }
 
         // Update placeholder
         if (role === "admin") {
-          userInput.placeholder = "Admin mode — try: /cm or policy queries";
+          userInput.placeholder = "Admin mode — try: /cm or assign task";
+        } else if (role === "team") {
+          userInput.placeholder = "Team Member mode — accept/decline tasks or update status";
         } else {
           userInput.placeholder = "Type a message";
         }
 
-        // Show/hide admin quick actions
-        const quickBar = document.getElementById("adminQuickActions");
-        if (quickBar) {
-          quickBar.classList.toggle("active", role === "admin");
-        }
+        // Show/hide quick actions based on role
+        const adminBar = document.getElementById("adminQuickActions");
+        const clientBar = document.getElementById("clientQuickActions");
+        const teamBar = document.getElementById("teamQuickActions");
+        if (adminBar) adminBar.classList.toggle("active", role === "admin");
+        if (clientBar) clientBar.classList.toggle("active", role === "client");
+        if (teamBar) teamBar.classList.toggle("active", role === "team");
 
         console.log(
           `[Role] Switched to ${role}: ${SENDER_NAME} (${SENDER_PHONE})`,
@@ -1391,6 +1965,19 @@
         if (conversations) {
           renderConversation(role);
         }
+      }
+
+      function getActiveConversationList() {
+        if (currentRole === "client") {
+          if (!conversations["client_" + SENDER_PHONE]) {
+            conversations["client_" + SENDER_PHONE] = [];
+          }
+          return conversations["client_" + SENDER_PHONE];
+        }
+        if (!conversations[currentRole]) {
+          conversations[currentRole] = [];
+        }
+        return conversations[currentRole];
       }
 
       function renderConversation(role) {
@@ -1408,9 +1995,9 @@
           .toUpperCase();
         chatBox.appendChild(sep);
 
-        const list = conversations[role] || [];
+        const list = getActiveConversationList();
         list.forEach((msg) => {
-          appendMessageDOM(msg.text, msg.sender, msg.buttons, msg.time);
+          appendMessageDOM(msg.text, msg.sender, msg.buttons, msg.time, msg);
         });
 
         chatBox.scrollTop = chatBox.scrollHeight;
@@ -1418,7 +2005,11 @@
 
       function clearChat() {
         if (conversations) {
-          conversations[currentRole] = [];
+          if (currentRole === "client") {
+            conversations["client_" + SENDER_PHONE] = [];
+          } else {
+            conversations[currentRole] = [];
+          }
           renderConversation(currentRole);
         }
       }
@@ -1509,10 +2100,13 @@
             body: JSON.stringify(payload),
             signal: ctrl.signal,
           });
+          clearTimeout(t);
           if (!res.ok) throw new Error("CGPE HTTP " + res.status);
           return await res.json(); // { ok, reply, buttons }
-        } finally {
+        } catch (err) {
           clearTimeout(t);
+          console.error("[sendToCgpe] Error:", err.message);
+          throw err;
         }
       }
 
@@ -1570,22 +2164,24 @@
 
       // ── Quick action send (admin shortcuts) ──
       async function quickSend(text) {
+        const targetRole = currentRole;
+        const targetPhone = SENDER_PHONE;
         appendMessage(text, "user");
         showTyping();
         try {
           const data = await sendToCgpe({
-            from: SENDER_PHONE,
+            from: targetPhone,
             name: SENDER_NAME,
             text: text,
           });
           if (data && data.reply) {
-            appendMessage(data.reply, "bot", data.buttons || []);
+            appendTargetedBotResponse(data.reply, data.buttons || [], targetRole, targetPhone);
           } else {
-            appendMessage("No response received.", "bot");
+            appendTargetedBotResponse("No response received.", [], targetRole, targetPhone);
           }
         } catch (error) {
           console.error("Quick action error:", error);
-          appendMessage("Connection failed. Please try again.", "bot");
+          appendTargetedBotResponse("Connection failed. Please try again.", [], targetRole, targetPhone);
         }
       }
 
@@ -1598,20 +2194,65 @@
       function appendMessage(text, sender, buttons) {
         hideTyping();
         const time = getTimeString();
+        let newMsg = null;
 
         if (conversations) {
-          conversations[currentRole].push({
+          const list = getActiveConversationList();
+          newMsg = {
             text,
             sender,
             buttons: buttons || [],
             time,
-          });
+          };
+          list.push(newMsg);
         }
 
-        appendMessageDOM(text, sender, buttons, time);
+        appendMessageDOM(text, sender, buttons, time, newMsg);
       }
 
-      function appendMessageDOM(text, sender, buttons, timeString) {
+      function appendTargetedBotResponse(text, buttons, targetRole, targetPhone) {
+        hideTyping();
+        const time = getTimeString();
+        const newMsg = {
+          text,
+          sender: "bot",
+          buttons: buttons || [],
+          time,
+        };
+
+        if (!conversations) return;
+
+        // 1. Find exact thread list
+        let list = null;
+        if (targetRole === "client") {
+          if (!conversations["client_" + targetPhone]) {
+            conversations["client_" + targetPhone] = [];
+          }
+          list = conversations["client_" + targetPhone];
+        } else {
+          if (!conversations[targetRole]) {
+            conversations[targetRole] = [];
+          }
+          list = conversations[targetRole];
+        }
+
+        // 2. Save in persistent thread history
+        list.push(newMsg);
+
+        // 3. Check if user is CURRENTLY viewing this exact thread right now
+        const isCurrentlyActive = (targetRole === "client")
+          ? (currentRole === "client" && SENDER_PHONE === targetPhone)
+          : (currentRole === targetRole);
+
+        // 4. Only render DOM if viewing that thread; otherwise stay hidden in background history
+        if (isCurrentlyActive) {
+          appendMessageDOM(text, "bot", buttons, time, newMsg);
+        } else {
+          console.log(`[Async Router] Routed bot reply to ${targetRole} (${targetPhone}) in background.`);
+        }
+      }
+
+      function appendMessageDOM(text, sender, buttons, timeString, msgObj) {
         const msgDiv = document.createElement("div");
         msgDiv.classList.add("message", sender);
 
@@ -1649,6 +2290,13 @@
             const btnEl = document.createElement("button");
             btnEl.classList.add("bot-reply-btn");
             btnEl.textContent = btn.title;
+            if (btn.disabled) {
+              btnEl.disabled = true;
+            }
+            if (btn.selected) {
+              btnEl.style.background = "var(--primary)";
+              btnEl.style.color = "#fff";
+            }
             btnEl.onclick = () => {
               // Disable all buttons in this group after click
               btnContainer
@@ -1656,6 +2304,12 @@
                 .forEach((b) => (b.disabled = true));
               btnEl.style.background = "var(--primary)";
               btnEl.style.color = "#fff";
+              if (msgObj && msgObj.buttons) {
+                msgObj.buttons.forEach((b) => {
+                  b.disabled = true;
+                  if (b.id === btn.id) b.selected = true;
+                });
+              }
               // Send button id as text message
               handleButtonTap(btn.id, btn.title);
             };
@@ -1672,24 +2326,189 @@
 
       // ── Handle button tap → send button ID as text ──
       async function handleButtonTap(btnId, btnTitle) {
+        const targetRole = currentRole;
+        const targetPhone = SENDER_PHONE;
         appendMessage(btnTitle, "user");
         showTyping();
 
+        // Check if this is a Team Task decision loop
+        if (btnId.startsWith("ACCEPT_") || btnId.startsWith("DECLINE_")) {
+          setTimeout(() => {
+            hideTyping();
+            const time = getTimeString();
+            const action = btnId.startsWith("ACCEPT_") ? "ACCEPTED" : "DECLINED";
+            const icon = action === "ACCEPTED" ? "🎉" : "⚠️";
+            
+            // Push notification to Admin Inbox!
+            if (conversations && conversations.admin) {
+              const taskIdMatch = btnId.match(/_(TASK-\d+)/);
+              const taskId = taskIdMatch ? taskIdMatch[1] : "TASK-ACTION";
+              conversations.admin.push({
+                text: `${icon} **TASK ${action} & ACKNOWLEDGED [${taskId}]**\n\nTeam Member **${SENDER_NAME}** has tapped **[ ${btnTitle} ]**.\n\n*Status Update:* Member acknowledged on ${time}.\n*Message:* "${action} — He/She will do the task right away!"`,
+                sender: "bot",
+                buttons: [],
+                time
+              });
+            }
+
+            const alertBox = document.createElement("div");
+            alertBox.style.cssText = "background: #fff3e0; color: #e65100; padding: 10px 14px; border-radius: 8px; margin: 8px 0; font-size: 13px; font-weight: 500; border-left: 4px solid #ff9800;";
+            alertBox.innerHTML = `📬 Admin Acknowledgment created in Admin Inbox! <a href="#" onclick="switchRole('admin'); return false;" style="color: #b71c1c; text-decoration: underline; font-weight: 600;">Switch to 🔧 Admin Tab</a> to see the live acknowledgment card.`;
+            chatBox.appendChild(alertBox);
+            chatBox.scrollTop = chatBox.scrollHeight;
+          }, 600);
+          return;
+        }
+
+        // Check if this is a Language Preference Selection loop for new leads
+        if (btnId.startsWith("LANG_")) {
+          setTimeout(() => {
+            hideTyping();
+            let responseText = "";
+            let actionButtons = [];
+            
+            if (btnId === "LANG_ENG") {
+              responseText = `**Language Selected: English 🇬🇧**\n\nThank you, **${SENDER_NAME}**! Welcome to **CGPE**.\n\nHow can our advisory team assist you today? Please choose an option or type your inquiry below:`;
+              actionButtons = [
+                { id: "NEW_INQUIRY", title: "📋 New Policy Inquiry" },
+                { id: "CALL_BACK", title: "📞 Request Advisor Call" },
+                { id: "EXPLORE", title: "💡 Explore Services" }
+              ];
+            } else if (btnId === "LANG_GUJ") {
+              responseText = `**ભાષા પસંદ કરી: ગુજરાતી 🇮🇳**\n\nઆભાર, **${SENDER_NAME}**! **CGPE** માં આપનું હાર્દિક સ્વાગત છે.\n\nઅમારી એડવાઇઝરી ટીમ આજે તમને કેવી રીતે મદદ કરી શકે? કૃપા કરીને નીચેનો વિકલ્પ પસંદ કરો અથવા તમારો પ્રશ્ન લખો:`;
+              actionButtons = [
+                { id: "NEW_INQUIRY", title: "📋 નવી પોલિસી પૂછપરછ" },
+                { id: "CALL_BACK", title: "📞 એડવાઇઝર કૉલ" },
+                { id: "EXPLORE", title: "💡 અમારી સેવાઓ" }
+              ];
+            } else if (btnId === "LANG_HIN") {
+              responseText = `**भाषा चुनी गई: हिन्दी 🇮🇳**\n\nधन्यवाद, **${SENDER_NAME}**! **CGPE** में आपका हार्दिक स्वागत है।\n\nहमारी एडवाइजरी टीम आज आपकी किस प्रकार सहायता कर सकती है? कृपया नीचे से एक विकल्प चुनें या अपना प्रश्न लिखें:`;
+              actionButtons = [
+                { id: "NEW_INQUIRY", title: "📋 नई पॉलिसी जानकारी" },
+                { id: "CALL_BACK", title: "📞 एडवाइजर कॉल" },
+                { id: "EXPLORE", title: "💡 हमारी सेवाएं" }
+              ];
+            }
+            appendTargetedBotResponse(responseText, actionButtons, targetRole, targetPhone);
+          }, 500);
+          return;
+        }
+
         try {
           const data = await sendToCgpe({
-            from: SENDER_PHONE,
+            from: targetPhone,
             name: SENDER_NAME,
             text: btnId,
           });
           if (data && data.reply) {
-            appendMessage(data.reply, "bot", data.buttons || []);
+            appendTargetedBotResponse(data.reply, data.buttons || [], targetRole, targetPhone);
           } else {
-            appendMessage("No response received.", "bot");
+            appendTargetedBotResponse("No response received.", [], targetRole, targetPhone);
           }
         } catch (error) {
           console.error("Button tap error:", error);
-          appendMessage("Connection failed. Please try again.", "bot");
+          appendTargetedBotResponse("Connection failed. Please try again.", [], targetRole, targetPhone);
         }
+      }
+
+      function openCustomClientModal() {
+        document.getElementById("customClientModal").classList.add("active");
+        document.getElementById("customClientName").focus();
+      }
+      function closeCustomClientModal() {
+        document.getElementById("customClientModal").classList.remove("active");
+        // Reset dropdown back to active user if cancelled
+        document.getElementById("clientDropdown").value = SENDER_PHONE;
+      }
+      function submitCustomClient() {
+        const name = document.getElementById("customClientName").value.trim();
+        const phone = document.getElementById("customClientPhone").value.trim();
+        if (!name || !phone) {
+          alert("Please enter both Name and Phone Number!");
+          return;
+        }
+        closeCustomClientModal();
+        document.getElementById("customClientName").value = "";
+        document.getElementById("customClientPhone").value = "";
+
+        CLIENT_USERS[phone] = name;
+        const opt = document.createElement("option");
+        opt.value = phone;
+        opt.textContent = name;
+        const select = document.getElementById("clientDropdown");
+        select.insertBefore(opt, select.lastElementChild);
+        
+        // Directly select and initialize the new custom client
+        select.value = phone;
+        ROLES.client.from = phone;
+        ROLES.client.name = name;
+        SENDER_PHONE = phone;
+        SENDER_NAME = name;
+        document.getElementById("roleIndicator").textContent = name;
+
+        if (!conversations["client_" + phone]) {
+          conversations["client_" + phone] = [
+            {
+              text: `Welcome to **CGPE**, ${name}! 🙏\n\nWe are here to assist you with premier Insurance, Wealth & Investment solutions.\n\nTo begin, please select your preferred language (*કૃપા કરીને તમારી પસંદીદા ભાષા પસંદ કરો / अपनी भाषा चुनें*):`,
+              sender: "bot",
+              buttons: [
+                { id: "LANG_ENG", title: "🇬🇧 English" },
+                { id: "LANG_GUJ", title: "🇮🇳 ગુજરાતી (Gujarati)" },
+                { id: "LANG_HIN", title: "🇮🇳 हिन्दी (Hindi)" }
+              ],
+              time: getTimeString(),
+            },
+          ];
+        }
+        renderConversation("client");
+      }
+
+      function openAssignTaskModal() {
+        document.getElementById("assignTaskModal").classList.add("active");
+      }
+      function closeAssignTaskModal() {
+        document.getElementById("assignTaskModal").classList.remove("active");
+      }
+      function submitTaskAssignment() {
+        const memberVal = document.getElementById("taskAssignMember").value;
+        const desc = document.getElementById("taskAssignDesc").value.trim();
+        const priority = document.getElementById("taskAssignPriority").value;
+        if (!desc) {
+          alert("Please enter a task description!");
+          return;
+        }
+        const parts = memberVal.split("|");
+        const memberPhone = parts[0];
+        const memberName = parts[1];
+        const taskId = "TASK-" + Math.floor(1000 + Math.random() * 9000);
+
+        closeAssignTaskModal();
+        document.getElementById("taskAssignDesc").value = "";
+
+        // 1. Admin chat confirmation
+        appendMessage(`📤 Assigned Task [${taskId}] to ${memberName}\n📋 "${desc}"\n🔥 Priority: ${priority}\n⏳ Status: Awaiting member acceptance...`, "user");
+
+        // 2. Alert in Team Member chat
+        if (!conversations.team) conversations.team = [];
+        conversations.team.push({
+          text: `🔔 NEW TASK ASSIGNMENT [${taskId}]\n\n👤 Assigned By: CGPE Admin\n🧑‍💼 For Member: ${memberName}\n📋 Task: "${desc}"\n🔥 Priority: ${priority}\n⏰ Assigned at: ${getTimeString()}\n\nPlease confirm if you accept this task right now:`,
+          sender: "bot",
+          buttons: [
+            { id: `ACCEPT_${taskId}_${memberName}_${desc}`, title: "✅ Yes / Accept Task" },
+            { id: `DECLINE_${taskId}_${memberName}_${desc}`, title: "❌ No / Decline" }
+          ],
+          time: getTimeString()
+        });
+
+        setTimeout(() => {
+          if (currentRole === "admin") {
+            const note = document.createElement("div");
+            note.style.cssText = "background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 8px; margin: 8px 0; font-size: 13px; font-weight: 500; border-left: 4px solid #4caf50;";
+            note.innerHTML = `💡 Task [${taskId}] delivered to <b>${memberName}</b>! <a href="#" onclick="switchRole('team'); return false;" style="color: #1b5e20; text-decoration: underline; font-weight: 600;">Switch to 🧑‍💼 Team Member Tab</a> to simulate Yes/No acceptance loop.`;
+            chatBox.appendChild(note);
+            chatBox.scrollTop = chatBox.scrollHeight;
+          }
+        }, 300);
       }
 
       // ══════════════════════════════════════════════════
@@ -1746,6 +2565,8 @@
         const text = userInput.value.trim();
         if (!text) return;
 
+        const targetRole = currentRole;
+        const targetPhone = SENDER_PHONE;
         appendMessage(text, "user");
         userInput.value = "";
         toggleSendMic();
@@ -1753,19 +2574,19 @@
 
         try {
           const data = await sendToCgpe({
-            from: SENDER_PHONE,
+            from: targetPhone,
             name: SENDER_NAME,
             text: text,
           });
 
           if (data && data.reply) {
-            appendMessage(data.reply, "bot", data.buttons || []);
+            appendTargetedBotResponse(data.reply, data.buttons || [], targetRole, targetPhone);
           } else {
-            appendMessage("System Error: Invalid response format.", "bot");
+            appendTargetedBotResponse("System Error: Invalid response format.", [], targetRole, targetPhone);
           }
         } catch (error) {
           console.error("Error communicating with CGPE:", error);
-          appendMessage("Connection to CGPE server failed.", "bot");
+          appendTargetedBotResponse("Connection to CGPE server failed.", [], targetRole, targetPhone);
         }
       }
 
@@ -1982,6 +2803,8 @@
         const blobToSend = recordedWavBlob;
         recordedWavBlob = null;
 
+        const targetRole = currentRole;
+        const targetPhone = SENDER_PHONE;
         const reader = new FileReader();
         reader.onloadend = async () => {
           const base64Audio = reader.result;
@@ -1997,7 +2820,7 @@
 
             showTyping();
             const data = await sendToCgpe({
-              from: SENDER_PHONE,
+              from: targetPhone,
               name: SENDER_NAME,
               type: "audio",
               mediaUrl: publicUrl,
@@ -2005,15 +2828,17 @@
             });
 
             if (data && data.reply) {
-              appendMessage(data.reply, "bot", data.buttons || []);
+              appendTargetedBotResponse(data.reply, data.buttons || [], targetRole, targetPhone);
             } else {
-              appendMessage("Could not process voice message.", "bot");
+              appendTargetedBotResponse("Could not process voice message.", [], targetRole, targetPhone);
             }
           } catch (error) {
             console.error("Audio send failed:", error);
-            appendMessage(
+            appendTargetedBotResponse(
               "Failed to send audio message: " + error.message,
-              "bot",
+              [],
+              targetRole,
+              targetPhone
             );
           }
         };
@@ -2111,6 +2936,8 @@
           audio: "🎵",
           document: "📎",
         };
+        const targetRole = currentRole;
+        const targetPhone = SENDER_PHONE;
         appendMessage(`${typeEmoji[type]} ${file.name}`, "user");
         showTyping();
 
@@ -2130,7 +2957,7 @@
             // Step 2: Send the public URL to CGPE
             showTyping();
             const data = await sendToCgpe({
-              from: SENDER_PHONE,
+              from: targetPhone,
               name: SENDER_NAME,
               type: type,
               mediaUrl: publicUrl,
@@ -2139,13 +2966,13 @@
             });
 
             if (data && data.reply) {
-              appendMessage(data.reply, "bot", data.buttons || []);
+              appendTargetedBotResponse(data.reply, data.buttons || [], targetRole, targetPhone);
             } else {
-              appendMessage("Could not process attachment.", "bot");
+              appendTargetedBotResponse("Could not process attachment.", [], targetRole, targetPhone);
             }
           } catch (error) {
             console.error("File attach error:", error);
-            appendMessage("Failed to send attachment: " + error.message, "bot");
+            appendTargetedBotResponse("Failed to send attachment: " + error.message, [], targetRole, targetPhone);
           }
         };
         reader.readAsDataURL(file);
@@ -2165,6 +2992,66 @@
       // ══════════════════════════════════════════════════
       //  Initial greeting
       // ══════════════════════════════════════════════════
+      // ── Theme Management ──
+      function toggleTheme() {
+        const isDark = document.body.classList.toggle("dark-mode");
+        localStorage.setItem("cgpe_theme", isDark ? "dark" : "light");
+        updateThemeIcons(isDark);
+      }
+
+      function updateThemeIcons(isDark) {
+        document.querySelectorAll(".theme-moon-icon").forEach((el) => {
+          el.style.display = isDark ? "none" : "block";
+        });
+        document.querySelectorAll(".theme-sun-icon").forEach((el) => {
+          el.style.display = isDark ? "block" : "none";
+        });
+      }
+
+      (function initTheme() {
+        const savedTheme = localStorage.getItem("cgpe_theme");
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
+          document.body.classList.add("dark-mode");
+          updateThemeIcons(true);
+        } else {
+          updateThemeIcons(false);
+        }
+      })();
+
+      // ── Mobile Sidebar Management ──
+      function toggleMobileSidebar() {
+        const sidebar = document.getElementById("sidebarElement");
+        const backdrop = document.getElementById("mobileBackdrop");
+        if (sidebar && backdrop) {
+          sidebar.classList.toggle("mobile-open");
+          backdrop.classList.toggle("active");
+        }
+      }
+
+      function closeMobileSidebar() {
+        const sidebar = document.getElementById("sidebarElement");
+        const backdrop = document.getElementById("mobileBackdrop");
+        if (sidebar && backdrop) {
+          sidebar.classList.remove("mobile-open");
+          backdrop.classList.remove("active");
+        }
+      }
+
+      // Attach click listeners to chat items
+      document.addEventListener("DOMContentLoaded", () => {
+        const chatItems = document.querySelectorAll("#chatList .chat-item");
+        chatItems.forEach((item) => {
+          item.addEventListener("click", () => {
+            chatItems.forEach((el) => el.classList.remove("active"));
+            item.classList.add("active");
+            closeMobileSidebar();
+          });
+        });
+      });
+
       // ── Initialize ──
       initConversations();
     </script>

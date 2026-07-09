@@ -46,56 +46,67 @@ app.post('/api/upload', async (req, res) => {
             return res.status(400).json({ success: false, error: 'No file data provided' });
         }
 
-        // Strip data URL prefix if present (e.g. "data:audio/webm;codecs=opus;base64,...")
-        const cleanBase64 = base64Data.replace(/^data:[^;]+;?[^,]*,/, '');
+            // Strip data URL prefix if present (e.g. "data:audio/webm;codecs=opus;base64,...")
+            const cleanBase64 = base64Data.replace(/^data:[^;]+;?[^,]*,/, '');
         const buffer = Buffer.from(cleanBase64, 'base64');
 
         console.log(`[Upload] Uploading ${filename || 'file'} (${(buffer.length / 1024).toFixed(1)} KB, ${mimeType})`);
 
-        // Try tmpfiles.org first, then 0x0.st as fallback
+        // Try litterbox first (serves RAW bytes; auto-deletes in 1h), then catbox (permanent) as fallback.
+        // NOTE: tmpfiles.org was removed — it now returns an HTML redirect page instead of the raw
+        // file, so the AI backend could never download the media (voice notes came back empty).
         let publicUrl = null;
 
-        // Strategy 1: tmpfiles.org (files last ~1 hour)
+        // Strategy 1: litterbox (temporary — file auto-deletes after 1 hour)
         try {
             const form = new FormData();
-            form.append('file', buffer, {
+            form.append('reqtype', 'fileupload');
+            form.append('time', '1h');
+            form.append('fileToUpload', buffer, {
                 filename: filename || 'upload.webm',
                 contentType: mimeType || 'application/octet-stream',
             });
 
-            const uploadRes = await axios.post('https://tmpfiles.org/api/v1/upload', form, {
+            const uploadRes = await axios.post('https://litterbox.catbox.moe/resources/internals/api.php', form, {
                 headers: form.getHeaders(),
                 timeout: 30000,
             });
 
-            if (uploadRes.data && uploadRes.data.status === 'success' && uploadRes.data.data && uploadRes.data.data.url) {
-                // Convert view URL to direct download URL
-                // tmpfiles.org/12345/file.webm → tmpfiles.org/dl/12345/file.webm
-                publicUrl = uploadRes.data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-                console.log(`[Upload] tmpfiles.org success: ${publicUrl}`);
+            const url = String(uploadRes.data).trim();
+            if (/^https?:\/\//.test(url)) {
+                publicUrl = url;
+                console.log(`[Upload] litterbox success: ${publicUrl}`);
+            } else {
+                console.warn(`[Upload] litterbox returned non-URL: ${url.slice(0, 120)}`);
             }
         } catch (err) {
-            console.warn(`[Upload] tmpfiles.org failed: ${err.message}, trying fallback...`);
+            console.warn(`[Upload] litterbox failed: ${err.message}, trying fallback...`);
         }
 
-        // Strategy 2: 0x0.st fallback
+        // Strategy 2: catbox fallback (permanent hosting — also serves raw bytes)
         if (!publicUrl) {
             try {
                 const form2 = new FormData();
-                form2.append('file', buffer, {
+                form2.append('reqtype', 'fileupload');
+                form2.append('fileToUpload', buffer, {
                     filename: filename || 'upload.webm',
                     contentType: mimeType || 'application/octet-stream',
                 });
 
-                const uploadRes2 = await axios.post('https://0x0.st', form2, {
+                const uploadRes2 = await axios.post('https://catbox.moe/user/api.php', form2, {
                     headers: form2.getHeaders(),
                     timeout: 30000,
                 });
 
-                publicUrl = uploadRes2.data.trim();
-                console.log(`[Upload] 0x0.st success: ${publicUrl}`);
+                const url2 = String(uploadRes2.data).trim();
+                if (/^https?:\/\//.test(url2)) {
+                    publicUrl = url2;
+                    console.log(`[Upload] catbox success: ${publicUrl}`);
+                } else {
+                    console.error(`[Upload] catbox returned non-URL: ${url2.slice(0, 120)}`);
+                }
             } catch (err2) {
-                console.error(`[Upload] 0x0.st also failed: ${err2.message}`);
+                console.error(`[Upload] catbox also failed: ${err2.message}`);
             }
         }
 
