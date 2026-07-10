@@ -1614,6 +1614,12 @@
               <option value="919825100004">AMDAWADI KARSHANBHAI (#864805933)</option>
               <option value="custom">+ Add Custom User...</option>
             </select>
+            <select id="langDropdown" class="client-dropdown" title="Force reply/voice language" onchange="setUserLang(this.value)">
+              <option value="">🌐 Auto language</option>
+              <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
+              <option value="gu">🇮🇳 ગુજરાતી (Gujarati)</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
             <span class="role-indicator client" id="roleIndicator"
               >Agrawal Rajesh</span
             >
@@ -1851,6 +1857,13 @@
       // Remembers each phone's chosen language so every message to the bot carries it
       // (bot replies stay in that language). Keys: phone → "en" | "gu" | "hi".
       const clientLang = {};
+
+      // Header dropdown → force the language for the current user (voice STT + replies).
+      // Empty value = auto-detect.
+      function setUserLang(val) {
+        if (val) clientLang[SENDER_PHONE] = val;
+        else delete clientLang[SENDER_PHONE];
+      }
 
       const CLIENT_USERS = {
         "919876500009": "Agrawal Rajesh (#9012)",
