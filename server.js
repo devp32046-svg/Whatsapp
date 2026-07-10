@@ -52,12 +52,51 @@ app.post('/api/upload', async (req, res) => {
 
         console.log(`[Upload] Uploading ${filename || 'file'} (${(buffer.length / 1024).toFixed(1)} KB, ${mimeType})`);
 
-        // Try litterbox first (serves RAW bytes; auto-deletes in 1h), then catbox (permanent) as fallback.
-        // NOTE: tmpfiles.org was removed — it now returns an HTML redirect page instead of the raw
-        // file, so the AI backend could never download the media (voice notes came back empty).
+        // Upload strategy order:
+        //   1. Cloudinary (set CLOUDINARY_CLOUD_NAME + CLOUDINARY_UPLOAD_PRESET) — works from cloud
+        //      hosts like Render and serves RAW bytes. This is the production path.
+        //   2. litterbox / 3. catbox — free anonymous hosts. They serve raw bytes too, BUT block
+        //      datacenter/cloud IPs (they fail on Render with 500/412). Kept only as local-dev fallback.
+        //   (tmpfiles.org was removed — it returns an HTML redirect page, not the raw file.)
         let publicUrl = null;
 
+        // Strategy 0: Cloudinary unsigned upload (recommended for deployed/cloud environments)
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+        if (cloudName && uploadPreset) {
+            try {
+                // Cloudinary accepts a base64 Data URI directly in the `file` field.
+                const dataUri = `data:${mimeType || 'application/octet-stream'};base64,${cleanBase64}`;
+                const cForm = new FormData();
+                cForm.append('file', dataUri);
+                cForm.append('upload_preset', uploadPreset);
+
+                // resource_type "auto" lets Cloudinary detect audio/image/video/raw
+                const cRes = await axios.post(
+                    `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+                    cForm,
+                    {
+                        headers: cForm.getHeaders(),
+                        timeout: 60000,
+                        maxContentLength: Infinity,
+                        maxBodyLength: Infinity,
+                    }
+                );
+
+                if (cRes.data && cRes.data.secure_url) {
+                    publicUrl = cRes.data.secure_url;
+                    console.log(`[Upload] Cloudinary success: ${publicUrl}`);
+                } else {
+                    console.warn('[Upload] Cloudinary returned no secure_url');
+                }
+            } catch (err) {
+                const detail = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
+                console.warn(`[Upload] Cloudinary failed: ${detail}, trying fallback...`);
+            }
+        }
+
         // Strategy 1: litterbox (temporary — file auto-deletes after 1 hour)
+        if (!publicUrl)
         try {
             const form = new FormData();
             form.append('reqtype', 'fileupload');
