@@ -1848,6 +1848,10 @@
       let SENDER_PHONE = ROLES.client.from;
       let SENDER_NAME = ROLES.client.name;
 
+      // Remembers each phone's chosen language so every message to the bot carries it
+      // (bot replies stay in that language). Keys: phone → "en" | "gu" | "hi".
+      const clientLang = {};
+
       const CLIENT_USERS = {
         "919876500009": "Agrawal Rajesh (#9012)",
         "919825100001": "AARDESHANA ANILBHAI (#864805904)",
@@ -2057,6 +2061,9 @@
             "ui-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
         };
         if (msg.text) payload.text = String(msg.text);
+        // Tell the bot the user's chosen language (if any) so replies stay in it
+        const chosenLang = msg.lang || clientLang[String(msg.from)];
+        if (chosenLang) payload.lang = chosenLang;
 
         switch (type) {
           case "text":
@@ -2362,11 +2369,13 @@
 
         // Check if this is a Language Preference Selection loop for new leads
         if (btnId.startsWith("LANG_")) {
+          // Remember the chosen language for this user so all later messages tell the bot
+          clientLang[targetPhone] = btnId === "LANG_GUJ" ? "gu" : btnId === "LANG_HIN" ? "hi" : "en";
           setTimeout(() => {
             hideTyping();
             let responseText = "";
             let actionButtons = [];
-            
+
             if (btnId === "LANG_ENG") {
               responseText = `**Language Selected: English 🇬🇧**\n\nThank you, **${SENDER_NAME}**! Welcome to **CGPE**.\n\nHow can our advisory team assist you today? Please choose an option or type your inquiry below:`;
               actionButtons = [
