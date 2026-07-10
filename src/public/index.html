@@ -1614,6 +1614,11 @@
               <option value="919825100004">AMDAWADI KARSHANBHAI (#864805933)</option>
               <option value="custom">+ Add Custom User...</option>
             </select>
+            <select id="teamDropdown" class="client-dropdown" style="display: none" title="Switch team member" onchange="changeTeamUser(this.value)">
+              <option value="919876600001">🧑‍💼 Priya Desai (Ops Lead)</option>
+              <option value="919876600002">🧑‍💼 Amit Shah (Claims Officer)</option>
+              <option value="919876600003">🧑‍💼 Kunal Mehta (Sales Specialist)</option>
+            </select>
             <select id="langDropdown" class="client-dropdown" title="Force reply/voice language" onchange="setUserLang(this.value)">
               <option value="">🌐 Auto language</option>
               <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
@@ -1900,6 +1905,39 @@
         }
       }
 
+      // Team members — each has an isolated inbox, like clients
+      const TEAM_USERS = {
+        "919876600001": "Priya Desai (Ops Lead)",
+        "919876600002": "Amit Shah (Claims Officer)",
+        "919876600003": "Kunal Mehta (Sales Specialist)",
+      };
+
+      // Conversation-thread key: client & team are per-phone; admin is single
+      function convKey(role, phone) {
+        return role === "client" || role === "team" ? role + "_" + phone : role;
+      }
+
+      function changeTeamUser(val) {
+        ROLES.team.from = val;
+        ROLES.team.name = TEAM_USERS[val] || "Team (" + val + ")";
+        if (currentRole === "team") {
+          SENDER_PHONE = ROLES.team.from;
+          SENDER_NAME = ROLES.team.name;
+          document.getElementById("roleIndicator").textContent = SENDER_NAME;
+          if (!conversations["team_" + val]) {
+            conversations["team_" + val] = [
+              {
+                text: `Hello ${SENDER_NAME}! 🙏 Welcome to your CGPE Team Member Task Inbox. You will receive real-time task assignments and updates here.`,
+                sender: "bot",
+                buttons: [],
+                time: getTimeString(),
+              },
+            ];
+          }
+          renderConversation("team");
+        }
+      }
+
       let conversations = null;
 
       function initConversations() {
@@ -1931,6 +1969,7 @@
           ],
         };
         conversations["client_" + ROLES.client.from] = conversations.client;
+        conversations["team_" + ROLES.team.from] = conversations.team;
         renderConversation("client");
       }
 
@@ -1956,6 +1995,23 @@
         const clientDropdown = document.getElementById("clientDropdown");
         if (clientDropdown) {
           clientDropdown.style.display = role === "client" ? "inline-block" : "none";
+        }
+        const teamDropdown = document.getElementById("teamDropdown");
+        if (teamDropdown) {
+          teamDropdown.style.display = role === "team" ? "inline-block" : "none";
+          if (role === "team") teamDropdown.value = ROLES.team.from;
+        }
+
+        // Make sure the selected team member has a seeded inbox thread
+        if (role === "team" && !conversations["team_" + SENDER_PHONE]) {
+          conversations["team_" + SENDER_PHONE] = [
+            {
+              text: `Hello ${SENDER_NAME}! 🙏 Welcome to your CGPE Team Member Task Inbox. You will receive real-time task assignments and updates here.`,
+              sender: "bot",
+              buttons: [],
+              time: getTimeString(),
+            },
+          ];
         }
 
         // Update placeholder
@@ -1985,16 +2041,11 @@
       }
 
       function getActiveConversationList() {
-        if (currentRole === "client") {
-          if (!conversations["client_" + SENDER_PHONE]) {
-            conversations["client_" + SENDER_PHONE] = [];
-          }
-          return conversations["client_" + SENDER_PHONE];
+        const key = convKey(currentRole, SENDER_PHONE);
+        if (!conversations[key]) {
+          conversations[key] = [];
         }
-        if (!conversations[currentRole]) {
-          conversations[currentRole] = [];
-        }
-        return conversations[currentRole];
+        return conversations[key];
       }
 
       function renderConversation(role) {
@@ -2022,11 +2073,7 @@
 
       function clearChat() {
         if (conversations) {
-          if (currentRole === "client") {
-            conversations["client_" + SENDER_PHONE] = [];
-          } else {
-            conversations[currentRole] = [];
-          }
+          conversations[convKey(currentRole, SENDER_PHONE)] = [];
           renderConversation(currentRole);
         }
       }
@@ -2242,26 +2289,19 @@
 
         if (!conversations) return;
 
-        // 1. Find exact thread list
-        let list = null;
-        if (targetRole === "client") {
-          if (!conversations["client_" + targetPhone]) {
-            conversations["client_" + targetPhone] = [];
-          }
-          list = conversations["client_" + targetPhone];
-        } else {
-          if (!conversations[targetRole]) {
-            conversations[targetRole] = [];
-          }
-          list = conversations[targetRole];
+        // 1. Find exact thread list (client & team are per-phone; admin is single)
+        const key = convKey(targetRole, targetPhone);
+        if (!conversations[key]) {
+          conversations[key] = [];
         }
+        const list = conversations[key];
 
         // 2. Save in persistent thread history
         list.push(newMsg);
 
         // 3. Check if user is CURRENTLY viewing this exact thread right now
-        const isCurrentlyActive = (targetRole === "client")
-          ? (currentRole === "client" && SENDER_PHONE === targetPhone)
+        const isCurrentlyActive = (targetRole === "client" || targetRole === "team")
+          ? (currentRole === targetRole && SENDER_PHONE === targetPhone)
           : (currentRole === targetRole);
 
         // 4. Only render DOM if viewing that thread; otherwise stay hidden in background history
@@ -2510,9 +2550,10 @@
         // 1. Admin chat confirmation
         appendMessage(`📤 Assigned Task [${taskId}] to ${memberName}\n📋 "${desc}"\n🔥 Priority: ${priority}\n⏳ Status: Awaiting member acceptance...`, "user");
 
-        // 2. Alert in Team Member chat
-        if (!conversations.team) conversations.team = [];
-        conversations.team.push({
+        // 2. Alert in the assigned member's OWN Team inbox thread
+        const teamKey = "team_" + memberPhone;
+        if (!conversations[teamKey]) conversations[teamKey] = [];
+        conversations[teamKey].push({
           text: `🔔 NEW TASK ASSIGNMENT [${taskId}]\n\n👤 Assigned By: CGPE Admin\n🧑‍💼 For Member: ${memberName}\n📋 Task: "${desc}"\n🔥 Priority: ${priority}\n⏰ Assigned at: ${getTimeString()}\n\nPlease confirm if you accept this task right now:`,
           sender: "bot",
           buttons: [
@@ -2521,16 +2562,27 @@
           ],
           time: getTimeString()
         });
+        // If already viewing that member's tab, show it live
+        if (currentRole === "team" && SENDER_PHONE === memberPhone) renderConversation("team");
 
         setTimeout(() => {
           if (currentRole === "admin") {
             const note = document.createElement("div");
             note.style.cssText = "background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 8px; margin: 8px 0; font-size: 13px; font-weight: 500; border-left: 4px solid #4caf50;";
-            note.innerHTML = `💡 Task [${taskId}] delivered to <b>${memberName}</b>! <a href="#" onclick="switchRole('team'); return false;" style="color: #1b5e20; text-decoration: underline; font-weight: 600;">Switch to 🧑‍💼 Team Member Tab</a> to simulate Yes/No acceptance loop.`;
+            note.innerHTML = `💡 Task [${taskId}] delivered to <b>${memberName}</b>! <a href="#" onclick="goToTeamMember('${memberPhone}'); return false;" style="color: #1b5e20; text-decoration: underline; font-weight: 600;">Switch to 🧑‍💼 ${memberName}</a> to simulate Yes/No acceptance loop.`;
             chatBox.appendChild(note);
             chatBox.scrollTop = chatBox.scrollHeight;
           }
         }, 300);
+      }
+
+      // Jump to a specific team member's tab (selects them in the dropdown too)
+      function goToTeamMember(phone) {
+        ROLES.team.from = phone;
+        ROLES.team.name = TEAM_USERS[phone] || ROLES.team.name;
+        const dd = document.getElementById("teamDropdown");
+        if (dd) dd.value = phone;
+        switchRole("team");
       }
 
       // ══════════════════════════════════════════════════
