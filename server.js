@@ -70,6 +70,8 @@ app.post('/api/upload', async (req, res) => {
                 const cForm = new FormData();
                 cForm.append('file', dataUri);
                 cForm.append('upload_preset', uploadPreset);
+                // Store every upload in one folder (override with CLOUDINARY_FOLDER env var).
+                cForm.append('folder', process.env.CLOUDINARY_FOLDER || 'cgpe-audio');
 
                 // resource_type "auto" lets Cloudinary detect audio/image/video/raw
                 const cRes = await axios.post(
