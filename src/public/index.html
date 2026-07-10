@@ -2755,9 +2755,10 @@
         recordedWavBlob = encodeWAV(audioBuffer, sampleRate);
         audioBuffer = [];
 
-        const textToConfirm =
-          transcribedText.trim() || "[Could not transcribe. Audio recorded.]";
-        showVoiceConfirmation(textToConfirm);
+        // Send the voice note straight to the bot — no local confirmation step.
+        // Sarvam (server-side) does the real transcription; the browser's rough
+        // transcript is not used or shown.
+        uploadAndSendAudioMessage();
       }
 
       function showVoiceConfirmation(transcript) {
@@ -2846,7 +2847,6 @@
               name: SENDER_NAME,
               type: "audio",
               mediaUrl: publicUrl,
-              text: transcript,
             });
 
             if (data && data.reply) {
