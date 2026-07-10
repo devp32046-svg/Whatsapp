@@ -2,7 +2,21 @@ const express = require('express');
 const path = require("path");
 const axios = require('axios');
 const FormData = require('form-data');
+const { MongoClient } = require('mongodb');
 require('dotenv').config();
+
+// Lazy, cached MongoDB connection for the UI inbox (reminders / notifications the
+// bot pushes to a user). Reads the same DB the n8n workflows write `ui_inbox` to.
+let _mongoClientPromise = null;
+function getInboxCollection() {
+    if (!process.env.MONGODB_URI) return null;
+    if (!_mongoClientPromise) {
+        _mongoClientPromise = new MongoClient(process.env.MONGODB_URI, { maxPoolSize: 3 }).connect();
+    }
+    return _mongoClientPromise.then((client) =>
+        client.db(process.env.MONGO_DB || undefined).collection('ui_inbox')
+    );
+}
 
 const app = express();
 const PORT = process.env.PORT || 8081;
@@ -212,6 +226,43 @@ app.post('/api/chat', async (req, res) => {
             reply: "Connection to CGPE engine failed. Please try again.",
             buttons: []
         });
+    }
+});
+
+/**
+ * UI Inbox poll — returns messages the bot pushed to this phone (reminders,
+ * admin/team notifications) that the UI hasn't shown yet, and marks them delivered.
+ * Fails soft (empty list) when MONGODB_URI isn't set, so the UI keeps working.
+ */
+app.get('/api/inbox', async (req, res) => {
+    try {
+        const phone = String(req.query.phone || '').replace(/\D/g, '').slice(-10);
+        if (!phone) return res.json({ ok: true, messages: [] });
+
+        const colPromise = getInboxCollection();
+        if (!colPromise) return res.json({ ok: true, messages: [] }); // MONGODB_URI not configured yet
+
+        const collection = await colPromise;
+        const docs = await collection
+            .find({ phone, delivered: false })
+            .sort({ createdAt: 1 })
+            .limit(20)
+            .toArray();
+
+        if (docs.length) {
+            await collection.updateMany(
+                { _id: { $in: docs.map((d) => d._id) } },
+                { $set: { delivered: true } }
+            );
+        }
+
+        res.json({
+            ok: true,
+            messages: docs.map((d) => ({ text: d.text, source: d.source, createdAt: d.createdAt })),
+        });
+    } catch (error) {
+        console.error('[Inbox] Error:', error.message);
+        res.json({ ok: true, messages: [] }); // never break the UI's polling
     }
 });
 

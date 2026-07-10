@@ -3074,6 +3074,28 @@
         });
       });
 
+      // ── UI Inbox polling ──
+      // Every 5s, pull any messages the bot proactively pushed to the current user
+      // (scheduled reminders, admin/team notifications) and render them into the
+      // active chat. The server marks each message delivered, so it appears once.
+      async function pollInbox() {
+        const phone = SENDER_PHONE;
+        const role = currentRole;
+        try {
+          const res = await fetch("/api/inbox?phone=" + encodeURIComponent(phone));
+          const data = await res.json();
+          if (data && data.messages && data.messages.length) {
+            for (const m of data.messages) {
+              const icon = m.source === "reminder" ? "⏰ " : "🔔 ";
+              appendTargetedBotResponse(icon + (m.text || ""), [], role, phone);
+            }
+          }
+        } catch (e) {
+          /* ignore transient polling errors */
+        }
+      }
+      setInterval(pollInbox, 5000);
+
       // ── Initialize ──
       initConversations();
     </script>
