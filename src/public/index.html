@@ -2764,8 +2764,10 @@
       let recognition = null;
       let transcribedText = "";
       let recordedWavBlob = null;
+      let isRecordingActive = false;
 
       async function startVoiceRecording() {
+        isRecordingActive = true;
         const SpeechRecognition =
           window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -2809,6 +2811,16 @@
             };
 
             recognition.onend = () => {
+              if (isRecordingActive) {
+                // Browser auto-stopped speech recognition after ~5s of silence while still recording.
+                // Restart speech recognition so user can continue speaking without auto-sending!
+                try {
+                  if (recognition) recognition.start();
+                } catch (e) {
+                  console.warn("Could not restart speech recognition during silence pause:", e);
+                }
+                return;
+              }
               handleVoiceRecordingStopped();
             };
 
@@ -2866,6 +2878,7 @@
       }
 
       function cancelRecording() {
+        isRecordingActive = false;
         if (recognition) {
           recognition.abort();
           recognition = null;
@@ -2877,6 +2890,7 @@
       }
 
       function stopAndSendRecording() {
+        isRecordingActive = false;
         stopAudioNodes();
         if (recognition) {
           recognition.stop();
@@ -2886,6 +2900,7 @@
       }
 
       function handleVoiceRecordingStopped() {
+        isRecordingActive = false;
         stopRecordingUI();
 
         if (audioBuffer.length === 0) return;

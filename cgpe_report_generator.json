@@ -185,12 +185,11 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-5.4",
-          "cachedResultName": "gpt-5.4"
+          "value": "gpt-4o",
+          "cachedResultName": "gpt-4o"
         },
         "builtInTools": {},
         "options": {
-          "reasoningEffort": "low",
           "timeout": 120000
         }
       },

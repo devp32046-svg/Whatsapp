@@ -162,7 +162,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const dupes = $input.all().map(i => i.json).filter(j => j && j.waMessageId);\nif (dupes.length) return [];\nconst n = $('Normalize Message').first().json;\nconst cfgRow = $('Load Config').first().json || {};\nconst cfg = cfgRow.meta || {};\nreturn [{ json: Object.assign({}, n, {\n  token: cfg.token || '', phoneNumberId: cfg.phoneNumberId || '',\n  graphVersion: cfg.graphVersion || 'v20.0',\n  systemPrompt: cfgRow.systemPrompt || 'You are the CGPE WhatsApp assistant. Reply briefly in Gujlish.',\n  ackText: cfgRow.ackText || 'Request received, processing...',\n  model: cfgRow.model || 'gpt-5.4'\n}) }];"
+        "jsCode": "const dupes = $input.all().map(i => i.json).filter(j => j && j.waMessageId);\nif (dupes.length) return [];\nconst n = $('Normalize Message').first().json;\nconst cfgRow = $('Load Config').first().json || {};\nconst cfg = cfgRow.meta || {};\nreturn [{ json: Object.assign({}, n, {\n  token: cfg.token || '', phoneNumberId: cfg.phoneNumberId || '',\n  graphVersion: cfg.graphVersion || 'v20.0',\n  systemPrompt: cfgRow.systemPrompt || 'You are the CGPE WhatsApp assistant. Reply briefly in Gujlish.',\n  ackText: cfgRow.ackText || 'Request received, processing...',\n  model: cfgRow.model || 'gpt-4o'\n}) }];"
       },
       "id": "2f9bdef3-70d6-4611-8d2b-78e3ee536f4a",
       "name": "Gate",
@@ -431,12 +431,11 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-5.4",
-          "cachedResultName": "gpt-5.4"
+          "value": "gpt-4o",
+          "cachedResultName": "gpt-4o"
         },
         "builtInTools": {},
         "options": {
-          "reasoningEffort": "low",
           "timeout": 90000
         }
       },
