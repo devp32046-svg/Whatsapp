@@ -2164,6 +2164,56 @@
       }
 
       // ══════════════════════════════════════════════════
+      //  Document Copy Request Interceptor
+      //  CGPE does NOT have doc copies available to share
+      //  directly. Instead: notify Admin & inform client.
+      // ══════════════════════════════════════════════════
+
+      const DOC_KEYWORDS = [
+        "document copy", "doc copy", "document_copy", "doc_copy",
+        "policy copy", "policy document", "send document", "send doc",
+        "certificate copy", "bond copy", "premium receipt",
+        "download document", "download policy", "get document",
+        "mujhe document", "document chahiye", "copy chahiye",
+        "document moklo", "copy moklo", "document moko",
+        "full family report", "family_report", "family report"
+      ];
+
+      function isDocumentRequest(text) {
+        if (!text) return false;
+        const lower = text.toLowerCase();
+        return DOC_KEYWORDS.some(kw => lower.includes(kw));
+      }
+
+      function handleDocumentRequest(targetRole, targetPhone, requestText) {
+        hideTyping();
+        const time = getTimeString();
+        const clientName = SENDER_NAME;
+
+        // 1. Reply to the client with a friendly "team notified" message
+        const clientReply = `${clientName} ji, document copies filhaal directly available nahi hai. 📋\n\nMaine **CGPE team ko notify** kar diya hai aapki request ke baare mein. Humari team aapko **jaldi hi contact karegi** aur required documents provide karegi. 🙏\n\nAgar aapko koi aur information chahiye toh mujhse poochh sakte hai!`;
+
+        appendTargetedBotResponse(clientReply, [
+          { id: "POLICIES", title: "📜 My Policies" },
+          { id: "STATUS", title: "🔍 Check Status" },
+          { id: "CALL_BACK", title: "📞 Request Callback" }
+        ], targetRole, targetPhone);
+
+        // 2. Push notification to Admin Inbox
+        if (conversations && conversations.admin) {
+          const ticketId = "DOC-" + Math.floor(1000 + Math.random() * 9000);
+          conversations.admin.push({
+            text: `📄 **DOCUMENT REQUEST [${ticketId}]**\n\n👤 Client: **${clientName}**\n📱 Phone: ${targetPhone}\n📋 Request: "${requestText}"\n⏰ Time: ${time}\n\n⚠️ Client ko documents directly available nahi hai. Please contact client and provide required documents manually.`,
+            sender: "bot",
+            buttons: [],
+            time
+          });
+        }
+
+        return true;
+      }
+
+      // ══════════════════════════════════════════════════
       //  Send to CGPE (via proxy)
       // ══════════════════════════════════════════════════
 
@@ -2246,6 +2296,15 @@
         const targetPhone = SENDER_PHONE;
         appendMessage(text, "user");
         showTyping();
+
+        // Intercept document copy / report requests from quick actions
+        if (currentRole === "client" && isDocumentRequest(text)) {
+          setTimeout(() => {
+            handleDocumentRequest(targetRole, targetPhone, text);
+          }, 500);
+          return;
+        }
+
         try {
           const data = await sendToCgpe({
             from: targetPhone,
@@ -2467,6 +2526,14 @@
           return;
         }
 
+        // Check if this is a Document Copy / Report request → intercept & notify Admin
+        if (isDocumentRequest(btnId) || isDocumentRequest(btnTitle)) {
+          setTimeout(() => {
+            handleDocumentRequest(targetRole, targetPhone, btnTitle || btnId);
+          }, 500);
+          return;
+        }
+
         try {
           const data = await sendToCgpe({
             from: targetPhone,
@@ -2656,6 +2723,14 @@
         userInput.value = "";
         toggleSendMic();
         showTyping();
+
+        // Intercept document copy / report requests from free text
+        if (currentRole === "client" && isDocumentRequest(text)) {
+          setTimeout(() => {
+            handleDocumentRequest(targetRole, targetPhone, text);
+          }, 500);
+          return;
+        }
 
         try {
           const data = await sendToCgpe({
