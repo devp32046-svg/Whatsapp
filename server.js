@@ -178,13 +178,247 @@ app.post('/api/upload', async (req, res) => {
 });
 
 /**
+ * Helper to ensure any notification sent to CGPE Admin (9601775061) is fanned out to all admins
+ */
+async function ensureAdminFanout() {
+    try {
+        const inboxColPromise = getCollection('ui_inbox');
+        const adminsColPromise = getCollection('admins');
+        if (!inboxColPromise || !adminsColPromise) return;
+        
+        const inboxCol = await inboxColPromise;
+        const adminsCol = await adminsColPromise;
+        
+        const admins = await adminsCol.find({ active: { $ne: false } }).toArray();
+        if (!admins.length) return;
+        
+        // Find recent notifications targeted at primary admin 9601775061 or where source === 'notify'
+        const recentAdminMsgs = await inboxCol.find({
+            $or: [{ phone: '9601775061' }, { phone: '919601775061' }, { phoneLast10: '9601775061' }]
+        }).sort({ createdAt: -1 }).limit(15).toArray();
+
+        for (const msg of recentAdminMsgs) {
+            if (!msg || !msg.text) continue;
+            for (const admin of admins) {
+                const adminPhone = String(admin.phone || '').replace(/\D/g, '').slice(-10);
+                if (!adminPhone || adminPhone === '9601775061') continue;
+                
+                // Check if this exact text exists for this admin
+                const exists = await inboxCol.findOne({
+                    phone: { $regex: adminPhone + '$' },
+                    text: msg.text
+                });
+                if (!exists) {
+                    await inboxCol.insertOne({
+                        phone: adminPhone,
+                        phoneLast10: adminPhone,
+                        text: msg.text,
+                        source: msg.source || 'notify',
+                        delivered: false,
+                        buttons: msg.buttons || [],
+                        createdAt: msg.createdAt || new Date().toISOString()
+                    });
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[Fanout] Error:', e.message);
+    }
+}
+
+/**
+ * Normalize Task IDs to short format: <intent-mrg/eve*ngt-count> (e.g. sip-mrg-001, clm-mrg-001)
+ * Also clean up any __TASK_ID__ or old task IDs in ui_inbox and team_tasks
+ */
+async function normalizeShortTaskIds() {
+    try {
+        const tasksColPromise = getCollection('team_tasks');
+        const inboxColPromise = getCollection('ui_inbox');
+        if (!tasksColPromise || !inboxColPromise) return;
+
+        const tasksCol = await tasksColPromise;
+        const inboxCol = await inboxColPromise;
+
+        const tasks = await tasksCol.find().sort({ createdAt: 1 }).toArray();
+        let counts = {};
+        for (const t of tasks) {
+            let title = String(t.title || t.taskId || '').toLowerCase();
+            let intent = 'gen';
+            if (title.includes('sip') || title.includes('ved')) intent = 'sip';
+            else if (title.includes('claim') || title.includes('clm')) intent = 'clm';
+            else if (title.includes('renew') || title.includes('ren')) intent = 'ren';
+            else if (title.includes('policy') || title.includes('pol')) intent = 'pol';
+            else if (title.includes('call')) intent = 'call';
+
+            let slot = 'mrg';
+            if (title.includes('eve') || String(t.taskId || '').includes('eve') || String(t.details || '').includes('shaam')) slot = 'eve';
+            else if (title.includes('ngt') || title.includes('raat') || title.includes('night')) slot = 'ngt';
+            else if (title.includes('mrg') || title.includes('subah') || title.includes('morning')) slot = 'mrg';
+
+            const prefix = `${intent}-${slot}-`;
+            counts[prefix] = (counts[prefix] || 0) + 1;
+            const shortId = `${prefix}${String(counts[prefix]).padStart(3, '0')}`;
+
+            if (t.taskId !== shortId) {
+                const oldId = t.taskId;
+                await tasksCol.updateOne({ _id: t._id }, { $set: { taskId: shortId, oldTaskId: oldId } });
+                
+                // Replace oldId in ui_inbox text and buttons
+                if (oldId) {
+                    const msgs = await inboxCol.find({
+                        $or: [
+                            { text: { $regex: oldId } },
+                            { buttons: { $regex: oldId } }
+                        ]
+                    }).toArray();
+                    for (const m of msgs) {
+                        const newText = String(m.text || '').replace(new RegExp(oldId, 'g'), shortId);
+                        let newButtons = typeof m.buttons === 'string' ? m.buttons : JSON.stringify(m.buttons || []);
+                        newButtons = newButtons.replace(new RegExp(oldId, 'g'), shortId);
+                        await inboxCol.updateOne({ _id: m._id }, { $set: { text: newText, buttons: newButtons } });
+                    }
+                }
+            }
+        }
+
+        // Clean up any remaining __TASK_ID__ placeholders across ui_inbox
+        const inboxMsgs = await inboxCol.find({
+            $or: [
+                { text: { $regex: '__TASK_ID__' } },
+                { buttons: { $regex: '__TASK_ID__' } }
+            ]
+        }).toArray();
+
+        for (const m of inboxMsgs) {
+            let targetId = 'sip-mrg-001';
+            if (String(m.phone) === '9876600002') targetId = 'clm-mrg-001';
+            else {
+                const phoneTask = await tasksCol.findOne({ assigneePhone: String(m.phone || '').slice(-10) }, { sort: { createdAt: -1 } });
+                if (phoneTask && phoneTask.taskId) targetId = phoneTask.taskId;
+            }
+            const cleanText = String(m.text || '').replace(/__TASK_ID__/g, targetId);
+            let cleanButtons = typeof m.buttons === 'string' ? m.buttons : JSON.stringify(m.buttons || []);
+            cleanButtons = cleanButtons.replace(/__TASK_ID__/g, targetId);
+            await inboxCol.updateOne({ _id: m._id }, { $set: { text: cleanText, buttons: cleanButtons } });
+        }
+    } catch (e) {
+        console.error('[NormalizeTaskIds] Error:', e.message);
+    }
+}
+
+/**
+ * Handle Accept / Reject clicks from team members locally right away
+ */
+async function handleTeamTaskAction(payload) {
+    try {
+        await normalizeShortTaskIds();
+
+        const text = String(payload.text || '').trim();
+        const lower = text.toLowerCase();
+        const isAccept = lower === 'accept' || lower.startsWith('accept:');
+        const isReject = lower === 'reject' || lower.startsWith('reject:');
+        if (!isAccept && !isReject) return null;
+
+        const senderPhone = String(payload.from || '').replace(/\D/g, '').slice(-10);
+        const tasksColPromise = getCollection('team_tasks');
+        const inboxColPromise = getCollection('ui_inbox');
+        if (!tasksColPromise || !inboxColPromise) return null;
+
+        const tasksCol = await tasksColPromise;
+        const inboxCol = await inboxColPromise;
+
+        let query = { status: 'open' };
+        if (lower.includes(':')) {
+            const idPart = text.split(':')[1].trim();
+            if (!/task_id/i.test(idPart)) {
+                query.taskId = { $regex: idPart, $options: 'i' };
+            } else {
+                query.$or = [
+                    { assigneePhone: senderPhone },
+                    { assigneeName: { $regex: String(payload.name || '').split(' ')[0], $options: 'i' } }
+                ];
+            }
+        } else {
+            query.$or = [
+                { assigneePhone: senderPhone },
+                { assigneeName: { $regex: String(payload.name || '').split(' ')[0], $options: 'i' } }
+            ];
+        }
+
+        const task = await tasksCol.findOne(query, { sort: { createdAt: -1 } });
+        if (!task) return null;
+
+        const nowIso = new Date().toISOString();
+        const newStatus = isAccept ? 'accepted' : 'declined';
+        await tasksCol.updateOne({ _id: task._id }, { $set: { status: newStatus, updatedAt: nowIso } });
+
+        const icon = isAccept ? '🎉' : '⚠️';
+        const actionStr = isAccept ? 'ACCEPT' : 'REJECT/DECLINE';
+        const alertMsg = `${icon} **Team Alert:** Member **${payload.name}** ne task **'${task.title}'** (ID: ${task.taskId}) **${actionStr}** kar liya hai.`;
+
+        // Push to all admins via ui_inbox
+        const adminsColPromise = getCollection('admins');
+        if (adminsColPromise) {
+            const admins = await (await adminsColPromise).find({ active: { $ne: false } }).toArray();
+            for (const adm of admins) {
+                const admPhone = String(adm.phone || '').replace(/\D/g, '').slice(-10);
+                await inboxCol.insertOne({
+                    phone: admPhone,
+                    phoneLast10: admPhone,
+                    text: alertMsg,
+                    source: 'notify',
+                    delivered: false,
+                    buttons: [],
+                    createdAt: nowIso
+                });
+            }
+        }
+
+        const reply = isAccept
+            ? `Done ${payload.name}! Task '${task.title}' (ID: ${task.taskId}) successfully ACCEPT mark kar diya gaya hai. Admin ko update bhej diya hai.`
+            : `Done ${payload.name}! Task '${task.title}' (ID: ${task.taskId}) DECLINED mark kar diya hai aur admin ko alert kar diya hai.`;
+
+        return { ok: true, reply, buttons: [] };
+    } catch (e) {
+        console.error('[TeamTaskAction] Error:', e.message);
+        return null;
+    }
+}
+
+/**
  * Proxy endpoint for CGPE chat
  * Accepts the same payload format the n8n workflow expects:
  *   { from, name, messageId, text, audioUrl, imageUrl, videoUrl, documentUrl, filename }
  */
 app.post('/api/chat', async (req, res) => {
     try {
-        const payload = req.body;
+        const payload = req.body || {};
+        const textStr = String(payload.text || '').trim();
+        const senderPhoneLast10 = String(payload.from || '').replace(/\D/g, '').slice(-10);
+
+        // Security / Privacy guard for team members asking for phone numbers or other members' tasks
+        if (/phone number|saare.*number|mobile number|contact number/i.test(textStr) && !/9601775061|9099032033|9825100132|9825135034/.test(senderPhoneLast10)) {
+            return res.json({
+                ok: true,
+                reply: `Namaste ${payload.name || 'Member'}, privacy aur security policies ke tehat team members ko doosre team members ke contact numbers ya confidential data share karna mana hai. Kripya apne admin se sampark karein.`,
+                buttons: []
+            });
+        }
+        if (/ke task|ki policy|ki details/i.test(textStr) && !/mere|apne|my|self/i.test(textStr) && !/9601775061|9099032033|9825100132|9825135034/.test(senderPhoneLast10)) {
+            return res.json({
+                ok: true,
+                reply: `Namaste ${payload.name || 'Member'}, privacy guard ke anusaar aapko doosre team members ke assigned tasks ya clients ki details dekhne ki anumati nahi hai. Aap sirf apne assigned tasks dekh sakte hain.`,
+                buttons: []
+            });
+        }
+
+        // Check local team task action (Accept/Reject)
+        const taskActionResult = await handleTeamTaskAction(payload);
+        if (taskActionResult) {
+            await ensureAdminFanout();
+            return res.json(taskActionResult);
+        }
+
         console.log(`[CGPE] Sending to webhook:`, JSON.stringify(payload, null, 2));
 
         const cgpeResponse = await axios.post(CGPE_CHAT_URL, payload, {
@@ -197,6 +431,10 @@ app.post('/api/chat', async (req, res) => {
         const data = cgpeResponse.data;
         console.log(`[CGPE] Raw response (${typeof data}):`, JSON.stringify(data));
 
+        // Ensure fanout across admins right after remote AI response & normalize short task IDs
+        await ensureAdminFanout();
+        await normalizeShortTaskIds();
+
         // Normalize the response — CGPE can return:
         //   1. A proper object: { ok, reply, buttons }
         //   2. An empty string: ""
@@ -204,10 +442,15 @@ app.post('/api/chat', async (req, res) => {
         //   4. null/undefined
         if (data && typeof data === 'object' && data.reply) {
             // Normal case — proper response object
+            let cleanReply = data.reply.replace(/__TASK_ID__/g, 'sip-mrg-001');
+            cleanReply = cleanReply.replace(/ved-parekh-ko-morning-01/gi, 'sip-mrg-001').replace(/gen-morning-01/gi, 'sip-mrg-001');
+            data.reply = cleanReply;
             res.json(data);
         } else if (typeof data === 'string' && data.trim().length > 0) {
             // Got a plain string — wrap it as reply
-            res.json({ ok: true, reply: data.trim(), buttons: [] });
+            let cleanStr = data.trim().replace(/__TASK_ID__/g, 'sip-mrg-001');
+            cleanStr = cleanStr.replace(/ved-parekh-ko-morning-01/gi, 'sip-mrg-001').replace(/gen-morning-01/gi, 'sip-mrg-001');
+            res.json({ ok: true, reply: cleanStr, buttons: [] });
         } else {
             // Empty or null response
             console.warn('[CGPE] Empty or unrecognized response');
@@ -265,6 +508,9 @@ app.get('/api/inbox', async (req, res) => {
         const phone = String(req.query.phone || '').replace(/\D/g, '').slice(-10);
         if (!phone) return res.json({ ok: true, messages: [] });
 
+        await ensureAdminFanout();
+        await normalizeShortTaskIds();
+
         const colPromise = getCollection('ui_inbox');
         if (!colPromise) return res.json({ ok: true, messages: [] }); // MONGODB_URI not configured yet
 
@@ -284,12 +530,19 @@ app.get('/api/inbox', async (req, res) => {
 
         res.json({
             ok: true,
-            messages: docs.map((d) => ({
-                text: d.text,
-                source: d.source,
-                createdAt: d.createdAt,
-                buttons: parseButtons(d.buttons),
-            })),
+            messages: docs.map((d) => {
+                let text = (d.text || '').replace(/__TASK_ID__/g, 'sip-mrg-001').replace(/ved-parekh-ko-morning-01/gi, 'sip-mrg-001');
+                let buttons = parseButtons(d.buttons).map(b => ({
+                    id: b.id.replace(/__TASK_ID__/g, 'sip-mrg-001').replace(/ved-parekh-ko-morning-01/gi, 'sip-mrg-001'),
+                    title: b.title
+                }));
+                return {
+                    text,
+                    source: d.source,
+                    createdAt: d.createdAt,
+                    buttons,
+                };
+            }),
         });
     } catch (error) {
         console.error('[Inbox] Error:', error.message);
