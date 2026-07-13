@@ -52,9 +52,27 @@ const CGPE_CHAT_URL = "https://ai.cgpe.in/webhook/cgpe-chat";
  * uploads to temporary file hosting, returns a public URL
  * that the CGPE webhook can download.
  */
+/**
+ * Builds a Cloudinary public_id so uploads are easy to find later:
+ *   <phoneLast10>/<YYYY-MM-DD_HH-mm-ss>_<rand>
+ * Combined with the `cgpe-audio` folder this gives one sub-folder per client,
+ * with timestamped, unique, sortable filenames.
+ */
+function buildPublicId(phone) {
+    const last10 = String(phone || '').replace(/\D/g, '').slice(-10);
+    const stamp = new Date()
+        .toISOString()
+        .replace('T', '_')
+        .replace(/:/g, '-')
+        .slice(0, 19); // 2026-07-13_14-35-02
+    const rand = Math.random().toString(36).slice(2, 6);
+    const base = `${stamp}_${rand}`;
+    return last10 ? `${last10}/${base}` : base;
+}
+
 app.post('/api/upload', async (req, res) => {
     try {
-        const { base64Data, mimeType, filename } = req.body;
+        const { base64Data, mimeType, filename, phone, name } = req.body;
 
         if (!base64Data) {
             return res.status(400).json({ success: false, error: 'No file data provided' });
@@ -86,6 +104,14 @@ app.post('/api/upload', async (req, res) => {
                 cForm.append('upload_preset', uploadPreset);
                 // Store every upload in one folder (override with CLOUDINARY_FOLDER env var).
                 cForm.append('folder', process.env.CLOUDINARY_FOLDER || 'cgpe-audio');
+                // Name it <phone>/<timestamp>_<rand> so a client's notes group together
+                // and stay unique + sortable. Tag with phone/name so they're searchable.
+                cForm.append('public_id', buildPublicId(phone));
+                const tags = [String(phone || '').replace(/\D/g, '').slice(-10), String(name || '')]
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                    .join(',');
+                if (tags) cForm.append('tags', tags);
 
                 // resource_type "auto" lets Cloudinary detect audio/image/video/raw
                 const cRes = await axios.post(

@@ -2440,7 +2440,14 @@
           const res = await fetch("/api/upload", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ base64Data, mimeType, filename }),
+            // phone + name let the server file this under the sender's own folder
+            body: JSON.stringify({
+              base64Data,
+              mimeType,
+              filename,
+              phone: SENDER_PHONE,
+              name: SENDER_NAME,
+            }),
           });
           const data = await res.json();
           if (!data.success) throw new Error(data.error || "Upload failed");
