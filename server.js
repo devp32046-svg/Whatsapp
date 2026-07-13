@@ -5,16 +5,16 @@ const FormData = require('form-data');
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
-// Lazy, cached MongoDB connection for the UI inbox (reminders / notifications the
-// bot pushes to a user). Reads the same DB the n8n workflows write `ui_inbox` to.
+// Lazy, cached MongoDB connection. Same DB the n8n workflows use — lets the UI read
+// `ui_inbox` (pushed reminders/notifications) and `team_members` (the live team roster).
 let _mongoClientPromise = null;
-function getInboxCollection() {
+function getCollection(name) {
     if (!process.env.MONGODB_URI) return null;
     if (!_mongoClientPromise) {
         _mongoClientPromise = new MongoClient(process.env.MONGODB_URI, { maxPoolSize: 3 }).connect();
     }
     return _mongoClientPromise.then((client) =>
-        client.db(process.env.MONGO_DB || undefined).collection('ui_inbox')
+        client.db(process.env.MONGO_DB || undefined).collection(name)
     );
 }
 
@@ -239,7 +239,7 @@ app.get('/api/inbox', async (req, res) => {
         const phone = String(req.query.phone || '').replace(/\D/g, '').slice(-10);
         if (!phone) return res.json({ ok: true, messages: [] });
 
-        const colPromise = getInboxCollection();
+        const colPromise = getCollection('ui_inbox');
         if (!colPromise) return res.json({ ok: true, messages: [] }); // MONGODB_URI not configured yet
 
         const collection = await colPromise;
@@ -263,6 +263,38 @@ app.get('/api/inbox', async (req, res) => {
     } catch (error) {
         console.error('[Inbox] Error:', error.message);
         res.json({ ok: true, messages: [] }); // never break the UI's polling
+    }
+});
+
+/**
+ * Live team roster — the UI builds its Team switcher and the Assign-Task picker
+ * from this, so adding a member in MongoDB makes them appear with no code change.
+ * Returns [] when the DB isn't configured; the UI then keeps its built-in defaults.
+ */
+app.get('/api/team-members', async (req, res) => {
+    try {
+        const colPromise = getCollection('team_members');
+        if (!colPromise) return res.json({ ok: true, members: [] });
+
+        const collection = await colPromise;
+        const docs = await collection
+            .find({ active: { $ne: false } })
+            .sort({ name: 1 })
+            .toArray();
+
+        res.json({
+            ok: true,
+            members: docs
+                .map((d) => {
+                    const last10 = String(d.phoneLast10 || '').replace(/\D/g, '');
+                    const phone = String(d.phone || (last10 ? '91' + last10 : '')).replace(/\D/g, '');
+                    return { phone, name: String(d.name || 'Team Member'), role: String(d.role || '') };
+                })
+                .filter((m) => m.phone),
+        });
+    } catch (error) {
+        console.error('[TeamMembers] Error:', error.message);
+        res.json({ ok: true, members: [] }); // fail soft — UI falls back to defaults
     }
 });
 

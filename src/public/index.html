@@ -1916,12 +1916,79 @@
         }
       }
 
-      // Team members — each has an isolated inbox, like clients
+      // Team members — each has an isolated inbox, like clients.
+      // Loaded live from the `team_members` collection (see loadTeamMembers below);
+      // these entries are only a fallback if the DB isn't reachable.
       const TEAM_USERS = {
         "919876600001": "Priya Desai (Ops Lead)",
         "919876600002": "Amit Shah (Claims Officer)",
         "919876600003": "Kunal Mehta (Sales Specialist)",
       };
+
+      const ROLE_LABELS = {
+        ops: "Ops Lead",
+        claims: "Claims Officer",
+        sales: "Sales Specialist",
+        admin: "Admin",
+        support: "Support",
+      };
+
+      function teamDisplayName(m) {
+        const label = ROLE_LABELS[String(m.role || "").toLowerCase()] || m.role;
+        return label ? `${m.name} (${label})` : m.name;
+      }
+
+      // Rebuild the Team switcher + Assign-Task picker from the live roster, so a
+      // member added in MongoDB shows up here with no code change.
+      async function loadTeamMembers() {
+        let members = [];
+        try {
+          const res = await fetch("/api/team-members");
+          const data = await res.json();
+          members = (data && data.members) || [];
+        } catch (e) {
+          /* fall through — keep built-in defaults */
+        }
+        if (!members.length) return; // DB not configured → keep defaults
+
+        Object.keys(TEAM_USERS).forEach((k) => delete TEAM_USERS[k]);
+        members.forEach((m) => {
+          TEAM_USERS[m.phone] = teamDisplayName(m);
+        });
+
+        const teamDd = document.getElementById("teamDropdown");
+        const taskDd = document.getElementById("taskAssignMember");
+        if (teamDd) teamDd.innerHTML = "";
+        if (taskDd) taskDd.innerHTML = "";
+        members.forEach((m) => {
+          const label = teamDisplayName(m);
+          if (teamDd) {
+            const o = document.createElement("option");
+            o.value = m.phone;
+            o.textContent = "🧑‍💼 " + label;
+            teamDd.appendChild(o);
+          }
+          if (taskDd) {
+            const o2 = document.createElement("option");
+            o2.value = m.phone + "|" + label;
+            o2.textContent = "🧑‍💼 " + label;
+            taskDd.appendChild(o2);
+          }
+        });
+
+        // Keep the Team role pointing at a member that actually exists
+        if (!TEAM_USERS[ROLES.team.from]) {
+          ROLES.team.from = members[0].phone;
+          ROLES.team.name = TEAM_USERS[members[0].phone];
+          if (currentRole === "team") {
+            SENDER_PHONE = ROLES.team.from;
+            SENDER_NAME = ROLES.team.name;
+            switchRole("team");
+          }
+        }
+        if (teamDd) teamDd.value = ROLES.team.from;
+        console.log(`[Team] Loaded ${members.length} members from DB`);
+      }
 
       // Conversation-thread key: client & team are per-phone; admin is single
       function convKey(role, phone) {
@@ -3251,6 +3318,7 @@
 
       // ── Initialize ──
       initConversations();
+      loadTeamMembers(); // pull the live team roster from the DB
     </script>
   </body>
 </html>
