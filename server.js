@@ -267,34 +267,58 @@ app.get('/api/inbox', async (req, res) => {
 });
 
 /**
+ * Reads a people roster (team_members / admins) from MongoDB.
+ * Returns a uniform shape the UI can render: { phone, name, dept, role }.
+ * `dept` is what the UI shows; `role` is kept as a fallback label.
+ */
+async function readRoster(collectionName) {
+    const colPromise = getCollection(collectionName);
+    if (!colPromise) return [];
+
+    const collection = await colPromise;
+    const docs = await collection
+        .find({ active: { $ne: false } })
+        .sort({ name: 1 })
+        .toArray();
+
+    return docs
+        .map((d) => {
+            const last10 = String(d.phoneLast10 || '').replace(/\D/g, '');
+            const phone = String(d.phone || (last10 ? '91' + last10 : '')).replace(/\D/g, '');
+            return {
+                phone,
+                name: String(d.name || 'Member'),
+                dept: String(d.dept || d.department || d.designation || ''),
+                role: String(d.role || ''),
+            };
+        })
+        .filter((m) => m.phone);
+}
+
+/**
  * Live team roster — the UI builds its Team switcher and the Assign-Task picker
  * from this, so adding a member in MongoDB makes them appear with no code change.
  * Returns [] when the DB isn't configured; the UI then keeps its built-in defaults.
  */
 app.get('/api/team-members', async (req, res) => {
     try {
-        const colPromise = getCollection('team_members');
-        if (!colPromise) return res.json({ ok: true, members: [] });
-
-        const collection = await colPromise;
-        const docs = await collection
-            .find({ active: { $ne: false } })
-            .sort({ name: 1 })
-            .toArray();
-
-        res.json({
-            ok: true,
-            members: docs
-                .map((d) => {
-                    const last10 = String(d.phoneLast10 || '').replace(/\D/g, '');
-                    const phone = String(d.phone || (last10 ? '91' + last10 : '')).replace(/\D/g, '');
-                    return { phone, name: String(d.name || 'Team Member'), role: String(d.role || '') };
-                })
-                .filter((m) => m.phone),
-        });
+        res.json({ ok: true, members: await readRoster('team_members') });
     } catch (error) {
         console.error('[TeamMembers] Error:', error.message);
         res.json({ ok: true, members: [] }); // fail soft — UI falls back to defaults
+    }
+});
+
+/**
+ * Live admin roster — the UI builds its Admin switcher from this, so every admin
+ * gets their own isolated inbox and polls their own notifications.
+ */
+app.get('/api/admins', async (req, res) => {
+    try {
+        res.json({ ok: true, admins: await readRoster('admins') });
+    } catch (error) {
+        console.error('[Admins] Error:', error.message);
+        res.json({ ok: true, admins: [] });
     }
 });
 

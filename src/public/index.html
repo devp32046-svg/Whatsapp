@@ -1625,6 +1625,9 @@
               <option value="919825100004">AMDAWADI KARSHANBHAI (#864805933)</option>
               <option value="custom">+ Add Custom User...</option>
             </select>
+            <select id="adminDropdown" class="client-dropdown" style="display: none" title="Switch admin" onchange="changeAdminUser(this.value)">
+              <option value="919601775061">🔧 CGPE Admin</option>
+            </select>
             <select id="teamDropdown" class="client-dropdown" style="display: none" title="Switch team member" onchange="changeTeamUser(this.value)">
               <option value="919876600001">🧑‍💼 Priya Desai (Ops Lead)</option>
               <option value="919876600002">🧑‍💼 Amit Shah (Claims Officer)</option>
@@ -1933,8 +1936,11 @@
         support: "Support",
       };
 
+      // Show the person's department; fall back to a friendly role label only if
+      // the record has no dept.
       function teamDisplayName(m) {
-        const label = ROLE_LABELS[String(m.role || "").toLowerCase()] || m.role;
+        const label =
+          m.dept || ROLE_LABELS[String(m.role || "").toLowerCase()] || m.role;
         return label ? `${m.name} (${label})` : m.name;
       }
 
@@ -1990,9 +1996,91 @@
         console.log(`[Team] Loaded ${members.length} members from DB`);
       }
 
-      // Conversation-thread key: client & team are per-phone; admin is single
+      // Conversation-thread key — every role is per-phone, so each client, each
+      // team member and each admin has their own isolated thread + inbox.
       function convKey(role, phone) {
-        return role === "client" || role === "team" ? role + "_" + phone : role;
+        return role + "_" + phone;
+      }
+
+      // Admins — loaded live from the `admins` collection. Each admin has their own
+      // isolated inbox and polls their own notifications.
+      const ADMIN_USERS = {
+        "919601775061": "CGPE Admin",
+      };
+
+      async function loadAdmins() {
+        let admins = [];
+        try {
+          const res = await fetch("/api/admins");
+          const data = await res.json();
+          admins = (data && data.admins) || [];
+        } catch (e) {
+          /* fall through — keep built-in default */
+        }
+        if (!admins.length) return; // DB not configured → keep default
+
+        Object.keys(ADMIN_USERS).forEach((k) => delete ADMIN_USERS[k]);
+        admins.forEach((a) => {
+          ADMIN_USERS[a.phone] = teamDisplayName(a);
+        });
+
+        const dd = document.getElementById("adminDropdown");
+        if (dd) {
+          dd.innerHTML = "";
+          admins.forEach((a) => {
+            const o = document.createElement("option");
+            o.value = a.phone;
+            o.textContent = "🔧 " + teamDisplayName(a);
+            dd.appendChild(o);
+          });
+        }
+
+        // Keep the Admin role pointing at an admin that actually exists
+        if (!ADMIN_USERS[ROLES.admin.from]) {
+          ROLES.admin.from = admins[0].phone;
+          ROLES.admin.name = ADMIN_USERS[admins[0].phone];
+          if (currentRole === "admin") {
+            SENDER_PHONE = ROLES.admin.from;
+            SENDER_NAME = ROLES.admin.name;
+            switchRole("admin");
+          }
+        }
+        if (dd) dd.value = ROLES.admin.from;
+        console.log(`[Admin] Loaded ${admins.length} admins from DB`);
+      }
+
+      function changeAdminUser(val) {
+        ROLES.admin.from = val;
+        ROLES.admin.name = ADMIN_USERS[val] || "Admin (" + val + ")";
+        if (currentRole === "admin") {
+          SENDER_PHONE = ROLES.admin.from;
+          SENDER_NAME = ROLES.admin.name;
+          document.getElementById("roleIndicator").textContent = SENDER_NAME;
+          if (!conversations["admin_" + val]) {
+            conversations["admin_" + val] = [
+              {
+                text: `Namaste ${SENDER_NAME}! 🙏 CGPE Admin Desk ready hai.`,
+                sender: "bot",
+                buttons: [],
+                time: getTimeString(),
+              },
+            ];
+          }
+          renderConversation("admin");
+        }
+      }
+
+      // Push a message into EVERY admin's inbox thread (there can be many admins)
+      function pushToAllAdmins(msg) {
+        if (!conversations) return;
+        const phones = Object.keys(ADMIN_USERS);
+        if (!phones.length) phones.push(ROLES.admin.from);
+        phones.forEach((p) => {
+          const key = "admin_" + p;
+          if (!conversations[key]) conversations[key] = [];
+          conversations[key].push(msg);
+        });
+        if (currentRole === "admin") renderConversation("admin");
       }
 
       function changeTeamUser(val) {
@@ -2048,6 +2136,7 @@
         };
         conversations["client_" + ROLES.client.from] = conversations.client;
         conversations["team_" + ROLES.team.from] = conversations.team;
+        conversations["admin_" + ROLES.admin.from] = conversations.admin;
         renderConversation("client");
       }
 
@@ -2079,12 +2168,28 @@
           teamDropdown.style.display = role === "team" ? "inline-block" : "none";
           if (role === "team") teamDropdown.value = ROLES.team.from;
         }
+        const adminDropdown = document.getElementById("adminDropdown");
+        if (adminDropdown) {
+          adminDropdown.style.display = role === "admin" ? "inline-block" : "none";
+          if (role === "admin") adminDropdown.value = ROLES.admin.from;
+        }
 
         // Make sure the selected team member has a seeded inbox thread
         if (role === "team" && !conversations["team_" + SENDER_PHONE]) {
           conversations["team_" + SENDER_PHONE] = [
             {
               text: `Hello ${SENDER_NAME}! 🙏 Welcome to your CGPE Team Member Task Inbox. You will receive real-time task assignments and updates here.`,
+              sender: "bot",
+              buttons: [],
+              time: getTimeString(),
+            },
+          ];
+        }
+        // Same for the selected admin
+        if (role === "admin" && !conversations["admin_" + SENDER_PHONE]) {
+          conversations["admin_" + SENDER_PHONE] = [
+            {
+              text: `Namaste ${SENDER_NAME}! 🙏 CGPE Admin Desk ready hai.`,
               sender: "bot",
               buttons: [],
               time: getTimeString(),
@@ -2266,10 +2371,10 @@
           { id: "CALL_BACK", title: "📞 Request Callback" }
         ], targetRole, targetPhone);
 
-        // 2. Push notification to Admin Inbox
-        if (conversations && conversations.admin) {
+        // 2. Push notification to EVERY Admin's Inbox
+        {
           const ticketId = "DOC-" + Math.floor(1000 + Math.random() * 9000);
-          conversations.admin.push({
+          pushToAllAdmins({
             text: `📄 **DOCUMENT REQUEST [${ticketId}]**\n\n👤 Client: **${clientName}**\n📱 Phone: ${targetPhone}\n📋 Request: "${requestText}"\n⏰ Time: ${time}\n\n⚠️ Client ko documents directly available nahi hai. Please contact client and provide required documents manually.`,
             sender: "bot",
             buttons: [],
@@ -2437,9 +2542,8 @@
         list.push(newMsg);
 
         // 3. Check if user is CURRENTLY viewing this exact thread right now
-        const isCurrentlyActive = (targetRole === "client" || targetRole === "team")
-          ? (currentRole === targetRole && SENDER_PHONE === targetPhone)
-          : (currentRole === targetRole);
+        const isCurrentlyActive =
+          currentRole === targetRole && SENDER_PHONE === targetPhone;
 
         // 4. Only render DOM if viewing that thread; otherwise stay hidden in background history
         if (isCurrentlyActive) {
@@ -2536,11 +2640,11 @@
             const action = btnId.startsWith("ACCEPT_") ? "ACCEPTED" : "DECLINED";
             const icon = action === "ACCEPTED" ? "🎉" : "⚠️";
             
-            // Push notification to Admin Inbox!
-            if (conversations && conversations.admin) {
+            // Push acknowledgment to EVERY Admin's Inbox!
+            {
               const taskIdMatch = btnId.match(/_(TASK-\d+)/);
               const taskId = taskIdMatch ? taskIdMatch[1] : "TASK-ACTION";
-              conversations.admin.push({
+              pushToAllAdmins({
                 text: `${icon} **TASK ${action} & ACKNOWLEDGED [${taskId}]**\n\nTeam Member **${SENDER_NAME}** has tapped **[ ${btnTitle} ]**.\n\n*Status Update:* Member acknowledged on ${time}.\n*Message:* "${action} — He/She will do the task right away!"`,
                 sender: "bot",
                 buttons: [],
@@ -3319,6 +3423,7 @@
       // ── Initialize ──
       initConversations();
       loadTeamMembers(); // pull the live team roster from the DB
+      loadAdmins(); // pull the live admin roster from the DB
     </script>
   </body>
 </html>
