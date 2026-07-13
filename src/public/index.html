@@ -1933,8 +1933,26 @@
         claims: "Claims Officer",
         sales: "Sales Specialist",
         admin: "Admin",
+        super_admin: "Super Admin",
         support: "Support",
       };
+
+      // Two people can share a name (we have two "Rameshbhai" on different numbers),
+      // so append the last 4 digits when a label would otherwise be ambiguous.
+      function buildRosterLabels(people) {
+        const counts = {};
+        people.forEach((p) => {
+          const n = teamDisplayName(p);
+          counts[n] = (counts[n] || 0) + 1;
+        });
+        const labels = {};
+        people.forEach((p) => {
+          let n = teamDisplayName(p);
+          if (counts[n] > 1) n += " ·" + String(p.phone).slice(-4);
+          labels[p.phone] = n;
+        });
+        return labels;
+      }
 
       // Show the person's department; fall back to a friendly role label only if
       // the record has no dept.
@@ -1957,9 +1975,10 @@
         }
         if (!members.length) return; // DB not configured → keep defaults
 
+        const labels = buildRosterLabels(members);
         Object.keys(TEAM_USERS).forEach((k) => delete TEAM_USERS[k]);
         members.forEach((m) => {
-          TEAM_USERS[m.phone] = teamDisplayName(m);
+          TEAM_USERS[m.phone] = labels[m.phone];
         });
 
         const teamDd = document.getElementById("teamDropdown");
@@ -1967,7 +1986,7 @@
         if (teamDd) teamDd.innerHTML = "";
         if (taskDd) taskDd.innerHTML = "";
         members.forEach((m) => {
-          const label = teamDisplayName(m);
+          const label = labels[m.phone];
           if (teamDd) {
             const o = document.createElement("option");
             o.value = m.phone;
@@ -2019,9 +2038,10 @@
         }
         if (!admins.length) return; // DB not configured → keep default
 
+        const labels = buildRosterLabels(admins);
         Object.keys(ADMIN_USERS).forEach((k) => delete ADMIN_USERS[k]);
         admins.forEach((a) => {
-          ADMIN_USERS[a.phone] = teamDisplayName(a);
+          ADMIN_USERS[a.phone] = labels[a.phone];
         });
 
         const dd = document.getElementById("adminDropdown");
@@ -2030,7 +2050,7 @@
           admins.forEach((a) => {
             const o = document.createElement("option");
             o.value = a.phone;
-            o.textContent = "🔧 " + teamDisplayName(a);
+            o.textContent = "🔧 " + labels[a.phone];
             dd.appendChild(o);
           });
         }
