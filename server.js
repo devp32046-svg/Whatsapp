@@ -230,6 +230,32 @@ app.post('/api/chat', async (req, res) => {
 });
 
 /**
+ * Normalizes buttons stored on an inbox message into the UI's { id, title } shape.
+ * Accepts either a JSON string or an array, and both the WhatsApp interactive
+ * shape ({ type:'reply', reply:{ id, title } }) and a plain { id, title }.
+ */
+function parseButtons(raw) {
+    if (!raw) return [];
+    let arr = raw;
+    if (typeof raw === 'string') {
+        try {
+            arr = JSON.parse(raw);
+        } catch {
+            return [];
+        }
+    }
+    if (!Array.isArray(arr)) return [];
+    return arr
+        .map((b) => {
+            const r = b && b.reply ? b.reply : b;
+            const id = String((r && r.id) || '');
+            const title = String((r && r.title) || id);
+            return { id, title };
+        })
+        .filter((b) => b.id || b.title);
+}
+
+/**
  * UI Inbox poll — returns messages the bot pushed to this phone (reminders,
  * admin/team notifications) that the UI hasn't shown yet, and marks them delivered.
  * Fails soft (empty list) when MONGODB_URI isn't set, so the UI keeps working.
@@ -258,7 +284,12 @@ app.get('/api/inbox', async (req, res) => {
 
         res.json({
             ok: true,
-            messages: docs.map((d) => ({ text: d.text, source: d.source, createdAt: d.createdAt })),
+            messages: docs.map((d) => ({
+                text: d.text,
+                source: d.source,
+                createdAt: d.createdAt,
+                buttons: parseButtons(d.buttons),
+            })),
         });
     } catch (error) {
         console.error('[Inbox] Error:', error.message);

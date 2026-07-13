@@ -3431,7 +3431,14 @@
           if (data && data.messages && data.messages.length) {
             for (const m of data.messages) {
               const icon = m.source === "reminder" ? "⏰ " : "🔔 ";
-              appendTargetedBotResponse(icon + (m.text || ""), [], role, phone);
+              // Pass the buttons through so Accept/Decline (and any other
+              // decision buttons) are tappable right on the pushed message.
+              appendTargetedBotResponse(
+                icon + (m.text || ""),
+                m.buttons || [],
+                role,
+                phone,
+              );
             }
           }
         } catch (e) {
