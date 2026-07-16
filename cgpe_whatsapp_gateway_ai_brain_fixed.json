@@ -1,19 +1,19 @@
 {
-  "name": "CGPE — WhatsApp Gateway + AI Brain",
+  "name": "CGPE — WhatsApp Gateway + AI Brain-2",
   "nodes": [
     {
       "parameters": {
         "path": "cgpe-whatsapp",
-        "responseMode": "responseN ode",
+        "responseMode": "responseNode",
         "options": {}
       },
-      "id": "cd505acf-d929-4f7c-965c-246cfdab13dc",
+      "id": "160a3cad-ffe7-43e9-a3a9-3e8b700464a6",
       "name": "Meta Verify (GET)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        96
+        4080,
+        -2080
       ],
       "webhookId": "ada44791-22f9-42ce-91db-897887c3cabe"
     },
@@ -23,12 +23,12 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict",
+            "typeValidation": "loose",
             "version": 3
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.query['hub.verify_token'] }}",
+              "leftValue": "={{ $json.query['hub.verify_token'] || $json.query['hub_verify_token'] || $json.query.verify_token }}",
               "operator": {
                 "type": "string",
                 "operation": "equals"
@@ -41,13 +41,13 @@
         },
         "options": {}
       },
-      "id": "30ca433b-6a30-482f-947b-2b4bacc69246",
+      "id": "80679d26-2acf-4db9-9233-e17e4eb48178",
       "name": "Valid Verify Token?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        224,
-        96
+        4528,
+        -2128
       ]
     },
     {
@@ -56,13 +56,13 @@
         "responseBody": "={{ $json.query['hub.challenge'] }}",
         "options": {}
       },
-      "id": "b4387987-3c12-4ef7-b58a-b9b90771e231",
+      "id": "b4f1a3f9-996e-4bd4-aca9-31a0dc42482b",
       "name": "Respond Challenge",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        448,
-        0
+        4752,
+        -2224
       ]
     },
     {
@@ -73,42 +73,43 @@
           "responseCode": 403
         }
       },
-      "id": "e405d9fc-5d5b-487c-b3cf-006a4ee8464e",
+      "id": "07373d27-ceaa-4b02-8cf0-856f878a5afb",
       "name": "Respond Forbidden",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        448,
-        192
+        4752,
+        -2032
       ]
     },
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "cgpe-whatsapp",
+        "responseMode": "responseNode",
         "options": {}
       },
-      "id": "c11d9f94-5323-4e29-aabf-0c85367ab3f1",
+      "id": "ee0a329c-3fea-45d5-aad2-158c29a41719",
       "name": "WhatsApp Inbound (POST)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        496
+        4304,
+        -1744
       ],
       "webhookId": "2bb5ccad-6833-451e-9483-91be318eff9f"
     },
     {
       "parameters": {
-        "jsCode": "const root = $input.first().json;\nconst body = root.body || root;\nconst rand = () => Math.random().toString(36).slice(2, 8);\nif (body && !body.entry && (body.from || body.phone) && (body.text || body.audioUrl || body.imageUrl || body.videoUrl || body.documentUrl)) {\n  const from = String(body.from || body.phone);\n  let msgType = 'text';\n  if (body.audioUrl) msgType = 'audio';\n  else if (body.imageUrl) msgType = 'image';\n  else if (body.videoUrl) msgType = 'video';\n  else if (body.documentUrl) msgType = 'document';\n  const docInfo = body.documentUrl ? { id: body.documentUrl, filename: body.filename || 'document' } : null;\n  const imgInfo = body.imageUrl ? { id: body.imageUrl } : (body.videoUrl ? { id: body.videoUrl, video: true } : null);\n  return [{ json: {\n    waMessageId: body.messageId || ('ui-' + Date.now() + '-' + rand()),\n    senderPhone: from,\n    phoneLast10: from.replace(/\\D/g, '').slice(-10),\n    senderName: body.name || '', msgType,\n    text: String(body.text || body.caption || ''), audioId: '', audioUrl: String(body.audioUrl || ''),\n    docInfo, imgInfo, ts: String(Date.now()), channel: 'ui'\n  } }];\n}\nconst entry0 = (body.entry || [])[0] || {};\nconst change0 = (entry0.changes || [])[0] || {};\nconst value = change0.value || {};\nconst msg = (value.messages || [])[0];\nif (!msg) return [];\nconst contact = (value.contacts || [])[0] || {};\nlet text = '';\nif (msg.type === 'text') text = (msg.text || {}).body || '';\nelse if (msg.type === 'interactive') {\n  const ir = msg.interactive || {};\n  const id = (ir.button_reply || {}).id || (ir.list_reply || {}).id || '';\n  const title = (ir.button_reply || {}).title || (ir.list_reply || {}).title || '';\n  text = id ? id + ' (' + title + ')' : title;\n}\nelse if (msg.type === 'button') text = (msg.button || {}).text || '';\nconst audioId = (msg.type === 'audio' || msg.type === 'voice') ? ((msg.audio || msg.voice || {}).id || '') : '';\nconst docInfo = msg.type === 'document' ? { id: (msg.document || {}).id || '', filename: (msg.document || {}).filename || '' } : null;\nconst imgInfo = msg.type === 'image' ? { id: (msg.image || {}).id || '' } : (msg.type === 'video' ? { id: (msg.video || {}).id || '', video: true } : null);\nreturn [{ json: {\n  waMessageId: msg.id, senderPhone: msg.from,\n  phoneLast10: String(msg.from || '').replace(/\\D/g, '').slice(-10),\n  senderName: ((contact.profile || {}).name) || '', msgType: msg.type,\n  text, audioId, audioUrl: '', docInfo, imgInfo, ts: msg.timestamp, channel: 'meta'\n} }];"
+        "jsCode": "const root = $input.first().json;\nconst body = root.body || root;\nconst rand = () => Math.random().toString(36).slice(2, 8);\n\n// --- BhashSMS / BuzWap inbound via GET: query fromphone/message/fromname ---\nconst q = (root && root.query) || {};\nif ((q.fromphone || q.mobile || q.phone) && q.message !== undefined && q.message !== null && String(q.message).trim() !== '') {\n  const gf = String(q.fromphone || q.mobile || q.phone).replace(/\\D/g, '');\n  if (gf.length >= 10) {\n    return [{ json: {\n      waMessageId: 'bhash-' + Date.now() + '-' + rand(),\n      senderPhone: gf, phoneLast10: gf.slice(-10),\n      senderName: String(q.fromname || q.name || ''), msgType: 'text',\n      text: String(q.message), audioId: '', audioUrl: '', lang: '',\n      docInfo: null, imgInfo: null, ts: String(Date.now()), channel: 'bhash'\n    } }];\n  }\n}\n\n// --- BhashSMS / BuzWap inbound via POST: plain-text \"Name,MobileNumber,Message,\" ---\nlet bhashRaw = '';\nif (typeof root === 'string') bhashRaw = root;\nelse if (typeof body === 'string') bhashRaw = body;\nelse if (body && typeof body === 'object') {\n  if (typeof body.data === 'string') bhashRaw = body.data;\n  else {\n    const ks = Object.keys(body);\n    if (ks.length === 1 && ks[0].indexOf(',') !== -1 && (body[ks[0]] === '' || body[ks[0]] == null)) bhashRaw = ks[0];\n  }\n}\nif (bhashRaw && bhashRaw.indexOf(',') !== -1 && bhashRaw.indexOf('{') === -1 && !/hub\\.mode|entry/i.test(bhashRaw)) {\n  const parts = bhashRaw.split(',');\n  const bName = (parts[0] || '').trim();\n  const bMobile = (parts[1] || '').replace(/\\D/g, '');\n  const bMsg = parts.slice(2).join(',').replace(/,\\s*$/, '').trim();\n  if (bMobile && bMobile.length >= 10) {\n    return [{ json: {\n      waMessageId: 'bhash-' + Date.now() + '-' + rand(),\n      senderPhone: bMobile, phoneLast10: bMobile.slice(-10),\n      senderName: bName, msgType: 'text', text: bMsg,\n      audioId: '', audioUrl: '', lang: '', docInfo: null, imgInfo: null,\n      ts: String(Date.now()), channel: 'bhash'\n    } }];\n  }\n}\n\nif (body && !body.entry && (body.from || body.phone) && (body.text || body.audioUrl || body.imageUrl || body.videoUrl || body.documentUrl)) {\n  const from = String(body.from || body.phone);\n  let msgType = 'text';\n  if (body.audioUrl) msgType = 'audio';\n  else if (body.imageUrl) msgType = 'image';\n  else if (body.videoUrl) msgType = 'video';\n  else if (body.documentUrl) msgType = 'document';\n  const docInfo = body.documentUrl ? { id: body.documentUrl, filename: body.filename || 'document' } : null;\n  const imgInfo = body.imageUrl ? { id: body.imageUrl } : (body.videoUrl ? { id: body.videoUrl, video: true } : null);\n  return [{ json: {\n    waMessageId: body.messageId || ('ui-' + Date.now() + '-' + rand()),\n    senderPhone: from, phoneLast10: from.replace(/\\D/g, '').slice(-10),\n    senderName: body.name || '', msgType,\n    text: String(body.text || body.caption || ''), audioId: '', audioUrl: String(body.audioUrl || ''),\n    lang: String(body.lang || ''), docInfo, imgInfo, ts: String(Date.now()), channel: 'ui'\n  } }];\n}\nconst entry0 = (body.entry || [])[0] || {};\nconst change0 = (entry0.changes || [])[0] || {};\nconst value = change0.value || {};\nconst msg = (value.messages || [])[0];\nif (!msg) return [];\nconst contact = (value.contacts || [])[0] || {};\nlet text = '';\nif (msg.type === 'text') text = (msg.text || {}).body || '';\nelse if (msg.type === 'interactive') {\n  const ir = msg.interactive || {};\n  const id = (ir.button_reply || {}).id || (ir.list_reply || {}).id || '';\n  const title = (ir.button_reply || {}).title || (ir.list_reply || {}).title || '';\n  text = id ? id + ' (' + title + ')' : title;\n}\nelse if (msg.type === 'button') text = (msg.button || {}).text || '';\nconst audioId = (msg.type === 'audio' || msg.type === 'voice') ? ((msg.audio || msg.voice || {}).id || '') : '';\nconst docInfo = msg.type === 'document' ? { id: (msg.document || {}).id || '', filename: (msg.document || {}).filename || '' } : null;\nconst imgInfo = msg.type === 'image' ? { id: (msg.image || {}).id || '' } : (msg.type === 'video' ? { id: (msg.video || {}).id || '', video: true } : null);\nreturn [{ json: {\n  waMessageId: msg.id, senderPhone: msg.from,\n  phoneLast10: String(msg.from || '').replace(/\\D/g, '').slice(-10),\n  senderName: ((contact.profile || {}).name) || '', msgType: msg.type,\n  text, audioId, audioUrl: '', lang: '', docInfo, imgInfo, ts: msg.timestamp, channel: 'meta'\n} }];\n"
       },
-      "id": "28d8bab5-07ae-4760-a590-fa4cb411ca3a",
+      "id": "8cef6c6c-24e3-4b48-826c-cfeebb9bf9ad",
       "name": "Normalize Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        592
+        4752,
+        -1696
       ]
     },
     {
@@ -119,13 +120,13 @@
         },
         "query": "{\"botId\":\"cgpe_brain_v2\"}"
       },
-      "id": "2ea1f4be-5e3b-4e60-8f4c-0d938a1798b6",
+      "id": "bcd63eea-df41-4bc8-b03d-ce7d39b00d3b",
       "name": "Load Config",
       "type": "n8n-nodes-base.mongoDb",
       "typeVersion": 1.3,
       "position": [
-        448,
-        592
+        4976,
+        -1696
       ],
       "executeOnce": true,
       "credentials": {
@@ -143,13 +144,13 @@
         },
         "query": "={{ JSON.stringify({ waMessageId: $('Normalize Message').first().json.waMessageId }) }}"
       },
-      "id": "c93e8f88-8566-4080-81bb-267307772052",
+      "id": "c86318f7-3d88-4523-b2da-6ee21f7ab2a4",
       "name": "Check Duplicate",
       "type": "n8n-nodes-base.mongoDb",
       "typeVersion": 1.3,
       "position": [
-        672,
-        592
+        5200,
+        -1696
       ],
       "executeOnce": true,
       "alwaysOutputData": true,
@@ -162,15 +163,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const dupes = $input.all().map(i => i.json).filter(j => j && j.waMessageId);\nif (dupes.length) return [];\nconst n = $('Normalize Message').first().json;\nconst cfgRow = $('Load Config').first().json || {};\nconst cfg = cfgRow.meta || {};\nreturn [{ json: Object.assign({}, n, {\n  token: cfg.token || '', phoneNumberId: cfg.phoneNumberId || '',\n  graphVersion: cfg.graphVersion || 'v20.0',\n  systemPrompt: cfgRow.systemPrompt || 'You are the CGPE WhatsApp assistant. Reply briefly in Gujlish.',\n  ackText: cfgRow.ackText || 'Request received, processing...',\n  model: cfgRow.model || 'gpt-4o'\n}) }];"
+        "jsCode": "const dupes = $input.all().map(i => i.json).filter(j => j && j.waMessageId);\nif (dupes.length) return [];\nconst n = $('Normalize Message').first().json;\nconst cfgRow = $('Load Config').first().json || {};\nconst cfg = cfgRow.meta || {};\nconst langMap = {\n  hi: 'Hindi - reply ONLY in pure Hindi using Devanagari script',\n  gu: 'Gujarati - reply ONLY in pure Gujarati using Gujarati script',\n  en: 'English - reply ONLY in English'\n};\nconst langCode = String(n.lang || '').toLowerCase();\nlet sp = cfgRow.systemPrompt || 'You are the CGPE WhatsApp assistant. Reply briefly in Gujlish.';\nif (langMap[langCode]) {\n  sp += '\\n\\n[CUSTOMER SELECTED LANGUAGE - HIGHEST PRIORITY] The customer explicitly chose ' + langMap[langCode] + '. Use this language and script for the ENTIRE conversation, overriding any default language.';\n}\nreturn [{ json: Object.assign({}, n, {\n  token: cfg.token || '', phoneNumberId: cfg.phoneNumberId || '',\n  graphVersion: cfg.graphVersion || 'v20.0',\n  systemPrompt: sp,\n  ackText: cfgRow.ackText || 'Request received, processing...',\n  model: cfgRow.model || 'gpt-5.4'\n}) }];"
       },
-      "id": "2f9bdef3-70d6-4611-8d2b-78e3ee536f4a",
+      "id": "648a15e7-663c-412f-b3ff-e26bbbb8c779",
       "name": "Gate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        592
+        5424,
+        -1696
       ]
     },
     {
@@ -195,40 +196,64 @@
         },
         "options": {}
       },
-      "id": "e93ed792-2705-43fd-adbd-490503d38072",
+      "id": "a262d4bf-f4bd-4ab3-8f38-49739d4ec081",
       "name": "Has Audio?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1120,
-        592
+        5648,
+        -1792
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://graph.facebook.com/{{ $json.graphVersion }}/{{ $json.phoneNumberId }}/messages",
-        "sendHeaders": true,
-        "headerParameters": {
+        "url": "http://bhashsms.com/api/sendmsg.php",
+        "sendQuery": true,
+        "queryParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "=Bearer {{ $json.token }}"
+              "name": "user",
+              "value": "AazikoWA"
+            },
+            {
+              "name": "pass",
+              "value": "123456"
+            },
+            {
+              "name": "sender",
+              "value": "BUZWAP"
+            },
+            {
+              "name": "phone",
+              "value": "={{ String($json.senderPhone||'').replace(/\\D/g,'').slice(-10) }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.ackText }}"
+            },
+            {
+              "name": "priority",
+              "value": "wa"
+            },
+            {
+              "name": "stype",
+              "value": "normal"
+            },
+            {
+              "name": "htype",
+              "value": "normal"
             }
           ]
         },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", to: $json.senderPhone, type: \"text\", text: { body: $json.ackText } }) }}",
         "options": {}
       },
-      "id": "e871c9b7-51d1-445e-a4e5-5fcb5d7bc164",
+      "id": "a21a1d95-2ab5-4ae8-91fb-10a7281a63aa",
       "name": "Send Ack",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1344,
-        496
+        6320,
+        -1648
       ],
       "onError": "continueRegularOutput"
     },
@@ -246,13 +271,13 @@
         },
         "options": {}
       },
-      "id": "f57c55bf-064d-4899-88d3-7e08e6499e1a",
+      "id": "ac4b6d13-04c4-44ab-9826-6258a41f21db",
       "name": "Get Media URL",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1792,
-        416
+        6768,
+        -1952
       ]
     },
     {
@@ -275,60 +300,63 @@
           }
         }
       },
-      "id": "028421ac-ac3c-4221-94be-6f925f380e86",
+      "id": "53d4fcab-28d3-4f6e-a4f6-348e545a5ffb",
       "name": "Download Audio",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        2016,
-        496
+        6992,
+        -1888
       ]
     },
     {
       "parameters": {
         "jsCode": "// Meta media downloads arrive as a nameless binary blob.\n// OpenAI Whisper needs a filename WITH a valid extension or it returns 400 Bad Request.\nconst item = $input.first();\nconst bin = (item.binary && item.binary.data) ? item.binary.data : null;\nif (bin) {\n  const mime = String(bin.mimeType || 'audio/ogg').toLowerCase();\n  let ext = 'ogg';\n  if (mime.includes('mpeg') || mime.includes('mp3')) ext = 'mp3';\n  else if (mime.includes('mp4') || mime.includes('m4a')) ext = 'm4a';\n  else if (mime.includes('wav')) ext = 'wav';\n  else if (mime.includes('webm')) ext = 'webm';\n  else if (mime.includes('amr')) ext = 'amr';\n  else if (mime.includes('flac')) ext = 'flac';\n  else ext = 'ogg'; // ogg/opus = WhatsApp voice notes\n  bin.fileName = 'voice.' + ext;\n  bin.fileExtension = ext;\n  if (!bin.mimeType || bin.mimeType === 'application/octet-stream') bin.mimeType = 'audio/ogg';\n}\nreturn [{ json: item.json || {}, binary: item.binary }];"
       },
-      "id": "b1f2a3c4-0000-4a00-9000-abcdef012345",
+      "id": "e71c5bfa-a6f9-4ad1-be7e-ddc53164f222",
       "name": "Fix Audio Filename",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2128,
-        640
+        7216,
+        -1888
       ]
     },
     {
       "parameters": {
         "resource": "audio",
         "operation": "transcribe",
-        "options": {}
+        "options": {
+          "language": ""
+        }
       },
-      "id": "5ae3d3c0-ed68-46f3-bd24-17986c55b894",
+      "id": "2fc26cda-9db2-46ee-bb00-e4f7bef58353",
       "name": "Transcribe Audio",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.3,
       "position": [
-        2240,
-        496
+        4080,
+        -1104
       ],
       "credentials": {
         "openAiApi": {
           "id": "Ih2MECxY1EjMsbf2",
           "name": "OpenAI account 2"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { finalText: String($input.first().json.text || ''), isVoice: true } }];"
+        "jsCode": "return [{ json: { finalText: String($input.first().json.transcript || $input.first().json.text || ''), detectedLang: String($input.first().json.language_code || ''), isVoice: true } }];"
       },
-      "id": "f517f7e9-8bf1-4ed2-ab79-b7b2a2a9afc9",
+      "id": "83abd9fd-108c-4f52-9902-2cc55f07f106",
       "name": "Set Voice Text",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2464,
-        496
+        7664,
+        -1984
       ]
     },
     {
@@ -339,13 +367,13 @@
         },
         "query": "={{ JSON.stringify({ phoneLast10: $('Gate').first().json.phoneLast10, isActive: true }) }}"
       },
-      "id": "b585f072-6202-4e87-a605-2a24670a0aa0",
+      "id": "bad08551-09f4-4119-92b8-ba0bababf6c8",
       "name": "Find Admin",
       "type": "n8n-nodes-base.mongoDb",
       "typeVersion": 1.3,
       "position": [
-        2688,
-        592
+        7888,
+        -1696
       ],
       "executeOnce": true,
       "alwaysOutputData": true,
@@ -360,13 +388,13 @@
       "parameters": {
         "jsCode": "const g = $('Gate').first().json;\nlet t = String(g.text || '');\nif (g.docInfo) t = (t ? t + ' ' : '') + '[attachment: document received' + (g.docInfo.filename ? ' - ' + g.docInfo.filename : '') + ', ref=' + g.docInfo.id + ']';\nif (g.imgInfo) t = (t ? t + ' ' : '') + '[attachment: ' + (g.imgInfo.video ? 'video' : 'image') + ' received, ref=' + g.imgInfo.id + ']';\nif (!t) t = '[empty or unsupported message type: ' + g.msgType + ']';\nreturn [{ json: { finalText: t, isVoice: false } }];"
       },
-      "id": "a2eabf2d-9d22-48a8-9578-a655b0ff2a81",
+      "id": "b5aba663-8dbb-404c-8af5-31e059619cda",
       "name": "Set Plain Text",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2464,
-        704
+        7664,
+        -1504
       ]
     },
     {
@@ -377,13 +405,13 @@
         },
         "query": "={{ JSON.stringify({ phoneLast10: $('Gate').first().json.phoneLast10 }) }}"
       },
-      "id": "cead8dc3-4240-4385-ae62-23b68a88ffa9",
+      "id": "54f268c2-7aef-4f20-b13d-470f3b64afb2",
       "name": "Find Client Row",
       "type": "n8n-nodes-base.mongoDb",
       "typeVersion": 1.3,
       "position": [
-        2912,
-        592
+        8112,
+        -1696
       ],
       "executeOnce": true,
       "alwaysOutputData": true,
@@ -396,15 +424,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const g = $('Gate').first().json;\nconst admins = $('Find Admin').all().map(i => i.json).filter(j => j && (j.role || j.name));\nconst clients = $input.all().map(i => i.json).filter(j => j && j.name);\nlet finalText = '';\nlet isVoice = false;\ntry { const v = $('Set Voice Text').first().json; finalText = v.finalText; isVoice = !!v.isVoice; } catch (e) {}\nif (!finalText) { try { finalText = $('Set Plain Text').first().json.finalText; } catch (e) {} }\nconst role = admins.length ? 'admin' : (clients.length ? 'client' : 'unknown');\nconst senderName = admins.length ? admins[0].name : (clients.length ? clients[0].name : (g.senderName || 'Unknown'));\nconst adminRole = admins.length ? (admins[0].role || '') : '';\n\n// --- Intent detection ---\nconst lc = finalText.toLowerCase();\nconst intents = [];\nif (/\\b(birthday|bday|janmdin|જન્મદિન)\\b/i.test(lc)) intents.push('birthday_list');\nif (/\\b(anniversary|લગ્ન|વર્ષગાંઠ)\\b/i.test(lc)) intents.push('anniversary_list');\nif (/\\b(task|tasks|કામ|kaam)\\b/i.test(lc)) intents.push('task_list');\nif (/\\b(meeting|મીટીંગ|milan)\\b/i.test(lc)) intents.push('meeting_add');\nif (/\\b(transfer|assign|સોંપો|sonpo)\\b/i.test(lc)) intents.push('ticket_transfer');\nif (/\\b(client list|client count|ક્લાયન્ટ)\\b/i.test(lc)) intents.push('client_list');\nif (/\\b(maturity|મેચ્યુરિટી|પાકતી)\\b/i.test(lc)) intents.push('maturity_list');\nif (/\\b(premium|પ્રીમિયમ|due|renewal|રિન્યુઅલ|હપ્તો|hapto)\\b/i.test(lc)) intents.push('premium_due');\nif (/\\b(report|રિપોર્ટ|portfolio)\\b/i.test(lc)) intents.push('generate_report');\nif (/\\b(lead|લીડ|inquiry|reference|રેફરન્સ|invest|રોકાણ|SIP|sip)\\b/i.test(lc)) intents.push('lead');\nif (/\\b(claim|ક્લેમ|દાવો|hospital|હોસ્પિટલ)\\b/i.test(lc)) intents.push('claim_request');\nif (/\\b(policy|પોલિસી|plan|પ્લાન)\\b/i.test(lc)) intents.push('policy_query');\nif (/\\b(scan|સ્કેન|copy|કોપી|document)\\b/i.test(lc)) intents.push('scan_copy');\nif (/\\b(ticket|ટિકિટ|complaint|ફરિયાદ)\\b/i.test(lc)) intents.push('ticket');\n\n// --- Gujarati number normalization ---\nlet normalized = finalText;\nconst gujNums = { 'એક': '1', 'બે': '2', 'ત્રણ': '3', 'ચાર': '4', 'પાંચ': '5', 'છ': '6', 'સાત': '7', 'આઠ': '8', 'નવ': '9', 'દસ': '10', 'વીસ': '20', 'ત્રીસ': '30', 'ચાલીસ': '40', 'પચાસ': '50', 'સાઠ': '60', 'સિત્તેર': '70', 'એંસી': '80', 'નેવું': '90', 'સો': '00', 'હજાર': '000', 'લાખ': '00000', 'કરોડ': '0000000' };\nfor (const [guj, num] of Object.entries(gujNums)) { normalized = normalized.replace(new RegExp(guj, 'gi'), num); }\nconst hasNormalized = normalized !== finalText;\n\n// --- Day of week ---\nconst days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];\nconst now = new Date();\nconst dayName = days[now.getDay()];\nconst dateStr = now.toISOString().split('T')[0];\n\nconst chatInput = '[senderRole=' + role + (adminRole ? '/' + adminRole : '') + '] [senderName=' + senderName + '] [senderPhoneLast10=' + g.phoneLast10 + '] [voice=' + isVoice + '] [now=' + now.toISOString() + '] [today=' + dayName + '] [date=' + dateStr + ']' + (intents.length ? ' [detectedIntents=' + intents.join(',') + ']' : '') + (hasNormalized ? ' [normalizedNumbers=true]' : '') + '\\nMessage: ' + finalText + (hasNormalized && normalized !== finalText ? '\\nNormalized: ' + normalized : '');\nreturn [{ json: { chatInput, sessionKey: 'wa-' + g.phoneLast10, systemPrompt: g.systemPrompt, role, senderName, senderPhone: g.senderPhone, finalText, isVoice, detectedIntents: intents } }];"
+        "jsCode": "const g = $('Gate').first().json;\nconst admins = $('Find Admin').all().map(function(i){ return i.json; }).filter(function(j){ return j && (j.role || j.name); });\nconst team = $('Find Team').all().map(function(i){ return i.json; }).filter(function(j){ return j && j.name; });\nconst clients = $('Find Client Row').all().map(function(i){ return i.json; }).filter(function(j){ return j && j.name; });\nlet finalText = '';\nlet isVoice = false;\ntry { const v = $('Set Voice Text').first().json; finalText = v.finalText; isVoice = !!v.isVoice; } catch (e) {}\nif (!finalText) { try { finalText = $('Set Plain Text').first().json.finalText; } catch (e) {} }\nconst role = admins.length ? 'admin' : (team.length ? 'team' : (clients.length ? 'client' : 'unknown'));\nconst senderName = admins.length ? admins[0].name : (team.length ? team[0].name : (clients.length ? clients[0].name : (g.senderName || 'Unknown')));\nconst adminRole = admins.length ? (admins[0].role || '') : '';\nconst dept = team.length ? (team[0].role || '') : '';\nconst availability = team.length ? (team[0].availability || 'available') : '';\nlet tag = '[senderRole=' + role + (adminRole ? '/' + adminRole : (dept ? '/' + dept : '')) + '] [senderName=' + senderName + '] [senderPhoneLast10=' + g.phoneLast10 + ']';\nif (role === 'team') { tag += ' [dept=' + dept + '] [availability=' + availability + ']'; }\ntag += ' [voice=' + isVoice + '] [now=' + new Date().toISOString() + ']';\nconst chatInput = tag + ' Message: ' + finalText;\nconst GLOBAL = '[STYLE AND SAFETY] Reply in the language the user is using (Gujarati, Kathiyawadi, Hindi, or English), in a warm, simple, friendly and clear way - short and easy to read. Keep WhatsApp messages clean: start with a short summary line (include a total count for lists), then items one per line, a blank line between sections, no cluttered tables. Be DECISIVE and action-oriented: do NOT ask unnecessary questions - the sender identity, name, and phone are already known to you from the context, so use them and act. Ask a question ONLY when you truly cannot proceed without it. For reminders and tasks, the creator and the default person is the CURRENT sender (use their name and number from the context) unless they clearly name someone else - never ask who created it or who it is for when the sender is obvious. Use the conversation history: remember what was already discussed and do not re-ask for details the person already gave. NEVER expose internal system details to the user - do not mention workflows, tools, notify, backend, automation, nodes, errors, or code. If an action cannot be completed, just say it could not be done right now and offer to try again, in plain business language.';\nconst journeys = { admin: '[JOURNEY: ADMIN] This sender is the CGPE ADMIN. EXECUTE ADMIN REQUESTS DIRECTLY - do NOT ask the admin for confirmation. When the admin asks to create a lead, reminder, ticket, task, claim, or campaign, or to update, assign, or send something, DO IT IMMEDIATELY and create all the related records, then briefly confirm what was done in one line. Do not ask whether to proceed - just do it. The only exception is the bulk test-data purge, which stays dry-run first for safety. At the START of handling any admin request, call the log_command tool once to record it (number is the admin senderPhoneLast10, name is the admin senderName, command is what they asked in their own words, info is any extra detail). Full access: CRM lists (birthday, anniversary, clients, leads, maturity, dues), reference directories via ref_list with counts (mode=count for totals or how-many questions, optional groupBy), top leads, gift-hamper eligibility and dispatch, family reports for ANY client, claim and ticket management, assigning tasks to team members, reminders, and campaigns. For analytical questions use the count features instead of guessing or counting one page.', team: '[JOURNEY: TEAM MEMBER] This sender is a CGPE TEAM MEMBER (department: ' + (dept || 'general') + '). Focus on their work only: their assigned tasks (accept, reject, progress, done) and the client details needed to finish them. IMPORTANT - RELAYING TO ADMIN: to relay anything to the admin - a task accepted or rejected, a progress note, a request to discuss pay or salary, or a question - use the alert_admin tool (from is this team member name, message is the full note). NEVER tell the user you cannot reach the admin or that the admin number is unavailable; alert_admin finds the admin and delivers it. Do NOT expose admin-only bulk operations (full lead lists, gift-hamper dispatch, purge, CRM exports, reference directories) unless the admin explicitly delegated a specific task. Be concise and action-oriented.', client: '[JOURNEY: EXISTING CLIENT] This sender is a VERIFIED CLIENT (' + senderName + '). Help only with their own matters: their policies (list, premium due, maturity, document copies), their family financial report, claim intake and claim status, and service requests. Verify identity before sharing sensitive details. Do NOT expose admin or team functions (no lead lists, no CA or other reference directories, no gift-hamper, no team assignment, no purge). Be warm and respectful and reply in their language. When this client asks you for information, a reference, or help, ALSO call the alert_admin tool once (from is their name, message is a short reason for their enquiry) so the admin knows they reached out.', unknown: '[JOURNEY: NEW USER] This sender is NOT a known client yet. Treat them as a new prospect and first work out WHY they messaged. TWO possibilities: (A) they want insurance or investment for themselves, or (B) they want to JOIN CGPE as an adviser or agent, or asked about a career, franchise, agency, or earning extra income (common for bankers, general-insurance agents, and chartered accountants). If it is (B) recruitment: warmly explain CGPE is hiring and training advisers, ask their background (bank or RM, general-insurance adviser, CA or finance, commerce or other), their city, and why they are interested, then capture it with create_lead using interest recruitment. If it is (A) insurance: greet warmly and run discovery about the need (health, life or term, motor, savings or SIP), family size and ages for health, age and income for term, budget, city, and any advertisement code like CG-PLATFORM-PRODUCT-NN (use get_campaign). Capture it with create_lead and offer a free adviser callback. In both cases do NOT expose any admin, team, or client-only functions, do NOT reveal data belonging to other users, and never assume they are already a client. Also, when this new user asks for information or a reference, call the alert_admin tool once (from is their name if given, message is a short reason) so the admin is notified that someone contacted us and why.' };\nconst journey = journeys[role] || journeys.unknown;\nreturn [{ json: { chatInput: chatInput, sessionKey: 'wa-' + g.phoneLast10, systemPrompt: (g.systemPrompt || '') + ' ' + GLOBAL + ' ' + journey, role: role, senderName: senderName, senderPhone: g.senderPhone, finalText: finalText, isVoice: isVoice } }];"
       },
-      "id": "a2fba855-91d7-404e-b570-dea214b4c824",
+      "id": "2a83468b-8108-45f3-a40c-44ab6b055217",
       "name": "Build Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3136,
-        592
+        8560,
+        -1696
       ]
     },
     {
@@ -412,40 +440,44 @@
         "promptType": "define",
         "text": "={{ $json.chatInput }}",
         "options": {
-          "systemMessage": "={{ $json.systemPrompt }}",
-          "maxIterations": 6,
+          "systemMessage": "={{ $json.systemPrompt }}\n\n[LANGUAGE POLICY — HIGHEST PRIORITY. This overrides ANY other language instruction above, including any 'reply in Gujlish' default.]\n1. Detect the customer's language from their message and MIRROR it for the WHOLE reply and the ENTIRE conversation. Never drift or switch language mid-conversation.\n2. If the customer communicates in HINDI (Devanagari script, or clearly Hindi): reply ONLY in pure Hindi written in Devanagari script (देवनागरी). Do NOT romanize, do NOT insert English sentences, do NOT use Hinglish.\n3. If the customer communicates in GUJARATI (Gujarati script, or clearly Gujarati): reply ONLY in pure Gujarati written in Gujarati script (ગુજરાતી). Do NOT use romanized Gujlish.\n4. Reply in romanized Hinglish or Gujlish ONLY IF the customer themselves writes in that romanized/mixed style. Match their exact style.\n5. If the customer uses English: reply in English.\n6. Only proper nouns and fixed insurance terms (CGPE, LIC, SIP, policy, premium) may stay in English/Latin; everything else must be in the customer's language and script.\n7. NEVER reply in Telugu, Tamil, Kannada, Malayalam, Bengali, Marathi, or any language the customer did not use — even if a voice transcript looks like another script.\n8. When unsure, follow the language and script of the customer's most recent message. A pure Hindi or pure Gujarati speaker must be able to read every word.\n\n[TASK REFERENCE STYLE] When you mention a task to any user, lead with the task TITLE in quotes, and give the short task ID only as a secondary reference in brackets. Never identify a task by its raw ID alone, and never paste a long slug-style id into a sentence. Example: Amit Shah ne \"Narola family ka health claim verify\" task Accept kiya (TSK-0002-01). The same applies to reminders, tickets and claims: describe WHAT it is first, id second.\n\n[LANGUAGE PRECISION - STRICT] Your OWN prose follows the language policy above, but DATA is never translated. Never translate, transliterate or re-script any of these — reproduce them EXACTLY as the user gave them, character for character: person names, client names, team member names, task titles, task details, policy numbers, IDs, ticket ids, amounts, dates. If the admin typed a task title in Hinglish, quote it in Hinglish even when the rest of your reply is in Gujarati or Hindi. Quoted data stays verbatim; only your surrounding sentences follow the user language.\n\n[TASK INTENT] When calling team_ops with action assign or meeting, ALWAYS include an \"intent\" field: a 3-letter lowercase code for what the task is about. Use: clm=claim, sip=SIP/investment, rnw=renewal, prm=premium/payment, mat=maturity, pol=policy/document/KYC, mtg=meeting, led=lead/inquiry, cal=call/callback, gen=anything else. The task id is built from it (e.g. sip-mrg-004), so pick the code that matches the task.\n\n[TASK ACK RELAY - MANDATORY] Whenever a team member accepts, rejects, completes, or updates a task (including when their message is a button id such as accept:<taskId> or reject:<taskId>), you MUST do BOTH: (1) record it with ack_task, AND (2) call the notify tool to inform the admin. Never record it silently. The notify text must state WHO did it, the task TITLE in quotes, the short task id, and the decision (accepted / rejected / completed). Send it to the admin who assigned the task (assignedByPhone from the task record); if that is unknown, send it to the CGPE Admin number. This relay is NOT optional — the admin must always learn the outcome of a task they assigned.\n\n[TASK ACK RELAY - LOOKUP TITLE FIRST] Before you relay a task acknowledgement, you do NOT know the task title from the button id alone. So the order is ALWAYS: (1) call get_task with the taskId to fetch the real record, (2) call ack_task to record the decision, (3) call notify to the admin using the REAL title from step 1. Never write the placeholder word \"Task\" in place of the title, and never invent a title. The notify text must read like: Priya Desai ne \"Mehta ji ka policy renewal follow-up karna hai\" [rnw-aft-001] accept kar liya hai. If get_task returns nothing, say the task was not found instead of guessing.\n\n[ACK AUTO-NOTIFY] For a task accept/reject/decline acknowledgement, the SYSTEM already notifies the admin automatically. Do NOT call the notify tool yourself for acks. Just record it with ack_task and give the team member a short confirmation.",
+          "maxIterations": 12,
           "enableStreaming": false
         }
       },
-      "id": "a278b146-f8b4-4916-9c40-afa64f6fd290",
+      "id": "c376377e-29b8-47de-96a5-79ef7de3b491",
       "name": "CGPE AI Brain",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        3936,
-        592
-      ]
+        10768,
+        -1696
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4o",
-          "cachedResultName": "gpt-4o"
+          "value": "gpt-5.4",
+          "cachedResultName": "gpt-5.4"
         },
         "builtInTools": {},
         "options": {
+          "reasoningEffort": "low",
           "timeout": 90000
         }
       },
-      "id": "0a315cdb-1589-45f6-81e2-6a67472ea15b",
+      "id": "adf0aafe-7822-4e45-a38b-94dd3402bbd0",
       "name": "GPT Brain Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        3360,
-        816
+        8784,
+        -1472
       ],
       "credentials": {
         "openAiApi": {
@@ -462,13 +494,13 @@
         "databaseName": "cgpe-connect",
         "contextWindowLength": 10
       },
-      "id": "f64e9b9e-1962-490a-ab05-1984f20fee3b",
+      "id": "b789ab6f-ca08-4e46-98fa-ef521686747d",
       "name": "WA Session Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryMongoDbChat",
       "typeVersion": 1.1,
       "position": [
-        3488,
-        816
+        8912,
+        -1472
       ],
       "credentials": {
         "mongoDb": {
@@ -479,11 +511,11 @@
     },
     {
       "parameters": {
-        "description": "Search clients in the CGPE database by name (fuzzy, case-insensitive), phoneLast10, dob, or dob month-day for birthday lists. Legacy LIC records also carry policy fields (policyNo, sumAssured, premium, maturityDate) directly on the client row. FORMATTING: When multiple results are found, ALWAYS number them: 1️⃣ Name | Detail\n2️⃣ Name | Detail etc. Show total count at end: 'Total: X found'. For birthday/anniversary lists format as: 1️⃣ Name | Date | Phone\n2️⃣ Name | Date | Phone. Returns {ok, count, results}.",
+        "description": "Search clients in the CGPE database by name (fuzzy, case-insensitive), phoneLast10 or dob. Legacy LIC records also carry policy fields (policyNo, sumAssured, premium, maturityDate) directly on the client row. Returns {ok, count, results}.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
@@ -515,22 +547,22 @@
           ]
         }
       },
-      "id": "796c3e3f-1e5b-4dd5-90be-17d502d521c5",
+      "id": "0a8c4f05-787b-4839-9fea-89b992ca2335",
       "name": "find_client",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        3616,
-        816
+        9040,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "Fetch insurance policies by clientName (fuzzy), phoneLast10, or policyNo. Returns ALL matching policies with type, insurer, sumAssured, premium, dueDate, maturityDate, status. FORMATTING: ALWAYS number each policy: 1️⃣ PolicyNo | Type | SA ₹X | Premium ₹X | Status\n2️⃣ PolicyNo | Type | SA ₹X | Premium ₹X | Status. Show total at end. For maturity list: 1️⃣ Name | Policy | Est. Amount | Maturity Date. For premium due list: 1️⃣ Name | Policy | Premium Amt | Due Date. Highlight overdue premiums with ⚠️.",
+        "description": "Fetch insurance policies by clientName (fuzzy), phoneLast10, or policyNo. Returns ALL matching policies with type (health/car/bike/life/term/sip), insurer, sumAssured, premium, dueDate, status. Show all to the sender and highlight the inferred one.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
@@ -562,22 +594,22 @@
           ]
         }
       },
-      "id": "7e2ba4d6-38f3-4205-9116-0c27df5592c8",
+      "id": "710f0452-9a5a-499d-b9fe-50d9c78c7212",
       "name": "get_policies",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        3744,
-        816
+        9168,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "MANDATORY FIRST STEP before ANY create_ticket or create_claim call — call this EVERY TIME, no exceptions. Search by clientName OR phoneLast10 WITHOUT passing category, so you find ALL open tickets for this client regardless of topic. If ANY open ticket is found (count > 0): 1) Tell sender the existing ticket ID and its current details, 2) Ask if they want to update that ticket, 3) Use update_ticket to modify it. ONLY if this returns count:0 may you proceed to create_ticket. NEVER skip this step.",
+        "description": "MUST be called before creating any ticket or claim. Finds OPEN tickets (state not closed/resolved) for the same client and category. If results exist, do NOT create a duplicate - report the existing ticketId and offer to update it.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
@@ -609,29 +641,29 @@
           ]
         }
       },
-      "id": "9aa35f2b-dd48-4030-8eed-94918088038c",
+      "id": "5c6eb9a8-c481-48b3-8e5a-e55e1f8087f3",
       "name": "ticket_guard",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        3872,
-        816
+        9296,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "CRITICAL: You MUST call ticket_guard FIRST for this client before calling create_ticket. If ticket_guard returned ANY open ticket for the same client (count > 0), STOP — do NOT create a new ticket, use update_ticket on the existing one instead. Only create a new ticket if ticket_guard returned count:0. Categories: claim_health, claim_general, claim_life, claim_death, premium, renewal, maturity, portfolio_report, investment_sip, service_change, scan_copy, callback, meeting, task_assignment, complaint, lead_followup, other. kind: document_collection | claim_request | callback | info | general | task | meeting. Include originalCommand (exact transcript), aiUnderstanding, task, requiredItems, priority (P1-P4), zone (green/amber/red), source (admin/client), assignedTo.",
+        "description": "Create a detailed ticket AFTER sender confirmation. Categories: claim_health, claim_death, premium, renewal, maturity, portfolio_report, investment_sip, service_change, callback, complaint, other. kind: document_collection | claim_request | callback | info | general. Include originalCommand (exact transcript), aiUnderstanding, task, requiredItems (for document collection), priority (P1-P4), zone (green/amber/red), source (admin/client).",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "operation": "create_ticket",
-            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_create_ticket', 'JSON string with category, kind, priority, zone, clientName, phoneLast10, policyNo, originalCommand, aiUnderstanding, task, requiredItems array, slots object, source') }}"
+            "params": "={{ $fromAI('params_create_ticket', 'JSON string. ALWAYS include phoneLast10 (last 10 digits of client phone) when known - it goes into the ticket id. Also category, kind, priority, zone, clientName, policyNo, originalCommand, aiUnderstanding, task, source, optional requiredItems array, slots object, ticketPrefix.', 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -656,29 +688,29 @@
           ]
         }
       },
-      "id": "4deb1e69-edab-4895-ac3c-209958f1f935",
+      "id": "ca5c776e-83d7-49ae-a025-8a1da5600f2a",
       "name": "create_ticket",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        4000,
-        816
+        9424,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "Update an existing ticket by ticketId. PREFERRED over create_ticket when the client already has an open ticket — always use this instead of creating a duplicate. Use to: change state (new/info_pending/in_progress/awaiting_third_party/escalated/resolved/closed), update task description, add receivedItems, modify slots, change priority/zone, reassign via assignedTo, update policyNo, or add a note. When ticket_guard finds an existing ticket, use this tool to apply any changes the sender requested.",
+        "description": "Update an existing ticket by ticketId AFTER sender confirmation. Can change state (new/info_pending/in_progress/awaiting_third_party/escalated/resolved/closed), receivedItems, slots, task, policyNo, or add a note.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "operation": "update_ticket",
-            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_update_ticket', 'JSON string, e.g. {\"ticketId\":\"CGPE-T-XXX\",\"set\":{\"state\":\"in_progress\",\"receivedItems\":[\"death certificate\"]},\"note\":\"docs received\"}') }}"
+            "params": "={{ $fromAI('params_update_ticket', 'JSON string. Provide ticketId (CGPE-T id) and a set object (state/priority/assignedTo/receivedItems/slots/policyNo) and optional note. state one of new,info_pending,in_progress,awaiting_third_party,escalated,resolved,closed.', 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -703,29 +735,29 @@
           ]
         }
       },
-      "id": "a323a39e-a956-4543-8520-1b7edc6ae271",
+      "id": "7d5c4627-d123-422d-9273-61f1818d9527",
       "name": "update_ticket",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        4128,
-        816
+        9552,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "Create a claim request AFTER sender confirmation AND after required info/documents are in. REQUIRED SLOTS BY CLAIM TYPE: Health claims REQUIRE: hospitalName, patientName, admitDate, illness, doctorName. General/Motor claims REQUIRE: policyType, cause, incidentDate, vehicleNo (for motor only). Life/Death claims REQUIRE: patientName, deathDate, cause. If ANY required slot is missing, ASK the user for it before calling this tool — do NOT skip slots. Claim starts at stage documents_required. claimType: health | general | life | death | motor | maturity. CONVERSATION FLOW: 1) Identify claim type 2) Ask for ALL required slots one by one 3) Confirm with user 4) Call ticket_guard first 5) Then create_claim.",
+        "description": "Create a claim request AFTER sender confirmation AND after required info/documents are in. Health claims REQUIRE slots: hospitalName, patientName, admitDate, illness, doctorName - the tool rejects if missing. Claim starts at stage documents_required. claimType: health | death | motor | maturity.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "operation": "create_claim",
-            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_create_claim', 'JSON string with claimType, clientName, phoneLast10, policyNo, ticketId, slots object {hospitalName, patientName, admitDate, illness, doctorName}') }}"
+            "params": "={{ $fromAI('params_create_claim', 'JSON string. ALWAYS include phoneLast10 (last 10 digits of the client phone) when known - it goes into the ticket id. Also claimType, clientName, policyNo, and a slots object. health slots: hospitalName, patientName, admitDate, illness, doctorName. general/motor: policyType, cause, date. life/death: patientName, date, cause.', 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -750,13 +782,13 @@
           ]
         }
       },
-      "id": "a9fd7185-810c-4832-ae70-f666c484da80",
+      "id": "84e3a4c2-4efd-4af0-8d84-7e687e457141",
       "name": "create_claim",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        4256,
-        816
+        9680,
+        -1472
       ]
     },
     {
@@ -765,7 +797,7 @@
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
@@ -797,22 +829,22 @@
           ]
         }
       },
-      "id": "af6b201c-2458-4901-8ce5-ac8f8311bf0c",
+      "id": "4ea76da4-e788-45bb-8684-57a12e12a7b9",
       "name": "advance_claim",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        4384,
-        816
+        9808,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "List records with pagination (5 per page). type=leads for active leads. type=claims with status pending for pending claims; filter by phoneLast10 for a client's own claims. type=tickets lists open tickets. Pass page for next pages. FORMATTING: ALWAYS number each record starting from ((page-1)*5 + 1): 1️⃣ Record details\n2️⃣ Record details. Show 'Page X' and total count at the bottom. If more pages exist, mention 'Aglu page mate bolo'.",
+        "description": "List records with pagination (5 per page). type=leads with status active is the /L command. type=claims with status pending is the /cm command; also use for claim status questions, filter by phoneLast10 for a client own claims. type=tickets lists open tickets. Pass page for next pages.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
@@ -844,53 +876,77 @@
           ]
         }
       },
-      "id": "e0ba8716-d96d-4848-b9f2-b89435c58815",
+      "id": "6bc5f198-4f5b-4883-a166-3d9e53ba9a7b",
       "name": "paginate",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        4512,
-        816
+        9936,
+        -1472
       ]
     },
     {
       "parameters": {
-        "jsCode": "let text = String(($input.first().json || {}).output ?? '').trim();\nconst g = $('Gate').first().json;\nconst ctx = $('Build Context').first().json;\n\n// --- Loop detection: if AI output looks like repeated tool errors or is empty after iterations ---\nif (!text || text.length < 3) {\n  text = 'Sorry, I could not process your request. Please try again or rephrase your query. 🙏';\n}\n// Detect if AI got stuck repeating itself (same sentence 3+ times)\nconst sentences = text.split(/[.!?।]/).map(s => s.trim()).filter(s => s.length > 10);\nif (sentences.length >= 6) {\n  const freq = {};\n  sentences.forEach(s => { const k = s.slice(0, 40); freq[k] = (freq[k] || 0) + 1; });\n  const maxFreq = Math.max(...Object.values(freq));\n  if (maxFreq >= 3) {\n    text = 'I encountered an issue processing your request. Could you please rephrase or provide more details? 🙏';\n  }\n}\n\nlet payload;\nlet uiButtons = [];\nconst m = text.match(/\\[BUTTONS:([^\\]]+)\\]/i);\nif (m) {\n  text = text.replace(m[0], '').trim();\n  const btns = m[1].split('|').map(s => s.trim()).filter(Boolean).slice(0, 3).map((b, i) => {\n    const mm = b.match(/^([\\w-]+)\\s*=\\s*(.+)$/);\n    const id = mm ? mm[1] : ('opt' + i);\n    const title = String(mm ? mm[2] : b).trim().slice(0, 20);\n    return { type: 'reply', reply: { id, title } };\n  });\n  uiButtons = btns.map(b => ({ id: b.reply.id, title: b.reply.title }));\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'interactive', interactive: { type: 'button', body: { text: text.slice(0, 1024) || '...' }, action: { buttons: btns } } };\n} else {\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'text', text: { body: text.slice(0, 4000) || 'Sorry, please try again.' } };\n}\nreturn [{ json: {\n  waPayload: payload, replyText: text, uiButtons, channel: g.channel || 'meta',\n  waMessageId: g.waMessageId, senderPhone: g.senderPhone, phoneLast10: g.phoneLast10,\n  role: ctx.role, inbound: ctx.finalText, isVoice: ctx.isVoice,\n  direction: 'in-out', ts: new Date().toISOString(),\n  __fields: 'waMessageId,senderPhone,phoneLast10,role,inbound,isVoice,replyText,direction,channel,ts'\n} }];"
+        "jsCode": "let text = String(($input.first().json || {}).output ?? '').trim();\nconst g = $('Gate').first().json;\nconst ctx = $('Build Context').first().json;\nlet payload;\nlet uiButtons = [];\nconst m = text.match(/\\[BUTTONS:([^\\]]+)\\]/i);\nif (m) {\n  text = text.replace(m[0], '').trim();\n  const btns = m[1].split('|').map(s => s.trim()).filter(Boolean).slice(0, 3).map((b, i) => {\n    const mm = b.match(/^([\\w-]+)\\s*=\\s*(.+)$/);\n    const id = mm ? mm[1] : ('opt' + i);\n    const title = String(mm ? mm[2] : b).trim().slice(0, 20);\n    return { type: 'reply', reply: { id, title } };\n  });\n  uiButtons = btns.map(b => ({ id: b.reply.id, title: b.reply.title }));\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'interactive', interactive: { type: 'button', body: { text: text.slice(0, 1024) || '...' }, action: { buttons: btns } } };\n} else {\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'text', text: { body: text.slice(0, 4000) || 'Sorry, please try again.' } };\n}\nreturn [{ json: {\n  waPayload: payload, replyText: text, uiButtons, channel: g.channel || 'meta',\n  waMessageId: g.waMessageId, senderPhone: g.senderPhone, phoneLast10: g.phoneLast10,\n  role: ctx.role, inbound: ctx.finalText, isVoice: ctx.isVoice,\n  direction: 'in-out', ts: new Date().toISOString(),\n  __fields: 'waMessageId,senderPhone,phoneLast10,role,inbound,isVoice,replyText,direction,channel,ts'\n} }];"
       },
-      "id": "a5745c35-652c-480f-ae33-954d0e48e2b2",
+      "id": "68ed95a3-0a94-4f30-9971-21ac2da52d29",
       "name": "Parse Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4848,
-        592
+        13088,
+        -1696
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://graph.facebook.com/{{ $('Gate').first().json.graphVersion }}/{{ $('Gate').first().json.phoneNumberId }}/messages",
-        "sendHeaders": true,
-        "headerParameters": {
+        "url": "http://bhashsms.com/api/sendmsg.php",
+        "sendQuery": true,
+        "queryParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "=Bearer {{ $('Gate').first().json.token }}"
+              "name": "user",
+              "value": "AazikoWA"
+            },
+            {
+              "name": "pass",
+              "value": "123456"
+            },
+            {
+              "name": "sender",
+              "value": "BUZWAP"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.phoneLast10 || String($json.senderPhone||'').replace(/\\D/g,'').slice(-10) }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ String($json.replyText || '').replace(/\\r/g,' ').replace(/\\n{2,}/g,' - ').replace(/\\n/g,' ').replace(/[‘’]/g,\"'\").replace(/[“”]/g,'\"').replace(/[–—]/g,'-').replace(/…/g,'...').replace(/\\s{2,}/g,' ').trim() }}"
+            },
+            {
+              "name": "priority",
+              "value": "wa"
+            },
+            {
+              "name": "stype",
+              "value": "normal"
+            },
+            {
+              "name": "htype",
+              "value": "normal"
             }
           ]
         },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.waPayload) }}",
         "options": {}
       },
-      "id": "f37c6b0b-5266-4eaf-b9b6-4e04bc6e2a14",
+      "id": "544aa335-46f8-4f3a-908b-fb7a8a51081e",
       "name": "Send WhatsApp Reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        5296,
-        496
+        13760,
+        -1696
       ],
       "onError": "continueRegularOutput"
     },
@@ -898,13 +954,13 @@
       "parameters": {
         "jsCode": "const p = Object.assign({}, $('Parse Reply').first().json);\ndelete p.waPayload;\nreturn [{ json: p }];"
       },
-      "id": "9f95a7de-9e59-4065-a667-b7afd291a254",
+      "id": "bd8bd0a3-c06c-415e-bef2-37527d4267a4",
       "name": "Prep Log",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5520,
-        592
+        13984,
+        -1696
       ]
     },
     {
@@ -914,13 +970,13 @@
         "fields": "={{ $json.__fields }}",
         "options": {}
       },
-      "id": "a219a324-bd2a-4097-970c-146e9ec2d0aa",
+      "id": "352a6ccc-27c9-4ff3-a4f8-f6f35ac5cc67",
       "name": "Log Conversation",
       "type": "n8n-nodes-base.mongoDb",
       "typeVersion": 1.3,
       "position": [
-        5744,
-        592
+        14208,
+        -1696
       ],
       "credentials": {
         "mongoDb": {
@@ -937,13 +993,13 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "4b091044-8f95-4990-a05d-384e85b26b20",
+      "id": "f7f513ba-547f-4eec-bdcf-de8ebab90b48",
       "name": "UI Chat (POST)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        688
+        4528,
+        -1600
       ],
       "webhookId": "b0b914cc-3b78-4e8b-affc-8ca32758c2eb"
     },
@@ -969,13 +1025,13 @@
         },
         "options": {}
       },
-      "id": "6a117631-0700-43f9-9552-d6f7d5ae4fc2",
+      "id": "37b0e2e9-84bd-48d8-ad72-d77fffc95b99",
       "name": "Is Meta Audio?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1568,
-        496
+        6544,
+        -1888
       ]
     },
     {
@@ -1001,33 +1057,33 @@
         },
         "options": {}
       },
-      "id": "6b573caa-0bf7-4e6f-847f-1fbdb50c1709",
+      "id": "5de84189-bd9d-4a4b-8215-65245348a6d3",
       "name": "Is UI Channel?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        5072,
-        592
+        13312,
+        -1696
       ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: true, reply: $json.replyText, buttons: $json.uiButtons || [] }) }}",
+        "responseBody": "={{ JSON.stringify({ ok: true, reply: String($json.replyText || '').split('[[NEXT]]').join(String.fromCharCode(10)+String.fromCharCode(10)).trim(), buttons: $json.uiButtons || [] }) }}",
         "options": {}
       },
-      "id": "a8128e8f-4e39-4bdf-9bbc-7a0b33bb5d04",
+      "id": "2e848a28-3ec1-49e9-b830-676352735681",
       "name": "Respond UI",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        5296,
-        688
+        13760,
+        -1504
       ]
     },
     {
       "parameters": {
-        "description": "Generate the CGPE family financial and insurance report. Gathers ALL policies of the client's ENTIRE FAMILY (grouped by LIC family group), computes life/health cover, maturity timeline and premiums, and returns a report URL plus summary numbers. Use for 'maro report moklo', portfolio/report requests. Takes 30-60 seconds. RESPONSE FORMAT: You MUST share the PDF URL DIRECTLY as the FIRST thing in your reply, like: '📄 Your report is ready: {pdfUrl}' followed by a brief summary of summary numbers. NEVER summarize without giving the link. NEVER say 'report is being generated' if you already have the result. If the tool returns pdfUrl or url, ALWAYS include pdfUrl (or url) verbatim in your response.",
+        "description": "Generate the CGPE family financial and insurance report. Gathers ALL policies of the client's ENTIRE FAMILY (grouped by LIC family group), computes life/health cover, maturity timeline and premiums. Takes 30-60 seconds. IMPORTANT: the report PDF is delivered to the user AUTOMATICALLY as a WhatsApp document - do NOT paste any link or URL in your reply. Provide 'caption': a short friendly caption for that PDF, written in the SAME language and script the user is chatting in. After it returns, reply with a SHORT confirmation and quote ONLY the returned summary numbers.\n",
         "workflowId": {
           "__rl": true,
           "mode": "id",
@@ -1038,7 +1094,9 @@
           "mappingMode": "defineBelow",
           "value": {
             "operation": "generate_report",
-            "params": "={{ $fromAI('params_generate_report', 'JSON string, e.g. {\"clientName\":\"RAMESH PATEL\"} or {\"phoneLast10\":\"9876500001\"}', 'string') }}"
+            "params": "={{ $fromAI('params_generate_report', 'JSON string, e.g. {\"clientName\":\"RAMESH PATEL\"} or {\"phoneLast10\":\"9876500001\"}', 'string') }}",
+            "toPhone": "={{ $('Gate').first().json.senderPhone }}",
+            "caption": "={{ $fromAI('caption', 'Short friendly caption for the report PDF file, written in the SAME language and script the user is chatting in (Hindi / Gujarati / English / Gujlish). Example: यह रही आपकी रिपोर्ट 📄', 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1048,8 +1106,8 @@
               "required": false,
               "defaultMatch": false,
               "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "type": "string"
             },
             {
               "id": "params",
@@ -1057,129 +1115,93 @@
               "required": false,
               "defaultMatch": false,
               "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "toPhone",
+              "displayName": "toPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
               "type": "string",
-              "canBeUsedToMatch": true
+              "removed": false
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             }
-          ]
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
         }
       },
-      "id": "393e86ff-08f7-4fe8-b0fc-a2370d227f17",
+      "id": "7e3bbe71-c3db-4199-8261-8a7e8487c2fd",
       "name": "generate_report",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        4640,
-        816
+        10064,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "Manage team operations: tasks, meetings, and assignments. CRITICAL MEMBER GUARD: Before calling {\"action\":\"assign\"} or {\"action\":\"meeting\"} for a person, you MUST FIRST call {\"action\":\"list\"} to verify they are an active team member! If the person (e.g. Rahul Gandhi) is NOT in the active list, DO NOT assign or create the meeting/task. Tell the sender the person is not in the team and list available members. Actions: {\"action\":\"tasks\",\"today\":true} for today's tasks; {\"action\":\"meeting\",\"title\":...,\"dueAt\":\"YYYY-MM-DDTHH:mm\",\"details\":...,\"assigneeName\":...} to add meeting; {\"action\":\"list\"} to list team members; {\"action\":\"assign\",\"assigneeName\":...,\"title\":...,\"ticketId\":...} to assign task or ticket.",
-        "workflowId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "GnzJu201cnohUuxA",
-          "cachedResultName": "CGPE Tools Engine"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "operation": "team_ops",
-            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_team_ops', 'JSON string, e.g. {\"action\":\"tasks\",\"today\":true} or {\"action\":\"meeting\",\"title\":\"Client meeting\",\"dueAt\":\"2026-07-04T15:00\"} or {\"action\":\"assign\",\"assigneeName\":\"Raj\",\"title\":\"Follow up\"}', 'string') }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "operation",
-              "displayName": "operation",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "params",
-              "displayName": "params",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            }
-          ]
+        "jsCode": "const g = $('Gate').first().json;\nlet transcript = '';\ntry { transcript = String($('Transcribe Audio').first().json.text || ''); } catch (e) {}\nlet finalText = '';\ntry { finalText = String($('Set Voice Text').first().json.finalText || ''); } catch (e) {}\nreturn [{ json: {\n  waMessageId: g.waMessageId || '',\n  senderPhone: g.senderPhone || '',\n  phoneLast10: g.phoneLast10 || '',\n  senderName: g.senderName || '',\n  channel: g.channel || 'meta',\n  msgType: g.msgType || 'audio',\n  audioId: g.audioId || '',\n  audioUrl: g.audioUrl || '',\n  transcript: transcript || finalText,\n  finalText: finalText,\n  ts: new Date().toISOString(),\n  __fields: 'waMessageId,senderPhone,phoneLast10,senderName,channel,msgType,audioId,audioUrl,transcript,finalText,ts'\n} }];"
+      },
+      "id": "c1d2e3f4-a5b6-47c8-9d0e-voicelog0001",
+      "name": "Build Voice Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7888,
+        -2032
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "voice_test_logs",
+        "fields": "={{ $json.__fields }}",
+        "options": {}
+      },
+      "id": "c1d2e3f4-a5b6-47c8-9d0e-voicelog0002",
+      "name": "Log Voice Test",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        8112,
+        -2032
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
         }
       },
-      "id": "1a111111-1111-4111-a111-111111111101",
-      "name": "team_ops",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [
-        4768,
-        816
-      ]
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "description": "Query CRM lists: birthdays, anniversaries, clients, maturities, and premium dues. Types: {\"type\":\"birthday\",\"day\":4,\"month\":7} for birthdays; {\"type\":\"anniversary\",\"day\":4,\"month\":7} for anniversaries; {\"type\":\"clients\",\"countOnly\":true} or {\"withPhone\":true} for client list/count; {\"type\":\"maturity\",\"month\":7,\"year\":2026} for maturity list; {\"type\":\"dues\",\"month\":7} for premium renewal dues. Always use numbers for day and month. FORMATTING: ALWAYS number each record: 1️⃣ Name | Date | Phone\n2️⃣ Name | Date | Phone. Show 'Total: X records' at end. For maturity: 1️⃣ Name | Policy | Est. ₹X | Date. For dues: 1️⃣ Name | Policy | ₹Premium | Due Date.",
+        "description": "Get LIVE counts of tickets grouped by state (new, info_pending, in_progress, awaiting_third_party, escalated, resolved, closed) or claims grouped by stage. Use when admin asks how many open/pending tickets or claims, or for a status summary. Returns {ok, type, total, open, byStatus}. Counts are always current.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
-          "cachedResultName": "CGPE Tools Engine"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "operation": "crm_list",
-            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_crm_list', 'JSON string, e.g. {\"type\":\"birthday\",\"day\":4,\"month\":7} or {\"type\":\"clients\",\"countOnly\":true} or {\"type\":\"maturity\",\"month\":7,\"year\":2026}', 'string') }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "operation",
-              "displayName": "operation",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "params",
-              "displayName": "params",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            }
-          ]
-        }
-      },
-      "id": "1a111111-1111-4111-a111-111111111102",
-      "name": "crm_list",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [
-        4896,
-        816
-      ]
-    },
-    {
-      "parameters": {
-        "description": "Get summary counts of tickets, claims, or leads. Types: {\"type\":\"tickets\"} for open ticket counts; {\"type\":\"claims\"} for pending claim counts; {\"type\":\"leads\"} for active lead counts.",
-        "workflowId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "operation": "counts",
-            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_get_counts', 'JSON string, e.g. {\"type\":\"tickets\"} or {\"type\":\"claims\"}', 'string') }}"
+            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_counts', 'JSON string, e.g. {\"type\":\"tickets\"} or {\"type\":\"claims\"}') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1204,29 +1226,123 @@
           ]
         }
       },
-      "id": "1a111111-1111-4111-a111-111111111103",
+      "id": "aa11bb22-cc33-4d44-9e55-getcounts0001",
       "name": "get_counts",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        5024,
-        816
+        10192,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "Create a new sales/investment lead after confirming details with sender. Params: {\"name\":\"Client Name\",\"phone\":\"9876543210\",\"interest\":\"SIP / Health Plan / Term Insurance\",\"referredBy\":\"Referrer Name or Self\"}. Always ask confirmation before calling.",
+        "description": "Admin CRM lists from the client book. FOR BIRTHDAYS, prefer the birthday_list tool instead of this one - it sorts by nearest upcoming birthday, shows the total at the top, and gives a high-value priority-call list. type=anniversary (params day+month, omit day for whole month) -> name, anniversary, phone. type=maturity (month, year) -> policies maturing that month with name, policyNo, sumAssured, maturityDate. type=dues (month, year) -> premium dues/renewals with name, policyNo, premium, fupDate. type=clients -> countOnly:true for total count, or withPhone:true for max 10 records name+phone. type=birthday still works as a fallback. Supports page for more. GENERAL FORMATTING for every list you send on WhatsApp: put a one-line summary with the TOTAL count at the TOP, then the items one per line with clean spacing (a blank line between sections), closest or most-relevant first, and no cluttered tables.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "crm_list",
+            "params": "={{ $fromAI('params_crm_list', 'JSON string, e.g. {\"type\":\"birthday\",\"day\":4,\"month\":7} or {\"type\":\"maturity\",\"month\":7,\"year\":2026} or {\"type\":\"clients\",\"countOnly\":true}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "0db1f9f3-aa9c-4e0b-b67e-77160d3f0ec2",
+      "name": "crm_list",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10320,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Team & task management. action=list -> team members with roles. action=assign -> assign a task/ticket to a member (title, assigneeName, details?, ticketId?, clientName?, dueAt?, priority?). action=meeting -> add admin's own meeting (title, dueAt ISO like 2026-07-05T16:00, details?). action=tasks -> open tasks (today:true for today's, assigneeName? filter). action=complete -> mark done (taskId). Confirm with sender before assign/meeting/complete.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "team_ops",
+            "params": "={{ $fromAI('params_team_ops', 'JSON string, e.g. {\"action\":\"tasks\",\"today\":true} or {\"action\":\"assign\",\"assigneeName\":\"Amit Shah\",\"title\":\"Follow up claim CGPE-C-1001\",\"ticketId\":\"CGPE-T-X\"}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "7ebdffec-6a65-4aa6-9eae-ecaa7749f89f",
+      "name": "team_ops",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10448,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Create a new lead AFTER sender confirmation. Use when: a client shows interest in a NEW investment/plan (lead for themselves), a client REFERS someone (referredBy = client name), admin mentions a new prospect, or an unknown sender shows interest. Fields: name (required), phone, interest (health/term/sip/car/general/recruitment), referredBy, notes, source. POLICY-TYPE INTAKE: while talking to the prospect, gather the details that matter for their interest and put them into notes -- health: number of family members, their ages, existing cover, city, budget; term or life: age, annual income, smoker or non-smoker, sum assured wanted, budget; motor/car/bike: vehicle make and model, year, registration/RC, IDV or previous policy; sip or investment: monthly budget, horizon in years, goal; child or savings: child age, goal, budget. Capture whatever the prospect gives; never block lead creation just because some fields are missing. RECRUITMENT LEADS: if the person wants to BECOME a CGPE adviser or agent, or asks about a career, agency, franchise, or earning extra income, set interest to recruitment and capture in notes: their background (banker or RM, general-insurance adviser, CA or finance, commerce or other), current occupation, city, and why they are interested. Recruitment leads are for the recruitment and academy owner, not the sales adviser, so make the notes clear.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "operation": "create_lead",
-            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_create_lead', 'JSON string, e.g. {\"name\":\"Suresh Patel\",\"phone\":\"9876512345\",\"interest\":\"SIP Investment\",\"referredBy\":\"Ramesh Patel\"}', 'string') }}"
+            "params": "={{ $fromAI('params_create_lead', 'JSON string with name (required) and phone (last 10 digits, used in ticket id), interest (health/term/sip/car/general), referredBy, notes, source.', 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1251,29 +1367,29 @@
           ]
         }
       },
-      "id": "1a111111-1111-4111-a111-111111111104",
+      "id": "c8154cb6-7005-4331-89ff-931dea86bb10",
       "name": "create_lead",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        5152,
-        816
+        10576,
+        -1472
       ]
     },
     {
       "parameters": {
-        "description": "Fetch stored policy documents and scan copies by client name, phoneLast10, or policyNo. Returns list of available document URLs and types.",
+        "description": "Fetch stored policy scan copies / documents by clientName, phoneLast10 or policyNo. Returns fileUrl links to share. If nothing found, offer to create a document_collection ticket to arrange the copy.",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "GnzJu201cnohUuxA",
+          "value": "kLs5gqFec13sWIfN",
           "cachedResultName": "CGPE Tools Engine"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "operation": "get_documents",
-            "params": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('params_get_documents', 'JSON string, e.g. {\"phoneLast10\":\"9876500001\"} or {\"policyNo\":\"123456789\"}', 'string') }}"
+            "params": "={{ $fromAI('params_get_documents', 'JSON string, e.g. {\"policyNo\":\"HLT-RP-1001\"} or {\"phoneLast10\":\"9876500009\"}', 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1298,29 +1414,2192 @@
           ]
         }
       },
-      "id": "1a111111-1111-4111-a111-111111111105",
+      "id": "a5a48841-4ab4-42e7-a52f-10872acd236f",
       "name": "get_documents",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        5280,
-        816
+        10704,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Create a reminder in the reminders collection AFTER confirmation. Use when admin/client asks to set a reminder or follow-up. Fields: about (what to remind - required if no clientName), clientName, phone, policyNo, type (premium/renewal/custom), nextFireAt (ISO date). Auto-opens a linked ticket.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine v5"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "create_reminder",
+            "params": "={{ $fromAI('params_create_reminder', 'JSON string with about (what to remind), clientName, phone (last 10 digits, used in ticket id), policyNo, type, nextFireAt (ISO date).', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "ee279777-975b-4637-814c-c980e07d1326",
+      "name": "create_reminder",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10832,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Update an EXISTING lead by leadId (find it first via get_lead or paginate leads). Use when someone asks to change a lead's stage (new/contacted/quoted/converted/dropped), interest, phone, name or notes. Do NOT create a new lead for an update.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine v5"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "update_lead",
+            "params": "={{ $fromAI('params_update_lead', 'JSON string. Provide leadId (the CGPE-L id, not mongo _id) and a set object of fields to change: stage (new/contacted/quoted/converted/dropped), status, interest, phone, notes, name.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "f27ff21b-966f-4718-95a1-6fdd09b92ad8",
+      "name": "update_lead",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10960,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Update an EXISTING task/meeting by taskId (find via team_ops tasks). Use to reschedule (dueAt), reassign (assigneeName), change title/details/priority, or set status. Do NOT create a new task for an update.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine v5"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "update_task",
+            "params": "={{ $fromAI('params_update_task', 'JSON string. Provide taskId (CGPE-TASK id) and a set object of fields to change: title, details, assigneeName, dueAt (ISO), priority, status.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "0c99e827-8609-448c-ad08-d2feca2f0be9",
+      "name": "update_task",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11088,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Update an EXISTING reminder by reminderId (find via get_reminder). Use to change the reminder time (nextFireAt), text (about), or cancel it (set status to cancelled). Do NOT create a new reminder for an update.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine v5"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "update_reminder",
+            "params": "={{ $fromAI('params_update_reminder', 'JSON string. Provide reminderId (CGPE-REM id) and a set object of fields to change: about, nextFireAt (ISO), status, phone, clientName.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "f8367857-69ce-4af1-91bc-5cd91c779bd6",
+      "name": "update_reminder",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11216,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Permanently DELETE a record after the sender explicitly confirms deletion. type = ticket | claim | lead | task | reminder, plus its id. Use when admin says delete/remove/cancel-permanently a specific ticket/task/lead/reminder. Always confirm with a Yes/No before calling.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine v5"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "delete_record",
+            "params": "={{ $fromAI('params_delete_record', 'JSON string, e.g. {\"type\":\"ticket\",\"id\":\"CGPE-T-XXX\"} or {\"type\":\"task\",\"id\":\"CGPE-TASK-XXX\"}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "3745f36b-e309-4e9b-8b4e-d2babc6bbcec",
+      "name": "delete_record",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11344,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Look up an existing lead by leadId, phoneLast10 or name. Use this to find a lead's leadId before update_lead, or to check a lead's current stage/details.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine v5"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "get_lead",
+            "params": "={{ $fromAI('params_get_lead', 'JSON string, e.g. {\"name\":\"NILESH JOSHI\"} or {\"phoneLast10\":\"9876512345\"}', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "b604cdb1-97de-43eb-a5c8-7047c4734fef",
+      "name": "get_lead",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11472,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sarvam.ai/speech-to-text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "saarika:v2.5"
+            },
+            {
+              "name": "language_code",
+              "value": "={{ ({hi:'hi-IN',gu:'gu-IN',en:'en-IN'})[String($('Normalize Message').first().json.lang || '').toLowerCase()] || 'unknown' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "84498030-6892-4123-9fd1-f1a57f0b029b",
+      "name": "Sarvam STT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7440,
+        -1984
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nlzfvOOlJePwnRUz",
+          "name": "Sarvam API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "collection": "team_members",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ JSON.stringify({ phoneLast10: $('Gate').first().json.phoneLast10 }) }}"
+      },
+      "id": "80832be1-cef0-4b5d-a349-b0f3376efab2",
+      "name": "Find Team",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        8336,
+        -1696
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Send a WhatsApp message to a SPECIFIC phone number (a team member or the admin) with optional Accept/Reject buttons. Use to: notify a team member that admin assigned them a task (buttons Accept/Reject), tell the admin that a member accepted/rejected/updated a task, or relay a member's status update to the admin. Simulate/live per commSendMode.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $fromAI('notify_phone', 'recipient phone, last 10 or full digits', 'string') }}",
+            "text": "={{ $fromAI('notify_text', 'the message text to send to that person, in their language', 'string') }}",
+            "purpose": "={{ $fromAI('notify_purpose', 'short tag: task_assignment | task_accepted | task_rejected | task_status | info', 'string') }}",
+            "buttons": "={{ $fromAI('notify_buttons', 'optional JSON array of up to 3 reply buttons like [{\"id\":\"accept\",\"title\":\"Accept\"},{\"id\":\"reject\",\"title\":\"Reject\"}]; empty string if none', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "9ade1523-ab34-4e5c-b58a-8f93555f8ec6",
+      "name": "notify",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11600,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Team member accept/reject/status on ONE task. This single call updates the task record correctly server-side. Pass taskId (the id after 'accept:' or 'reject:' in the button payload, e.g. collect-health-claim-evening-01) and decision. decision=accept when the member accepts; decision=reject with a reason when they decline; decision=status with a statusNote for a progress update; decision=done when finished. Returns the updated task. After calling this, notify the admin (task.assignedByPhone).",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "ack_task",
+            "params": "={{ $fromAI('params_ack_task', 'JSON string with taskId and decision (accept, reject, status or done). For reject include reason. For status include statusNote and optional done true.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "86be7211-fb1a-424d-a0d7-abc31fcc983e",
+      "name": "ack_task",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11728,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Ad-campaign lookup for new users who arrived by clicking a WhatsApp advertisement. Pass adKey (a campaign keyword such as health, term, child, sip, pension, savings) or adId to get that one campaign; pass nothing to list all active campaigns and match the user's opening message or ad headline to the closest one. Each campaign returns product, headline, greeting and a list of tailored discovery questions to ask that specific ad's visitor.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kLs5gqFec13sWIfN",
+          "cachedResultName": "CGPE Tools Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "get_campaign",
+            "params": "={{ $fromAI('params_get_campaign', 'JSON string. Optional adKey (health, term, child, sip, pension, savings) or adId. Empty object to list all active campaigns.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operation",
+              "displayName": "operation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "params",
+              "displayName": "params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "9332926e-0edb-48c0-9868-78177e60c6eb",
+      "name": "get_campaign",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11856,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {}
+      },
+      "id": "b947a9bc-21e0-4273-9d3a-2e27bb87e7ff",
+      "name": "Respond WA 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4528,
+        -1792
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/umb7wmvt/auto/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{ $json.dataUri }}"
+            },
+            {
+              "name": "upload_preset",
+              "value": "cgpe_voice"
+            },
+            {
+              "name": "folder",
+              "value": "cgpe-voice-notes"
+            },
+            {
+              "name": "public_id",
+              "value": "={{ $json.publicId }}"
+            },
+            {
+              "name": "tags",
+              "value": "={{ $json.tags }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "archive-voice-0001",
+      "name": "Archive Voice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7664,
+        -1696
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const g = $(Gate).first().json;\nconst r = $json || {};\nreturn [{ json: {\n  waMessageId: String(g.waMessageId || ),\n  phone: String(g.phoneLast10 || ),\n  name: String(g.senderName || ),\n  channel: String(g.channel || ),\n  url: String(r.secure_url || r.url || ),\n  publicId: String(r.public_id || ),\n  bytes: Number(r.bytes || 0),\n  createdAt: new Date().toISOString(),\n} }];"
+      },
+      "id": "build-voice-rec-0001",
+      "name": "Build Voice Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7888,
+        -1504
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "voice_notes",
+        "fields": "waMessageId,phone,name,channel,url,publicId,bytes,createdAt",
+        "options": {}
+      },
+      "id": "save-voice-rec-0001",
+      "name": "Save Voice Record",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        8112,
+        -1504
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "getrouter-bhash",
+              "leftValue": "={{ $json.query.fromphone || $json.query.mobile || $json.query.message || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "908244a2-da21-4931-891c-be8748de08c5",
+      "name": "GET Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4304,
+        -2080
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "meta-check-1",
+              "leftValue": "={{ $json.channel }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "meta"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-meta-channel-0001",
+      "name": "Is Meta Channel?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        13536,
+        -1792
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $('Gate').first().json.graphVersion }}/{{ $('Gate').first().json.phoneNumberId }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Gate').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.waPayload) }}",
+        "options": {}
+      },
+      "id": "send-via-meta-0001",
+      "name": "Send via Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        13760,
+        -1888
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ack-cond-ui",
+              "leftValue": "={{ $json.channel }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "ui"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ack-ui-0001",
+      "name": "Ack: Is UI?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5872,
+        -1856
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ack-cond-meta",
+              "leftValue": "={{ $json.channel }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "meta"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ack-meta-0001",
+      "name": "Ack: Is Meta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6096,
+        -1792
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $('Gate').first().json.graphVersion }}/{{ $('Gate').first().json.phoneNumberId }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Gate').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.senderPhone, type: 'text', text: { body: $json.ackText } }) }}",
+        "options": {}
+      },
+      "id": "send-ack-meta-0001",
+      "name": "Send Ack via Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        6320,
+        -1888
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst b = (item.binary && item.binary.data) || {};\nconst buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst g = $('Gate').first().json;\nconst mime = b.mimeType || 'audio/ogg';\nconst last10 = String(g.phoneLast10 || '').replace(/[^0-9]/g, '').slice(-10);\nconst name = String(g.senderName || '');\nconst d = new Date();\nconst pad = (n) => ('0' + n).slice(-2);\nconst stamp = d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + '_' + pad(d.getUTCHours()) + '-' + pad(d.getUTCMinutes()) + '-' + pad(d.getUTCSeconds());\nconst rand = Math.random().toString(36).slice(2, 6);\nconst b64 = buf.toString('base64');\nreturn [{ json: {\n  dataUri: 'data:' + mime + ';base64,' + b64,\n  mimeType: mime,\n  filename: b.fileName || 'voice.ogg',\n  phone: last10,\n  name: name,\n  publicId: (last10 || 'unknown') + '/' + stamp + '_' + rand,\n  tags: [last10, name].filter(Boolean).join(','),\n} }];\n"
+      },
+      "id": "voice-to-b64-0001",
+      "name": "Voice to Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7440,
+        -1696
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const g = $json || {};\nconst raw = String(g.text || '').trim();\nconst low = raw.toLowerCase();\nlet decision = null;\nif (low.indexOf('accept') === 0) decision = 'accepted';\nelse if (low.indexOf('reject') === 0 || low.indexOf('decline') === 0) decision = 'rejected';\nif (!decision) return [];\n// task id looks like xxx-xxx-999  (no backslash classes, avoids escaping issues)\nconst m = low.match(/[a-z0-9]+-[a-z]+-[0-9]+/);\nif (!m) return [];\nreturn [{ json: {\n  ackTaskId: m[0],\n  ackDecision: decision,\n  ackByName: String(g.senderName || ''),\n  ackByPhone: String(g.senderPhone || g.phoneLast10 || ''),\n} }];\n"
+      },
+      "id": "parse-ack-0001",
+      "name": "Parse Ack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5648,
+        -1328
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "collection": "team_tasks",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ JSON.stringify({ taskId: $json.ackTaskId }) }}"
+      },
+      "id": "lookup-ack-task-0001",
+      "name": "Lookup Ack Task",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        5872,
+        -1328
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Parse Ack').first().json;\nconst t = $json && $json.taskId ? $json : {};\nconst title = String(t.title || p.ackTaskId);\nconst admin = String(t.assignedByPhone || '').replace(/D/g, '').slice(-10) || '9601775061';\nconst icon = p.ackDecision === 'accepted' ? '✅' : '⚠️';\nconst word = p.ackDecision === 'accepted' ? 'ACCEPT' : 'REJECT';\nconst text = icon + ' ' + (p.ackByName || 'Team member') + ' ne \"' + title + '\" [' + p.ackTaskId + '] ' + word + ' kar liya hai.';\nreturn [{ json: { phone: admin, text, purpose: 'task_ack', buttons: '' } }];"
+      },
+      "id": "build-ack-notify-0001",
+      "name": "Build Ack Notify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6096,
+        -1328
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": "={{ $json.buttons }}"
+          },
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "display": true,
+              "required": false
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "display": true,
+              "required": false
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "display": true,
+              "required": false
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "exec-ack-notify-0001",
+      "name": "Execute Ack Notify",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        6320,
+        -1328
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "description": "CGPE reference directories, ALL LIVE, with counts. listType: ca (Chartered Accountants, ~111), doctor (Surat doctors, ~97), hospital (Surat hospitals, ~114), mediclaim (health insurance companies, ~31), tpa (health-claim TPAs, with emails, ~21). mode='list' (default) returns records 10 per page (pass page for more) and ALWAYS includes the TOTAL; each record is slimmed to the useful fields (name, specialty or type, area or address, phone; for insurers and TPAs also the Surat office, care number, email, website). mode='count' returns just the total; add groupBy for a breakdown (doctor groupBy 'specialty', hospital groupBy 'facilityType', mediclaim groupBy 'insurerType'). The optional query is a forgiving multi-word search across names, specialties, areas and cities. IMPORTANT - LANGUAGE: the data is stored in ENGLISH. When the user asks in Gujarati or Kathiyawadi (for example an eye doctor, a heart hospital, or a hospital in a particular area), translate their request into the English medical term or area name and pass THAT as the query (for example 'eye', 'cardiologist', 'Adajan', 'Varachha'). Keep the query short and specific -- a specialty, area, city, or name -- not a whole sentence. If a search returns nothing, correct likely spelling mistakes and retry with a simpler or broader term. Reply to the user in their own language (Gujarati or Kathiyawadi) even though the data is English.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Reference Lists Engine",
+          "mode": "id",
+          "value": "uE9bAJjbIqfLOKHN"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "listType",
+              "id": "listType",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "query",
+              "id": "query",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "page",
+              "id": "page",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "mode",
+              "id": "mode",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "groupBy",
+              "id": "groupBy",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "groupBy": "={{ $fromAI('groupBy', 'optional field to group the count by, e.g. category; only used with mode count', 'string') }}",
+            "listType": "={{ $fromAI('listType', 'one of: ca, hospital, doctor, mediclaim, tpa', 'string') }}",
+            "mode": "={{ $fromAI('mode', 'count to get totals or how-many; list (default) for the actual records', 'string') }}",
+            "page": "={{ $fromAI('page', 'page number as a string, default 1', 'string') }}",
+            "query": "={{ $fromAI('query', 'optional search text; empty for all', 'string') }}"
+          }
+        }
+      },
+      "id": "7d0a6305-ac9e-4a54-b44d-866952d53f7e",
+      "name": "ref_list",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11984,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Top leads. Returns the active lead pool (each with stage, interest, source, referredBy, notes, phone) so you can rank the 5 highest-conversion leads and give a one-line reason for each. Optional inputs: query - filter the leads by a topic or need before ranking; for a request like 'customers looking for a new product' or 'top health leads', pass the key term (e.g. 'new product', 'health', 'sip') and it matches interest, notes, name, source, and referredBy. stage - new, contacted, or quoted. limit. When the admin asks for the top 5 leads for a specific product or need, pass that as query, then rank the best 5 from what comes back.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Top Leads Engine",
+          "mode": "id",
+          "value": "wUplyDSQVhf5KygC"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "limit",
+              "id": "limit",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "stage",
+              "id": "stage",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "query",
+              "id": "query",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "limit": "={{ $fromAI('limit', 'max leads to fetch, default 25', 'string') }}",
+            "query": "={{ $fromAI('query', 'optional topic/need to filter leads by, e.g. new product or health; empty for all', 'string') }}",
+            "stage": "={{ $fromAI('stage', 'optional: new, contacted, or quoted', 'string') }}"
+          }
+        }
+      },
+      "id": "135dbe8d-452e-4f3c-b482-c33a18204788",
+      "name": "top_leads",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12112,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Gift-hamper eligibility. Returns client FAMILIES whose TOTAL premium (summed across ALL their policies) exceeds a threshold (default 200000 rupees), sorted highest first, 25 per page. Each entry has: family, uniqueMembers, policyCount, totalPremium (rupees), phone. Use when an admin asks for the gift-hamper list, families above 2 lakh, or who qualifies for a CGPE gift hamper. Present the families with their total premium. Then, ONLY when the admin confirms sending hampers, create ONE tracking ticket per family via the create_ticket tool (category 'other', kind 'general', task like 'Send CGPE gift hamper to <family>', pass the family phone as phoneLast10). Optional inputs: threshold (rupees) and page.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Gift Hamper Engine",
+          "mode": "id",
+          "value": "iw9sadZIPWXGgKE6"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "threshold",
+              "id": "threshold",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "page",
+              "id": "page",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "page": "={{ $fromAI('page', 'page number as a string, default 1', 'string') }}",
+            "threshold": "={{ $fromAI('threshold', 'premium threshold in rupees as a string, default 200000', 'string') }}"
+          }
+        }
+      },
+      "id": "0425f7de-aaff-4c83-89d1-1c285b822949",
+      "name": "gift_hamper",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12240,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Delete TEST or junk records in bulk. SAFE BY DEFAULT: runs as a DRY RUN (lists what matches, deletes nothing) unless confirm is 'true'. collection must be one of: leads, claims, tickets, team_tasks, reminders (it can NEVER touch clients or policies). Provide field + value to match (e.g. field 'source' value 'test', or field 'phoneLast10' value '9898989898'); empty filters are refused so it can never match everything. WORKFLOW: first call WITHOUT confirm to show the admin exactly which records match, get explicit admin approval, THEN call again with confirm 'true' to delete. Use only when an admin asks to remove test, demo, or junk data.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Test Data Purge",
+          "mode": "id",
+          "value": "QKhqbR0QCHjpElMC"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "collection",
+              "id": "collection",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "field",
+              "id": "field",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "value",
+              "id": "value",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "confirm",
+              "id": "confirm",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "collection": "={{ $fromAI('collection', 'one of: leads, claims, tickets, team_tasks, reminders', 'string') }}",
+            "confirm": "={{ $fromAI('confirm', \"'true' to actually delete; anything else = dry run\", 'string') }}",
+            "field": "={{ $fromAI('field', 'the field to match on, e.g. source or phoneLast10', 'string') }}",
+            "value": "={{ $fromAI('value', 'the value that field must equal', 'string') }}"
+          }
+        }
+      },
+      "id": "3c27cec8-e01b-4020-bbca-d44b573dd569",
+      "name": "purge_test_data",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12368,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Birthday list for a month, sorted by NEAREST UPCOMING birthday first. Input: month (1-12, default current month), page (default 1, 20 per page). Returns: total (SHOW THIS AT THE TOP), a paginated birthdays list (each: name, birthday date, phone, totalPremium, totalCover), a priorityCallList (clients whose TOTAL premium is above 2 lakh - the high-value people to call personally), and a ready teamMessage. FORMAT THE REPLY LIKE THIS: begin with a short summary line at the TOP with the month and total count (example: July birthdays - 369 total - showing 1 to 20, page 1 of 19). Then list birthdays one per line, closest first, cleanly spaced: name, birthday date, phone. Then a clearly separated section titled 'High-value clients to call personally' listing the priorityCallList (name, birthday, premium). Keep spacing clean and readable on WhatsApp - a blank line between sections, no clutter, no long tables. If the admin wants to send this to the team, use the teamMessage text and assign or notify the relevant team members via team_ops to personally call each of those clients.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Birthday Engine",
+          "mode": "id",
+          "value": "CRUxwHAsoqrdYj5V"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "month",
+              "id": "month",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "page",
+              "id": "page",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "month": "={{ $fromAI('month', 'month number 1-12; empty for current month', 'string') }}",
+            "page": "={{ $fromAI('page', 'page number as a string, default 1', 'string') }}"
+          }
+        }
+      },
+      "id": "deb18cd2-6671-46ec-8bd1-6907780460b6",
+      "name": "birthday_list",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12496,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "List clients as INDIVIDUALS or FAMILIES. Input: mode ('individuals' = one entry per unique person; 'families' = grouped by family / groupName), page (default 1, 20 per page), minPremium (optional - only show entries whose TOTAL premium is at or above this rupee amount). Each entry: name, members, policies, totalPremium, totalCover, phone; sorted by total premium highest first. Use when the admin asks for a list of individuals or individual clients, or a list of families. Show the TOTAL count at the TOP (for example: 3669 families), then the page items one per line, cleanly spaced.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Client Segments",
+          "mode": "id",
+          "value": "Lexl3Ga6DaZpL3hG"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "mode",
+              "id": "mode",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "page",
+              "id": "page",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "minPremium",
+              "id": "minPremium",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "minPremium": "={{ $fromAI('minPremium', 'optional minimum total premium in rupees; empty for all', 'string') }}",
+            "mode": "={{ $fromAI('mode', 'individuals or families', 'string') }}",
+            "page": "={{ $fromAI('page', 'page number as a string, default 1', 'string') }}"
+          }
+        }
+      },
+      "id": "38d492a6-f20c-4b7e-9a2a-dd2dbd0833aa",
+      "name": "client_segments",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12624,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "FAST segmented client lists from the precomputed client_index - use this for hot-leads and priority lists instead of scanning all clients. Input: flag - one of hot_lead (clients whose TERM cover is below 1 crore = under-insured leads), high_value (total premium above 2 lakh), life_cover_under_1cr (total life cover below 1 crore), term_cover_under_1cr (term cover below 1 crore). sortBy - premium (default, highest first), birthday (closest upcoming birthday first), or cover (lowest cover first). page (default 1, 20 per page). Returns total (SHOW AT TOP) and the matching people (name, phone, birthday, daysUntilBirthday, totalPremium, totalCover). THE TOP-PRIORITY HOT LIST = flag hot_lead with sortBy birthday: under-insured clients whose birthday is nearest. NOTE: term cover is currently an ESTIMATE (cover-to-premium ratio) until the LIC term plan numbers are provided; say so if you present term figures.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Flagged Clients",
+          "mode": "id",
+          "value": "pDkNfZ6Cal8Zzajr"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "flag",
+              "id": "flag",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "sortBy",
+              "id": "sortBy",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "page",
+              "id": "page",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "flag": "={{ $fromAI('flag', 'hot_lead, high_value, life_cover_under_1cr, or term_cover_under_1cr', 'string') }}",
+            "page": "={{ $fromAI('page', 'page number as a string, default 1', 'string') }}",
+            "sortBy": "={{ $fromAI('sortBy', 'premium, birthday, or cover', 'string') }}"
+          }
+        }
+      },
+      "id": "6af659d1-c6c6-4118-a921-d7bb67330102",
+      "name": "flagged_clients",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12752,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Send a message to the admin - it looks up the admin automatically, so you never need the admin's number. Use it to: (1) RELAY a team member's task update to the admin - task accepted, rejected, in progress, done, a note, a question, or a request such as discussing extra pay or salary; or (2) ALERT the admin that a new user or existing client contacted the bot and why. Input: from (the person sending or contacting, e.g. the team member's or client's name), message (exactly what to tell the admin), phone (their number if relevant). Never tell the user you cannot reach the admin - call this tool instead.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Alert Admin",
+          "mode": "id",
+          "value": "VchRYhGoh7PXIuir"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "from",
+              "id": "from",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "message",
+              "id": "message",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "phone",
+              "id": "phone",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "from": "={{ $fromAI('from', 'the person name', 'string') }}",
+            "message": "={{ $fromAI('message', 'short reason - what they asked about', 'string') }}",
+            "phone": "={{ $fromAI('phone', 'their phone if known, else empty', 'string') }}"
+          }
+        }
+      },
+      "id": "4d281cb3-88cd-45fb-b167-aab0cb7b9215",
+      "name": "alert_admin",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12880,
+        -1472
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Record an admin command in the admin_commands log. Call this ONCE at the start of handling any command from the admin, so the admin actions are stored. Input: number (the admin phone from senderPhoneLast10), name (the admin name from senderName), command (what the admin asked, in their own words), info (any extra context such as what record was created or key details).",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CGPE — Log Admin Command",
+          "mode": "id",
+          "value": "Dfw6hsZEZx4PoTzb"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "number",
+              "id": "number",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "name",
+              "id": "name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "command",
+              "id": "command",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "info",
+              "id": "info",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "command": "={{ $fromAI('command', 'what the admin asked in their own words', 'string') }}",
+            "info": "={{ $fromAI('info', 'any extra context or details', 'string') }}",
+            "name": "={{ $fromAI('name', 'the admin name', 'string') }}",
+            "number": "={{ $fromAI('number', 'the admin phone number', 'string') }}"
+          }
+        }
+      },
+      "id": "43b04f1b-ac29-4da2-8d7e-63215d64f773",
+      "name": "log_command",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        13008,
+        -1376
+      ]
+    },
+    {
+      "parameters": {
+        "description": "HNI acquisition PROSPECTS — the target list of wealthy Surat business owners to invite/pitch (NOT existing clients). Use when an admin asks for 'HNI clients', 'HNI list', 'HNI prospects', 'prospects', a segment (diamond / real estate / doctors / textile prospects), a tier (A/B/C), or 'prospects from <source>'. Pass category (Diamond & Gems | Real Estate & Developers | Doctors & Healthcare | Textile & Industrialists), source, tier, query (free text), page. Returns {ok,count,page,pages,results} where each result has name, firm, category, tier, area, notable (why HNI), contact, source.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "oiExsCAV4CO0sGfG",
+          "cachedResultName": "CGPE — Prospects Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "category": "={{ $fromAI('category', 'Segment filter: Diamond & Gems | Real Estate & Developers | Doctors & Healthcare | Textile & Industrialists. Empty for all.', 'string') }}",
+            "source": "={{ $fromAI('source', 'Source flag to filter by. Empty for all.', 'string') }}",
+            "tier": "={{ $fromAI('tier', 'Priority tier A, B or C. Empty for all.', 'string') }}",
+            "query": "={{ $fromAI('query', 'Free-text name or firm search. Empty for none.', 'string') }}",
+            "page": "={{ $fromAI('page', 'Page number, default 1.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "category",
+              "displayName": "category",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tier",
+              "displayName": "tier",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "page",
+              "displayName": "page",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "066d283e-49af-49f0-8d67-ec75dccf11db",
+      "name": "get_prospects",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10320,
+        -704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = [];\n$input.all().forEach(function(it){\n  const j = it.json || {};\n  const raw = String(j.replyText || '');\n  let parts = raw.split(/\\s*\\[\\[\\s*NEXT\\s*\\]\\]\\s*/i).map(function(s){ return s.trim(); }).filter(function(s){ return s.length; });\n  if (!parts.length) parts = [raw];\n  parts.forEach(function(p){ out.push({ json: Object.assign({}, j, { replyText: p }) }); });\n});\nreturn out;"
+      },
+      "id": "bc1e5c3b-22ad-4d86-8d77-0c479213976f",
+      "name": "Split Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9984,
+        -1216
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Update an HNI prospect's outreach status and captured response IN PLACE (keyed by prospectId). Use when an admin/team reports the outcome of contacting a prospect (e.g. 'Kiran Gems interested', 'Savji not reachable', 'Govind converted'). FIRST resolve the prospectId via get_prospects (search by name/firm) if you don't have it, then call this. Pass prospectId (required), status (interested | not_interested | converted | dropped | responded | contacted | not_reachable | callback), response (their words), contactedBy (who handled it). Returns {ok, prospectId, set}.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "iaM8rW1L2fRx0Dyv",
+          "cachedResultName": "CGPE — Update Prospect"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "prospectId": "={{ $fromAI('prospectId', 'The prospectId like CGPE-P-042. Resolve via get_prospects first if unknown.', 'string') }}",
+            "status": "={{ $fromAI('status', 'Outcome: interested | not_interested | converted | dropped | responded | contacted | not_reachable | callback', 'string') }}",
+            "response": "={{ $fromAI('response', 'The prospect response in their words, if any.', 'string') }}",
+            "contactedBy": "={{ $fromAI('contactedBy', 'Name of the admin/team member who contacted them.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "prospectId",
+              "displayName": "prospectId",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "response",
+              "displayName": "response",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contactedBy",
+              "displayName": "contactedBy",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "109de2a1-dc2e-4032-b561-8a7ed61b967a",
+      "name": "update_prospect",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10320,
+        -496
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Unified PROSPECT list merging all three sources into one labelled list: existing clients with life cover under 1 crore (source low_cover), HNI acquisition prospects (source hni), and bot-detected lead intent from the leads collection (source intent). Use when an admin asks for 'the prospect list', 'all prospects', 'combined prospects', 'full prospect list', or one specific source. Pass source (all | low_cover | hni | intent) and page. Returns {ok,total,counts,list}.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "OieAeFFa0aSiCsl2",
+          "cachedResultName": "CGPE — Unified Prospect List"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "source": "={{ $fromAI('source', 'One of: all | low_cover | hni | intent. Default all.', 'string') }}",
+            "page": "={{ $fromAI('page', 'Page number, default 1.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "source",
+              "displayName": "source",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "page",
+              "displayName": "page",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "74529924-389d-49eb-97f2-f510ddae1894",
+      "name": "get_unified_prospects",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10320,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Prospect sales funnel — the STATUS of each prospect: Connect -> Meeting -> Quotation -> Sale -> Approved/Disapproved. Runs on the prospects list. op=list returns prospects grouped by their funnel stage with counts; op=advance moves a prospect (by prospectId) to a new stage. Pass op (list|advance), prospectId, stage (connect|meeting|quotation|sale|approved|disapproved), notes.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "GjaiIydGdqy9PKc3",
+          "cachedResultName": "CGPE — Sales Funnel"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "op": "={{ $fromAI('op', 'list or advance. Default list.', 'string') }}",
+            "prospectId": "={{ $fromAI('prospectId', 'Prospect id when advancing. Empty for list.', 'string') }}",
+            "stage": "={{ $fromAI('stage', 'Target stage: connect|meeting|quotation|sale|approved|disapproved.', 'string') }}",
+            "notes": "={{ $fromAI('notes', 'Optional note.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "op",
+              "displayName": "op",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prospectId",
+              "displayName": "prospectId",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "a8418c02-d5fa-4365-824d-5c3820f1adf6",
+      "name": "sales_funnel",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10512,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "description": "CGPE Tree advisor recruitment funnel: Connect -> Meeting -> Event -> Exam -> Onboarded. Use to VIEW advisor prospects or MOVE one. op=list groups advisor prospects by stage with counts; op=advance moves an advisor (by advId) to a stage. Pass op (list|advance), advId, stage (connect|meeting|event|exam|onboarded), notes.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "p6eItjRu3NkSluPy",
+          "cachedResultName": "CGPE — Advisor Funnel"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "op": "={{ $fromAI('op', 'list or advance. Default list.', 'string') }}",
+            "advId": "={{ $fromAI('advId', 'Advisor id when advancing. Empty for list.', 'string') }}",
+            "stage": "={{ $fromAI('stage', 'Target stage: connect|meeting|event|exam|onboarded.', 'string') }}",
+            "notes": "={{ $fromAI('notes', 'Optional note.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "op",
+              "displayName": "op",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "advId",
+              "displayName": "advId",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "ba46551a-ffd6-4a79-af5f-dc34ae00c839",
+      "name": "advisor_funnel",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10688,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Generate a claim intimation EMAIL DRAFT (mediclaim or life). Use after a claim is logged when an admin asks to draft or prepare the claim email to the TPA/insurer. Pass claimId, type (mediclaim|life), clientName, policyNo, insurer, incident (what happened), amount. Looks up the routing email and returns a ready draft stored in claim_drafts.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "XuelT4PngifmWVgT",
+          "cachedResultName": "CGPE — Claim Draft Generator"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "claimId": "={{ $fromAI('claimId', 'Claim id if known.', 'string') }}",
+            "type": "={{ $fromAI('type', 'mediclaim or life.', 'string') }}",
+            "clientName": "={{ $fromAI('clientName', 'Policy holder name.', 'string') }}",
+            "policyNo": "={{ $fromAI('policyNo', 'Policy number.', 'string') }}",
+            "insurer": "={{ $fromAI('insurer', 'Insurer or TPA name.', 'string') }}",
+            "incident": "={{ $fromAI('incident', 'What happened / nature of claim.', 'string') }}",
+            "amount": "={{ $fromAI('amount', 'Estimated amount, optional.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "claimId",
+              "displayName": "claimId",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "type",
+              "displayName": "type",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clientName",
+              "displayName": "clientName",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "policyNo",
+              "displayName": "policyNo",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "insurer",
+              "displayName": "insurer",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "incident",
+              "displayName": "incident",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "b0970913-be29-4787-bcd1-0a87b7a52147",
+      "name": "draft_claim",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        10864,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Build an event target list + invitation. Use when an admin wants to invite clients to an event and get the recipient list plus invite text. Pass eventId, title, date, location, target (hni | lowcover | all), limit (max recipients). Returns the count, invite text and a sample; the actual bulk send goes via the Campaign Broadcaster.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "5vdQNc2vovnmVv0g",
+          "cachedResultName": "CGPE — Event Invitations"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "eventId": "={{ $fromAI('eventId', 'Event id, optional.', 'string') }}",
+            "title": "={{ $fromAI('title', 'Event title.', 'string') }}",
+            "date": "={{ $fromAI('date', 'Event date.', 'string') }}",
+            "location": "={{ $fromAI('location', 'Event location.', 'string') }}",
+            "target": "={{ $fromAI('target', 'Audience: hni | lowcover | all.', 'string') }}",
+            "limit": "={{ $fromAI('limit', 'Max recipients, default 50.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "eventId",
+              "displayName": "eventId",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target",
+              "displayName": "target",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "b71b3ce4-ca7a-4902-b388-5e9ed97ca4bd",
+      "name": "event_invite",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11040,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "description": "UNIVERSAL DATA QUERY — run ANY read query on ANY collection with any filter, sort and pagination. Use whenever an admin (or user) asks for data in a custom way the specific tools don't cover: custom filters, comparisons, ranges, sorting, top-N, counts. Pass collection (exact MongoDB collection name), filter (a MongoDB query object as JSON string, e.g. {\"status\":\"open\"} or {\"claimableAmount\":{\"$gt\":500000}} or {\"$expr\":{\"$lt\":[\"$amountReceived\",\"$claimableAmount\"]}}), sort (JSON like {\"claimableAmount\":-1}), projection (optional JSON), limit (page size, default 20), page. Returns {ok,total,page,pageCount,results}. Common collections: claims, clients, client_index, prospects, tickets, team_tasks, leads, reminders, policies, cgpe_tpas, wa_comm_messages.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mHuxCNAt3kI1zfYM",
+          "cachedResultName": "CGPE — Universal Query Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "collection": "={{ $fromAI('collection', 'Exact MongoDB collection name to query.', 'string') }}",
+            "filter": "={{ $fromAI('filter', 'MongoDB query as a JSON string. {} for all.', 'string') }}",
+            "sort": "={{ $fromAI('sort', 'Sort as JSON like {\"field\":-1}. Empty for none.', 'string') }}",
+            "projection": "={{ $fromAI('projection', 'Optional projection JSON. Empty for all fields.', 'string') }}",
+            "limit": "={{ $fromAI('limit', 'Page size, default 20.', 'string') }}",
+            "page": "={{ $fromAI('page', 'Page number, default 1.', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "collection",
+              "displayName": "collection",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "filter",
+              "displayName": "filter",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sort",
+              "displayName": "sort",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "projection",
+              "displayName": "projection",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "page",
+              "displayName": "page",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "fa89eb97-85e9-453a-b89b-0b8b11c59213",
+      "name": "run_query",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11232,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Create a CLAIM the moment a life or general insurance claim is detected (death, accident, hospitalization, mediclaim) from a client OR admin. Logs it in the claims collection with the correct required-document checklist and opens a claim ticket; follow-up is handled by the admin reminder. Pass lineOfBusiness (life|general), claimType (death|accidental|health|general), policyHolderName, policyNumber, insurer (or TPA name), patientName, claimableAmount, mobileNumber, incident. Returns {claimId, ticketId, requiredDocs}. CRITICAL: after calling this, do NOT ask the client for any documents — just reassure them the team will handle it; the ADMIN collects the docs and emails the company within 24h.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "32sNsjGJwNfeNOax",
+          "cachedResultName": "CGPE — Create Claim Request"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lineOfBusiness": "={{ $fromAI('lineOfBusiness', 'life or general', 'string') }}",
+            "claimType": "={{ $fromAI('claimType', 'death | accidental | health | general', 'string') }}",
+            "policyHolderName": "={{ $fromAI('policyHolderName', 'Policy holder name', 'string') }}",
+            "policyNumber": "={{ $fromAI('policyNumber', 'Policy number if known', 'string') }}",
+            "insurer": "={{ $fromAI('insurer', 'Insurer or TPA name', 'string') }}",
+            "patientName": "={{ $fromAI('patientName', 'Patient/claimant name if applicable', 'string') }}",
+            "claimableAmount": "={{ $fromAI('claimableAmount', 'Claim amount if known', 'string') }}",
+            "mobileNumber": "={{ $fromAI('mobileNumber', 'Client mobile number', 'string') }}",
+            "incident": "={{ $fromAI('incident', 'Short description of what happened', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lineOfBusiness",
+              "displayName": "lineOfBusiness",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "claimType",
+              "displayName": "claimType",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "policyHolderName",
+              "displayName": "policyHolderName",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "policyNumber",
+              "displayName": "policyNumber",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "insurer",
+              "displayName": "insurer",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "patientName",
+              "displayName": "patientName",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "claimableAmount",
+              "displayName": "claimableAmount",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mobileNumber",
+              "displayName": "mobileNumber",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "incident",
+              "displayName": "incident",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "0d5a1d25-3e03-4297-b636-5dcbe2c6b0ca",
+      "name": "create_claim_request",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11408,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Update a claim when an ADMIN acts on it, to stop the recurring claim reminder. action=emailed (admin emailed the company/TPA), action=assign with assignee (admin assigns the claim to a team member), action=docs_done (documents collected). Use when an admin says 'claim <ID> emailed / bhej diya', 'assign claim <ID> to <name>', or 'claim <ID> docs mil gaya'. Pass claimId, action, and assignee (for assign).",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "VaCydFGC8L0I97EO",
+          "cachedResultName": "CGPE — Update Claim"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "claimId": "={{ $fromAI('claimId', 'The claim id, e.g. CLM-2026-001', 'string') }}",
+            "action": "={{ $fromAI('action', 'emailed | assign | docs_done | reopen', 'string') }}",
+            "assignee": "={{ $fromAI('assignee', 'Team member name when action=assign', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "claimId",
+              "displayName": "claimId",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assignee",
+              "displayName": "assignee",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "c2962cfe-4608-49b7-b35c-5fa0d8a4c3cc",
+      "name": "update_claim",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        11584,
+        -480
       ]
     }
   ],
-  "pinData": {},
   "connections": {
-    "Meta Verify (GET)": {
-      "main": [
-        [
-          {
-            "node": "Valid Verify Token?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Valid Verify Token?": {
       "main": [
         [
@@ -1333,17 +3612,6 @@
         [
           {
             "node": "Respond Forbidden",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "WhatsApp Inbound (POST)": {
-      "main": [
-        [
-          {
-            "node": "Normalize Message",
             "type": "main",
             "index": 0
           }
@@ -1390,6 +3658,11 @@
             "node": "Has Audio?",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Parse Ack",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1398,7 +3671,7 @@
       "main": [
         [
           {
-            "node": "Send Ack",
+            "node": "Ack: Is UI?",
             "type": "main",
             "index": 0
           }
@@ -1434,33 +3707,16 @@
         ]
       ]
     },
-    "Fix Audio Filename": {
-      "main": [
-        [
-          {
-            "node": "Transcribe Audio",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Transcribe Audio": {
-      "main": [
-        [
-          {
-            "node": "Set Voice Text",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Set Voice Text": {
       "main": [
         [
           {
             "node": "Find Admin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Voice Log",
             "type": "main",
             "index": 0
           }
@@ -1483,17 +3739,6 @@
         [
           {
             "node": "Find Admin",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Find Client Row": {
-      "main": [
-        [
-          {
-            "node": "Build Context",
             "type": "main",
             "index": 0
           }
@@ -1716,7 +3961,7 @@
         ],
         [
           {
-            "node": "Send WhatsApp Reply",
+            "node": "Is Meta Channel?",
             "type": "main",
             "index": 0
           }
@@ -1745,7 +3990,18 @@
         ]
       ]
     },
-    "team_ops": {
+    "Build Voice Log": {
+      "main": [
+        [
+          {
+            "node": "Log Voice Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_counts": {
       "ai_tool": [
         [
           {
@@ -1767,7 +4023,7 @@
         ]
       ]
     },
-    "get_counts": {
+    "team_ops": {
       "ai_tool": [
         [
           {
@@ -1799,21 +4055,572 @@
           }
         ]
       ]
+    },
+    "create_reminder": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_task": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_reminder": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "delete_record": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fix Audio Filename": {
+      "main": [
+        [
+          {
+            "node": "Sarvam STT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Voice to Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sarvam STT": {
+      "main": [
+        [
+          {
+            "node": "Set Voice Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Client Row": {
+      "main": [
+        [
+          {
+            "node": "Find Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Team": {
+      "main": [
+        [
+          {
+            "node": "Build Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "notify": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ack_task": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_campaign": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Inbound (POST)": {
+      "main": [
+        [
+          {
+            "node": "Respond WA 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond WA 200": {
+      "main": [
+        [
+          {
+            "node": "Normalize Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive Voice": {
+      "main": [
+        [
+          {
+            "node": "Build Voice Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Voice Record": {
+      "main": [
+        [
+          {
+            "node": "Save Voice Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Verify (GET)": {
+      "main": [
+        [
+          {
+            "node": "GET Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Router": {
+      "main": [
+        [
+          {
+            "node": "Respond WA 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Valid Verify Token?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Meta Channel?": {
+      "main": [
+        [
+          {
+            "node": "Send via Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send via Meta": {
+      "main": [
+        [
+          {
+            "node": "Prep Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ack: Is UI?": {
+      "main": [
+        [
+          {
+            "node": "Is Meta Audio?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ack: Is Meta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ack: Is Meta?": {
+      "main": [
+        [
+          {
+            "node": "Send Ack via Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Ack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Ack via Meta": {
+      "main": [
+        [
+          {
+            "node": "Is Meta Audio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice to Base64": {
+      "main": [
+        [
+          {
+            "node": "Archive Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Ack": {
+      "main": [
+        [
+          {
+            "node": "Lookup Ack Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Ack Task": {
+      "main": [
+        [
+          {
+            "node": "Build Ack Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Ack Notify": {
+      "main": [
+        [
+          {
+            "node": "Execute Ack Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ref_list": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "top_leads": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gift_hamper": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "purge_test_data": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "birthday_list": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "client_segments": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "flagged_clients": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "alert_admin": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "log_command": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_prospects": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Reply": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_prospect": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_unified_prospects": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sales_funnel": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "advisor_funnel": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "draft_claim": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "event_invite": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "run_query": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_claim_request": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_claim": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": true
-  },
-  "versionId": "269ca9f0-0964-4cb2-8ad0-bf08dcd1cb56",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "b51c561a1f913d126dd565a961c174df11effac1c85079f2a730449a45fbe676"
-  },
-  "nodeGroups": [],
-  "id": "TIiGkCl3wM0X72ca",
-  "tags": []
+  }
 }
