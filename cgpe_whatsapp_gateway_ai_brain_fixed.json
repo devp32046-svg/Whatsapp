@@ -3786,6 +3786,83 @@
           ]
         }
       }
+    },
+    {
+      "id": "renewallist01",
+      "name": "renewal_list",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12880,
+        -1280
+      ],
+      "parameters": {
+        "description": "Renewal list: policies whose PREMIUM IS DUE in a given month (renewal / premium paying date). Admin-only. ALWAYS pass BOTH 'month' (1-12, empty for current month) AND 'caption' (a short caption for the PDF, in the SAME language and script the admin is chatting in). IMPORTANT: the full list is delivered AUTOMATICALLY as a WhatsApp PDF document - do NOT paste any link and do NOT list every policy in your text reply. Returns: title, total, priorityCount and priorityList (premium above 2 lakh). NOTE ON ACCURACY: the due dates are worked out from each policy's start date and payment mode, so they tell you WHEN a premium falls due. They do NOT tell you whether a premium is unpaid or overdue - our copy of the LIC premium status is out of date, so never describe this list as 'pending' or 'unpaid'. Single-premium, ECS and SSS policies are excluded as they have no renewal cycle. REPLY LIKE THIS: one short line with the month and total (example: August renewals - 423 policies - full list sent as PDF), then the high-value ones. Follow the 'note' field in the result exactly - it tells you the marker to append.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "G7xWhdusNjzKXK8W",
+          "cachedResultName": "CGPE — List Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "listType": "renewal",
+            "month": "={{ $fromAI('month', 'month number 1-12; empty for current month', 'string', '') }}",
+            "year": "",
+            "toPhone": "={{ $('Build Context').first().json.senderPhone }}",
+            "caption": "={{ $fromAI('caption', 'REQUIRED - always provide. Short caption for the renewal-list PDF, in the SAME language and script the admin is chatting in.', 'string', '📄 Renewal list - CGP Enterprise') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "listType",
+              "displayName": "listType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "month",
+              "displayName": "month",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "year",
+              "displayName": "year",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "toPhone",
+              "displayName": "toPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      }
     }
   ],
   "connections": {
@@ -4818,6 +4895,17 @@
       ]
     },
     "anniversary_list": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "renewal_list": {
       "ai_tool": [
         [
           {
