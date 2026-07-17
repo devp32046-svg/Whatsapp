@@ -443,11 +443,6 @@
      "systemMessage": "={{ $json.systemPrompt }}\n\n[LANGUAGE POLICY — HIGHEST PRIORITY. This overrides ANY other language instruction above, including any 'reply in Gujlish' default.]\n1. Detect the customer's language from their message and MIRROR it for the WHOLE reply and the ENTIRE conversation. Never drift or switch language mid-conversation.\n2. If the customer communicates in HINDI (Devanagari script, or clearly Hindi): reply ONLY in pure Hindi written in Devanagari script (देवनागरी). Do NOT romanize, do NOT insert English sentences, do NOT use Hinglish.\n3. If the customer communicates in GUJARATI (Gujarati script, or clearly Gujarati): reply ONLY in pure Gujarati written in Gujarati script (ગુજરાતી). Do NOT use romanized Gujlish.\n4. Reply in romanized Hinglish or Gujlish ONLY IF the customer themselves writes in that romanized/mixed style. Match their exact style.\n5. If the customer uses English: reply in English.\n6. Only proper nouns and fixed insurance terms (CGPE, LIC, SIP, policy, premium) may stay in English/Latin; everything else must be in the customer's language and script.\n7. NEVER reply in Telugu, Tamil, Kannada, Malayalam, Bengali, Marathi, or any language the customer did not use — even if a voice transcript looks like another script.\n8. When unsure, follow the language and script of the customer's most recent message. A pure Hindi or pure Gujarati speaker must be able to read every word.\n\n[TASK REFERENCE STYLE] When you mention a task to any user, lead with the task TITLE in quotes, and give the short task ID only as a secondary reference in brackets. Never identify a task by its raw ID alone, and never paste a long slug-style id into a sentence. Example: Amit Shah ne \"Narola family ka health claim verify\" task Accept kiya (TSK-0002-01). The same applies to reminders, tickets and claims: describe WHAT it is first, id second.\n\n[LANGUAGE PRECISION - STRICT] Your OWN prose follows the language policy above, but DATA is never translated. Never translate, transliterate or re-script any of these — reproduce them EXACTLY as the user gave them, character for character: person names, client names, team member names, task titles, task details, policy numbers, IDs, ticket ids, amounts, dates. If the admin typed a task title in Hinglish, quote it in Hinglish even when the rest of your reply is in Gujarati or Hindi. Quoted data stays verbatim; only your surrounding sentences follow the user language.\n\n[TASK INTENT] When calling team_ops with action assign or meeting, ALWAYS include an \"intent\" field: a 3-letter lowercase code for what the task is about. Use: clm=claim, sip=SIP/investment, rnw=renewal, prm=premium/payment, mat=maturity, pol=policy/document/KYC, mtg=meeting, led=lead/inquiry, cal=call/callback, gen=anything else. The task id is built from it (e.g. sip-mrg-004), so pick the code that matches the task.\n\n[TASK ACK RELAY - MANDATORY] Whenever a team member accepts, rejects, completes, or updates a task (including when their message is a button id such as accept:<taskId> or reject:<taskId>), you MUST do BOTH: (1) record it with ack_task, AND (2) call the notify tool to inform the admin. Never record it silently. The notify text must state WHO did it, the task TITLE in quotes, the short task id, and the decision (accepted / rejected / completed). Send it to the admin who assigned the task (assignedByPhone from the task record); if that is unknown, send it to the CGPE Admin number. This relay is NOT optional — the admin must always learn the outcome of a task they assigned.\n\n[TASK ACK RELAY - LOOKUP TITLE FIRST] Before you relay a task acknowledgement, you do NOT know the task title from the button id alone. So the order is ALWAYS: (1) call get_task with the taskId to fetch the real record, (2) call ack_task to record the decision, (3) call notify to the admin using the REAL title from step 1. Never write the placeholder word \"Task\" in place of the title, and never invent a title. The notify text must read like: Priya Desai ne \"Mehta ji ka policy renewal follow-up karna hai\" [rnw-aft-001] accept kar liya hai. If get_task returns nothing, say the task was not found instead of guessing.\n\n[ACK AUTO-NOTIFY] For a task accept/reject/decline acknowledgement, the SYSTEM already notifies the admin automatically. Do NOT call the notify tool yourself for acks. Just record it with ack_task and give the team member a short confirmation.",
      "maxIterations": 12,
      "enableStreaming": false
-    },
-    "parameters": {
-     "options": {
-      "maxIterations": 8
-     }
     }
    },
    "id": "c376377e-29b8-47de-96a5-79ef7de3b491",
@@ -474,12 +469,6 @@
     "options": {
      "reasoningEffort": "low",
      "timeout": 90000
-    },
-    "parameters": {
-     "model": {
-      "value": "gpt-5.4-mini",
-      "cachedResultName": "gpt-5.4-mini"
-     }
     }
    },
    "id": "adf0aafe-7822-4e45-a38b-94dd3402bbd0",
@@ -487,7 +476,7 @@
    "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
    "typeVersion": 1.3,
    "position": [
-    8784,
+    8800,
     -1472
    ],
    "credentials": {
@@ -3667,14 +3656,6 @@
    ]
   },
   {
-   "id": "maturitylist01",
-   "name": "maturity_list",
-   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-   "typeVersion": 2.2,
-   "position": [
-    12496,
-    -1280
-   ],
    "parameters": {
     "description": "Maturity list: policies MATURING in a given month. Admin-only. ALWAYS pass BOTH 'month' (1-12, empty for current month) AND 'caption' (a short caption for the PDF, in the SAME language and script the admin is chatting in). Optionally pass 'year' (defaults to the current year). IMPORTANT: the full list is delivered AUTOMATICALLY as a WhatsApp PDF document - do NOT paste any link and do NOT list every policy in your text reply. Returns: title, total, priorityCount and priorityList (the high-value ones, sum assured above 5 lakh). REPLY LIKE THIS: one short line with the list name and total (example: August 2026 maturities - 21 policies - full list sent as PDF), then a short section listing the high-value ones. Follow the 'note' field in the result exactly - it tells you the marker to append.",
     "workflowId": {
@@ -3741,17 +3722,17 @@
       }
      ]
     }
-   }
-  },
-  {
-   "id": "annivlist01",
-   "name": "anniversary_list",
+   },
+   "id": "maturitylist01",
+   "name": "maturity_list",
    "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
    "typeVersion": 2.2,
    "position": [
-    12688,
+    12496,
     -1280
-   ],
+   ]
+  },
+  {
    "parameters": {
     "description": "Policy anniversary list: policies that STARTED (commenced) in a given month - their policy anniversary falls in that month. Admin-only. NOTE: this is the POLICY anniversary, not a wedding anniversary - we do not hold wedding dates. ALWAYS pass BOTH 'month' (1-12, empty for current month) AND 'caption' (a short caption for the PDF, in the SAME language and script the admin is chatting in). IMPORTANT: the full list is delivered AUTOMATICALLY as a WhatsApp PDF document - do NOT paste any link and do NOT list every policy in your text reply. Returns: title, total, priorityCount and priorityList (premium above 2 lakh). REPLY LIKE THIS: one short line with the list name and total, then a short section listing the high-value ones. Follow the 'note' field in the result exactly - it tells you the marker to append.",
     "workflowId": {
@@ -3818,17 +3799,17 @@
       }
      ]
     }
-   }
-  },
-  {
-   "id": "renewallist01",
-   "name": "renewal_list",
+   },
+   "id": "annivlist01",
+   "name": "anniversary_list",
    "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
    "typeVersion": 2.2,
    "position": [
-    12880,
+    12688,
     -1280
-   ],
+   ]
+  },
+  {
    "parameters": {
     "description": "Renewal list: policies whose PREMIUM IS DUE in a given month (renewal / premium paying date). Admin-only. ALWAYS pass BOTH 'month' (1-12, empty for current month) AND 'caption' (a short caption for the PDF, in the SAME language and script the admin is chatting in). IMPORTANT: the full list is delivered AUTOMATICALLY as a WhatsApp PDF document - do NOT paste any link and do NOT list every policy in your text reply. Returns: title, total, priorityCount and priorityList (premium above 2 lakh). NOTE ON ACCURACY: the due dates are worked out from each policy's start date and payment mode, so they tell you WHEN a premium falls due. They do NOT tell you whether a premium is unpaid or overdue - our copy of the LIC premium status is out of date, so never describe this list as 'pending' or 'unpaid'. Single-premium, ECS and SSS policies are excluded as they have no renewal cycle. REPLY LIKE THIS: one short line with the month and total (example: August renewals - 423 policies - full list sent as PDF), then the high-value ones. Follow the 'note' field in the result exactly - it tells you the marker to append.",
     "workflowId": {
@@ -3895,17 +3876,17 @@
       }
      ]
     }
-   }
-  },
-  {
-   "id": "921844ca-7f03-469b-8f41-21925bbfec0a",
-   "name": "advance_funnel",
+   },
+   "id": "renewallist01",
+   "name": "renewal_list",
    "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
    "typeVersion": 2.2,
    "position": [
-    9040,
-    -900
-   ],
+    12880,
+    -1280
+   ]
+  },
+  {
    "parameters": {
     "description": "Move a PROSPECT through the SALES FUNNEL to a target stage and trigger side-effects. stage is one of: prospects, connect, lead, meeting, quotation, convinced, not_convinced, documents, login, company_review, approved, rejected. Pass prospectId (preferred; look it up via get_unified_prospects) or name. Pass reason for rejected/not_convinced. On 'documents' it sends the client a congrats + a document request (Aadhaar, PAN, cancelled cheque, nominee, DOB) and pings the assigned member; on login/company_review/approved/rejected it notifies the assigned team member and updates the deal ticket. Returns {response}.",
     "workflowId": {
@@ -3972,17 +3953,17 @@
       }
      ]
     }
-   }
-  },
-  {
-   "id": "9b10410d-4ae3-4489-aa9e-9591f647d8d0",
-   "name": "sales_lead_alert",
+   },
+   "id": "921844ca-7f03-469b-8f41-21925bbfec0a",
+   "name": "advance_funnel",
    "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
    "typeVersion": 2.2,
    "position": [
     9040,
-    -740
-   ],
+    -896
+   ]
+  },
+  {
    "parameters": {
     "description": "Use when a BRAND-NEW person contacts us from an advertisement or inbound with buying intent. Logs them as a prospect at funnelStage=lead, notifies the whole Sales Team with Name, Contact, Source, Date/Time and the full conversation, and arms a 5-minute escalation. Pass name, phone, source (ad/campaign), and conversation (the full chat log). Returns {response}.",
     "workflowId": {
@@ -4039,17 +4020,17 @@
       }
      ]
     }
-   }
-  },
-  {
-   "id": "98e585b9-156e-435d-96e4-45a654fe86ca",
-   "name": "web_search",
+   },
+   "id": "9b10410d-4ae3-4489-aa9e-9591f647d8d0",
+   "name": "sales_lead_alert",
    "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
    "typeVersion": 2.2,
    "position": [
     9040,
-    -580
-   ],
+    -736
+   ]
+  },
+  {
    "parameters": {
     "description": "Search the public web for CURRENT or external facts that are NOT in the CGPE database and NOT reliably known — e.g. today's news, latest prices/rates, recent events, general definitions, or anything you are unsure about. Use SPARINGLY (free tier): do NOT search for greetings, small talk, opinions, math, or anything about CGPE's own clients/policies/claims/leads (use the database tools for those). One search per question, keep the query short. If it returns a '(no direct web result...)' message, answer from your own knowledge and note any uncertainty — never refuse. Input: query.",
     "workflowId": {
@@ -4076,17 +4057,17 @@
       }
      ]
     }
-   }
-  },
-  {
-   "id": "custom-list-tool-01",
-   "name": "custom_list",
+   },
+   "id": "98e585b9-156e-435d-96e4-45a654fe86ca",
+   "name": "web_search",
    "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
    "typeVersion": 2.2,
    "position": [
-    12496,
-    -1240
-   ],
+    9040,
+    -576
+   ]
+  },
+  {
    "parameters": {
     "description": "ADMIN-ONLY. Build ANY list of clients or policies from a free-form request and send it as a WhatsApp PDF + Excel.\n\nUSE THIS whenever the admin wants a LIST OF CLIENTS/POLICIES filtered by anything - premium, age, sum assured, payment mode, maturity year, number of policies, and so on. Examples: \"premium 2 lakh se upar wale clients\", \"70 saal se upar ke clients\", \"yearly mode wale jinka cover 20 lakh+ hai\", \"jinki 3 se zyada policies hain\".\nPREFER THIS over client_segments and run_query for any such list: only this tool delivers a real PDF file, and it confirms with the admin before building it. Use birthday_list / maturity_list / renewal_list / anniversary_list when the request is exactly one of those.\n\nTWO STEPS, ALWAYS:\nSTEP 1 (preview): send \"request\" = a JSON string with title and spec. spec has match (\"all\" or \"any\"), optional groupBy, and conditions - each condition being field, op, value.\n  Example: {\"title\":\"70+ ke clients\",\"spec\":{\"match\":\"all\",\"groupBy\":\"person\",\"conditions\":[{\"field\":\"age\",\"op\":\"gte\",\"value\":70}]}}\n  It returns the filter in plain words plus the total. Read BOTH back to the admin in THEIR language and ask them to confirm. Do NOT paste links and do NOT list the rows.\nSTEP 2 (confirm): only after the admin agrees, send \"request\" = {\"previewId\":\"<the previewId you got>\",\"confirm\":true,\"caption\":\"<short caption in the admin's language>\"}\n  It returns a pdfMarker - end your reply with that marker exactly, on its own line.\nIf the admin wants changes, go back to STEP 1 with a new spec. NEVER confirm a spec the admin has not seen.\n\ngroupBy: \"person\" = one row per client with their TOTAL premium/cover across all policies (use this when the admin says \"clients\"). \"policy\" = one row per policy (use when they ask about policies). Default is policy.\n\nFIELDS (nothing else exists):\n  text        : name, groupName, policyNo, agentCode, branchNo, tableNo\n  per policy  : premium, sumAssured, ppt, term, mode, closed, maturityDate, commencementDate, lastPremiumPayingDate, fupDate\n  per client  : totalPremium, totalSumAssured, policyCount  (summed across that client's policies)\n  person      : age, dob, birthdayMonth (1-12), maturityYear, hasPhone\n  mode values : Yearly, Half-Yearly, Quarterly, Monthly, Single, ECS, SSS\n  closed vals : Surrender, Death Claim, Maturity\n  dates as YYYY-MM-DD.\nOPERATORS: eq, ne, gt, gte, lt, lte, contains, in, between (value = [from,to]), exists.\n\nIMPORTANT: \"premium 2 lakh se upar wale CLIENTS\" means the client's TOTAL premium -> use totalPremium with groupBy person. A single policy costing 2 lakh is premium instead.\nAmounts are rupees (2 lakh = 200000).\nThere is NO city, area, address, gender or email in the records. If asked to filter by those, say so plainly and offer what IS available - never substitute another field.\nOnly ~35% of clients have a phone number; the list marks the rest \"no number on file\".",
     "workflowId": {
@@ -4099,6 +4080,51 @@
      "mappingMode": "defineBelow",
      "value": {
       "payload": "={{ (function(){ var p = {}; try { p = JSON.parse($fromAI('request', 'A JSON string. To preview, send title and spec, where spec has match (all or any) and conditions - each condition being field, op and value. To confirm, send previewId, confirm true, and caption. The tool description lists every allowed field and operator with examples.', 'string')); } catch (e) { p = {}; } if (!p || typeof p !== 'object') p = {}; p.toPhone = $('Build Context').first().json.senderPhone; return JSON.stringify(p); })() }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "payload",
+       "displayName": "payload",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ]
+    }
+   },
+   "id": "custom-list-tool-01",
+   "name": "custom_list",
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "typeVersion": 2.2,
+   "position": [
+    12496,
+    -1248
+   ]
+  },
+  {
+   "id": "make-pdf-tool-01",
+   "name": "make_pdf",
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "typeVersion": 2.2,
+   "position": [
+    12496,
+    -1010
+   ],
+   "parameters": {
+    "description": "ADMIN-ONLY. Turn a list you ALREADY have into a branded WhatsApp PDF file. Works for ANY list from ANY tool - prospects, leads, tickets, tasks, claims, reminders, segments, anything.\n\nWHEN TO USE - this is the rule for every list request:\n  - Admin says \"list do\", \"dikhao\", \"batao\", \"kaun kaun hai\" -> reply with the list as TEXT as usual. Do NOT call this tool.\n  - Admin says \"PDF\", \"PDF mei bhejo\", \"file bhejo\", \"document\", \"PDF banao\" -> fetch the rows with the right tool, then call make_pdf with those rows.\n  - Admin got a text list and THEN says \"iski PDF bhejo\" / \"ise PDF mei do\" -> call make_pdf with the SAME rows you just showed them.\n\nEXCEPTION - for lists of CLIENTS filtered by premium/age/sum assured/mode/maturity/policy count, use custom_list instead, even when the admin asks for a PDF. It filters in the database over all 9,012 clients and sends its own PDF. make_pdf can only render rows you are already holding, so it suits lists of a few hundred at most.\n\nARGUMENTS - send \"request\" as a JSON string:\n  title    : short heading for the PDF, e.g. \"Surat city prospects\"\n  subtitle : optional one-liner, e.g. \"Tier A, diamond and textile\"\n  columns  : array of column headings, e.g. [\"Name\",\"Company\",\"Tier\",\"Area\",\"Note\"]\n  rows     : array of rows. Either arrays matching columns, or objects keyed by the column names.\n  caption  : short caption for the file, in the SAME language and script the admin is chatting in.\nExample: {\"title\":\"Surat city prospects\",\"columns\":[\"Name\",\"Company\",\"Area\"],\"rows\":[[\"Ankur Jain\",\"Eminent Cars\",\"Piplod\"]],\"caption\":\"Yeh rahi Surat prospects list\"}\n\nPass every row you want in the file - do not paginate, the PDF holds up to 300 rows and will say so if more were dropped. Keep cells short; long paragraphs make the table unreadable.\nIt returns a pdfMarker - reply with ONE short line naming the list and the total, do NOT repeat the rows as text, and end your reply with that marker exactly, on its own line.",
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "GnefrgGV6TKdmOtN",
+     "cachedResultName": "CGPE — Make PDF"
+    },
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "payload": "={{ (function(){ var p = {}; try { p = JSON.parse($fromAI('request', 'A JSON string with title, optional subtitle, columns (array of headings), rows (array of rows), and caption in the admin language. See the tool description for the exact shape.', 'string')); } catch (e) { p = {}; } if (!p || typeof p !== 'object') p = {}; p.toPhone = $('Build Context').first().json.senderPhone; return JSON.stringify(p); })() }}"
      },
      "matchingColumns": [],
      "schema": [
@@ -5201,6 +5227,17 @@
    ]
   },
   "custom_list": {
+   "ai_tool": [
+    [
+     {
+      "node": "CGPE AI Brain",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "make_pdf": {
    "ai_tool": [
     [
      {
