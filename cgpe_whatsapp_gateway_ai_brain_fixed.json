@@ -1094,7 +1094,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "operation": "generate_report",
-            "params": "={{ $fromAI('params_generate_report', 'JSON string, e.g. {\"clientName\":\"RAMESH PATEL\"} or {\"phoneLast10\":\"9876500001\"}', 'string') }}",
+            "params": "={{ (function(){ var p = {}; try { p = JSON.parse($fromAI('params_generate_report', 'JSON string, e.g. {\"clientName\":\"RAMESH PATEL\"} or {\"phoneLast10\":\"9876500001\"} or {\"groupName\":\"...\"}', 'string') || '{}') || {}; } catch (e) { p = {}; } try { p.toPhone = $('Gate').first().json.senderPhone; } catch (e) {} try { p.caption = $fromAI('caption', 'Short friendly caption for the report PDF file, written in the SAME language and script the user is chatting in. Example: यह रही आपकी रिपोर्ट 📄', 'string'); } catch (e) {} return JSON.stringify(p); })() }}",
             "toPhone": "={{ $('Gate').first().json.senderPhone }}",
             "caption": "={{ $fromAI('caption', 'Short friendly caption for the report PDF file, written in the SAME language and script the user is chatting in (Hindi / Gujarati / English / Gujlish). Example: यह रही आपकी रिपोर्ट 📄', 'string') }}"
           },
@@ -2278,7 +2278,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('Parse Ack').first().json;\nconst t = $json && $json.taskId ? $json : {};\nconst title = String(t.title || p.ackTaskId);\nconst admin = String(t.assignedByPhone || '').replace(/D/g, '').slice(-10) || '9601775061';\nconst icon = p.ackDecision === 'accepted' ? '✅' : '⚠️';\nconst word = p.ackDecision === 'accepted' ? 'ACCEPT' : 'REJECT';\nconst text = icon + ' ' + (p.ackByName || 'Team member') + ' ne \"' + title + '\" [' + p.ackTaskId + '] ' + word + ' kar liya hai.';\nreturn [{ json: { phone: admin, text, purpose: 'task_ack', buttons: '' } }];"
+        "jsCode": "const p = $('Parse Ack').first().json;\nconst t = $json && $json.taskId ? $json : {};\nconst title = String(t.title || p.ackTaskId);\nconst admin = String(t.assignedByPhone || '').replace(/D/g, '').slice(-10) || '9601775061';\nconst icon = p.ackDecision === 'accepted' ? '✅' : '���️';\nconst word = p.ackDecision === 'accepted' ? 'ACCEPT' : 'REJECT';\nconst text = icon + ' ' + (p.ackByName || 'Team member') + ' ne \"' + title + '\" [' + p.ackTaskId + '] ' + word + ' kar liya hai.';\nreturn [{ json: { phone: admin, text, purpose: 'task_ack', buttons: '' } }];"
       },
       "id": "build-ack-notify-0001",
       "name": "Build Ack Notify",
@@ -2646,11 +2646,13 @@
             }
           ],
           "value": {
-            "month": "={{ $fromAI('month', 'month number 1-12; empty for current month', 'string') }}",
+            "month": "={{ (function(){ var o = { m: $fromAI('month', 'month number 1-12; empty for current month', 'string') }; try { o.to = $('Gate').first().json.senderPhone; } catch (e) { o.to = ''; } try { o.cap = $fromAI('caption', 'Short friendly caption for the birthday-list PDF file, written in the SAME language and script the admin is chatting in. Example: यह रही July की birthday list 📄', 'string'); } catch (e) { o.cap = ''; } return JSON.stringify(o); })() }}",
             "page": "={{ $fromAI('page', 'page number as a string, default 1', 'string') }}",
             "toPhone": "={{ $('Gate').first().json.senderPhone }}",
             "caption": "={{ $fromAI('caption', 'Short friendly caption for the birthday-list PDF file, written in the SAME language and script the admin is chatting in. Example: यह रही July की birthday list 📄', 'string') }}"
-          }
+          },
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
         }
       },
       "id": "deb18cd2-6671-46ec-8bd1-6907780460b6",
