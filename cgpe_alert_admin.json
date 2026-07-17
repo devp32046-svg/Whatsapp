@@ -1,0 +1,206 @@
+{
+  "name": "CGPE — Alert Admin",
+  "nodes": [
+    {
+      "id": "0657dc1d-df7a-4939-874a-292a21284499",
+      "name": "Alert Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "from"
+            },
+            {
+              "name": "message"
+            },
+            {
+              "name": "phone"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2009410c-681f-4d7d-91ce-6cdbf87ce7d1",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "admins",
+        "query": "={{ JSON.stringify({ isActive: { $ne: false }, notifyEnquiries: true }) }}",
+        "options": {
+          "limit": 20
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "5cbc5c14-fc81-4416-8ec6-c5687a429edd",
+      "name": "Compose Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const b = $('Alert Input').first().json || {};\nconst admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; });\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\n\nconst from = String(b.from || 'Someone');\nconst phone = String(b.phone || '');\nconst reason = String(b.message || 'contacted the assistant');\nconst text = 'Enquiry alert: ' + from + (phone ? (' (' + phone + ')') : '') + ' contacted the assistant. Reason: ' + reason + '.';\n\n// One item per opted-in admin => Notify Admin (mode: each) runs once per admin.\n// Previously this used admins[0] only, so just the first admin was ever alerted.\nconst seen = {};\nconst targets = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  targets.push({ phone: '91' + p, name: a.name || '' });\n}\nif (!targets.length) targets.push({ phone: '919601775061', name: 'CGPE Admin' });\n\nreturn targets.map(function (t) {\n  return { json: { phone: t.phone, text: text, purpose: 'enquiry_alert', adminName: t.name, fanoutCount: targets.length } };\n});"
+      }
+    },
+    {
+      "id": "9ebb8a11-75ed-4557-8d27-6069caae1a6c",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1906566d-233b-4eb1-9b69-217effddc622",
+      "name": "Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const targets = $('Compose Alert').all().map(function (i) { return i.json || {}; });\nreturn [{ json: { ok: true, alertedAdmins: targets.length, admins: targets.map(function (t) { return (t.adminName || '') + ' ' + t.phone; }) } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Alert Input": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Compose Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Alert": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Admin": {
+      "main": [
+        [
+          {
+            "node": "Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}
