@@ -1,0 +1,179 @@
+{
+ "name": "CGPE — Client Segments",
+ "nodes": [
+  {
+   "id": "66367d4b-115a-4184-9f93-9ec047aeb345",
+   "name": "Seg Input",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "inputSource": "workflowInputs",
+    "workflowInputs": {
+     "values": [
+      {
+       "name": "mode",
+       "type": "string"
+      },
+      {
+       "name": "page",
+       "type": "string"
+      },
+      {
+       "name": "minPremium",
+       "type": "string"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "14d89a5b-5abf-49bc-a338-f5d45e45ff85",
+   "name": "Route Seg",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    220,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const inp = $input.first().json || {};\nvar mode = String(inp.mode || 'individuals').trim().toLowerCase();\nif (mode !== 'families' && mode !== 'individuals') { mode = 'individuals'; }\nvar page = parseInt(inp.page, 10); if (!page || page < 1) { page = 1; }\nvar minP = parseFloat(String(inp.minPremium || '0').replace(/[^0-9.]/g,'')); if (!isFinite(minP)) { minP = 0; }\nvar proj = JSON.stringify({ name:1, groupName:1, premium:1, sumAssured:1, phoneLast10:1, phone:1 });\nreturn [{ json: { collection: 'clients', mongoQuery: '{}', projection: proj, limit: 100000, mode: mode, page: page, minPremium: minP } }];"
+   }
+  },
+  {
+   "id": "a93aabd6-598a-4b2c-b5f5-67abfb4633c8",
+   "name": "Seg Find",
+   "type": "n8n-nodes-base.mongoDb",
+   "typeVersion": 1.3,
+   "position": [
+    440,
+    0
+   ],
+   "parameters": {
+    "resource": "document",
+    "operation": "find",
+    "collection": "={{ $json.collection }}",
+    "query": "={{ $json.mongoQuery }}",
+    "options": {
+     "limit": "={{ $json.limit }}",
+     "projection": "={{ $json.projection }}"
+    }
+   },
+   "credentials": {
+    "mongoDb": {
+     "id": "WZ2iSk9j0aJMoLDk",
+     "name": "MongoDB account"
+    }
+   },
+   "alwaysOutputData": true
+  },
+  {
+   "id": "1cd2c0ea-eb8c-4b34-82ce-b18fdcbed3c6",
+   "name": "Format Seg",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const meta = $('Route Seg').first().json;\nconst rows = $input.all().map(function(i){ return i.json; }).filter(function(j){ return j && Object.keys(j).length>0; });\nfunction num(v){ if(v==null) return 0; var n=parseFloat(String(v).replace(/[^0-9.]/g,'')); return isFinite(n)?n:0; }\nvar mode = meta.mode;\nvar groups = {};\nrows.forEach(function(r){\n  var key;\n  if (mode === 'families') { key = (r.groupName && String(r.groupName).trim()) || ('SOLO:' + (r.phoneLast10 || r.name || r._id)); }\n  else { key = (r.name ? String(r.name).trim().toLowerCase().replace(/s+/g, ' ') : String(r._id)) + '|' + (r.phoneLast10 || ''); }\n  if (!groups[key]) { groups[key] = { members: {}, totalPremium: 0, totalCover: 0, policies: 0, phone: '', label: '' }; }\n  var g = groups[key];\n  g.totalPremium += num(r.premium);\n  g.totalCover += num(r.sumAssured);\n  g.policies += 1;\n  if (r.name) { g.members[String(r.name).trim()] = true; }\n  if (!g.phone && (r.phoneLast10 || r.phone)) { g.phone = r.phoneLast10 || r.phone; }\n  if (!g.label && mode === 'families' && r.groupName) { g.label = String(r.groupName); }\n  if (!g.label && r.name) { g.label = String(r.name); }\n});\nvar list = Object.keys(groups).map(function(k){ var g=groups[k]; var mem=Object.keys(g.members); return { name: g.label || mem[0] || k, members: mem.length, policies: g.policies, totalPremium: Math.round(g.totalPremium), totalCover: Math.round(g.totalCover), phone: g.phone }; });\nif (meta.minPremium > 0) { list = list.filter(function(x){ return x.totalPremium >= meta.minPremium; }); }\nlist.sort(function(a,b){ return b.totalPremium - a.totalPremium; });\nvar total = list.length;\nvar per = 20;\nvar page = Math.max(1, parseInt(meta.page||1,10)||1);\nvar pageCount = Math.ceil(total/per)||1;\nvar pageItems = list.slice((page-1)*per, (page-1)*per+per);\nreturn [{ json: { ok:true, mode: mode, total: total, page: page, pageCount: pageCount, showing: pageItems.length, results: pageItems, hint: 'total ' + total + (mode==='families'?' families':' individuals') + ', sorted by total premium highest first' } }];"
+   }
+  },
+  {
+   "id": "e8591ed3-1304-4ead-9b1e-3555d62fea83",
+   "name": "Test Run",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    220
+   ],
+   "parameters": {}
+  },
+  {
+   "id": "bb002c5b-64eb-4ce4-ac24-0c6a6812101f",
+   "name": "Test Params",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    220,
+    220
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "return [{ json: { mode: 'families', page: '1', minPremium: '' } }];"
+   }
+  }
+ ],
+ "connections": {
+  "Seg Input": {
+   "main": [
+    [
+     {
+      "node": "Route Seg",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Route Seg": {
+   "main": [
+    [
+     {
+      "node": "Seg Find",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Seg Find": {
+   "main": [
+    [
+     {
+      "node": "Format Seg",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Test Run": {
+   "main": [
+    [
+     {
+      "node": "Test Params",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Test Params": {
+   "main": [
+    [
+     {
+      "node": "Route Seg",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "availableInMCP": true
+ },
+ "active": true
+}
