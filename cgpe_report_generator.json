@@ -416,7 +416,7 @@
         "options": {
           "limit": 3
         },
-        "query": "={{ (function(){ var t = $json.toPhone || ''; try { var p = JSON.parse(String($json.params || '')); if (p && p.toPhone) t = p.toPhone; } catch (e) {} return JSON.stringify({ phoneLast10: (String(t).replace(/\\D/g,'').slice(-10) || '__none__'), isActive: true }); })() }}"
+        "query": "={{ (function(){ var t = $json.toPhone || ''; if (!t) { try { var p = JSON.parse(String($json.params || '')); if (p && p.toPhone) t = p.toPhone; } catch (e) {} } return JSON.stringify({ phoneLast10: (String(t).replace(/\\D/g,'').slice(-10) || '__none__'), isActive: true }); })() }}"
       },
       "credentials": {
         "mongoDb": {
