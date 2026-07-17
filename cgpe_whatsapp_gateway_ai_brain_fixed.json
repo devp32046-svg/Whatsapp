@@ -3632,6 +3632,160 @@
         11584,
         -480
       ]
+    },
+    {
+      "id": "maturitylist01",
+      "name": "maturity_list",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12496,
+        -1280
+      ],
+      "parameters": {
+        "description": "Maturity list: policies MATURING in a given month. Admin-only. ALWAYS pass BOTH 'month' (1-12, empty for current month) AND 'caption' (a short caption for the PDF, in the SAME language and script the admin is chatting in). Optionally pass 'year' (defaults to the current year). IMPORTANT: the full list is delivered AUTOMATICALLY as a WhatsApp PDF document - do NOT paste any link and do NOT list every policy in your text reply. Returns: title, total, priorityCount and priorityList (the high-value ones, sum assured above 5 lakh). REPLY LIKE THIS: one short line with the list name and total (example: August 2026 maturities - 21 policies - full list sent as PDF), then a short section listing the high-value ones. Follow the 'note' field in the result exactly - it tells you the marker to append.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "G7xWhdusNjzKXK8W",
+          "cachedResultName": "CGPE — List Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "listType": "maturity",
+            "month": "={{ $fromAI('month', 'month number 1-12; empty for current month', 'string', '') }}",
+            "year": "={{ $fromAI('year', 'four digit year; empty for current year', 'string', '') }}",
+            "toPhone": "={{ $('Build Context').first().json.senderPhone }}",
+            "caption": "={{ $fromAI('caption', 'REQUIRED - always provide. Short caption for the maturity-list PDF, in the SAME language and script the admin is chatting in.', 'string', '📄 Maturity list - CGP Enterprise') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "listType",
+              "displayName": "listType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "month",
+              "displayName": "month",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "year",
+              "displayName": "year",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "toPhone",
+              "displayName": "toPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "annivlist01",
+      "name": "anniversary_list",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        12688,
+        -1280
+      ],
+      "parameters": {
+        "description": "Policy anniversary list: policies that STARTED (commenced) in a given month - their policy anniversary falls in that month. Admin-only. NOTE: this is the POLICY anniversary, not a wedding anniversary - we do not hold wedding dates. ALWAYS pass BOTH 'month' (1-12, empty for current month) AND 'caption' (a short caption for the PDF, in the SAME language and script the admin is chatting in). IMPORTANT: the full list is delivered AUTOMATICALLY as a WhatsApp PDF document - do NOT paste any link and do NOT list every policy in your text reply. Returns: title, total, priorityCount and priorityList (premium above 2 lakh). REPLY LIKE THIS: one short line with the list name and total, then a short section listing the high-value ones. Follow the 'note' field in the result exactly - it tells you the marker to append.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "G7xWhdusNjzKXK8W",
+          "cachedResultName": "CGPE — List Engine"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "listType": "anniversary",
+            "month": "={{ $fromAI('month', 'month number 1-12; empty for current month', 'string', '') }}",
+            "year": "",
+            "toPhone": "={{ $('Build Context').first().json.senderPhone }}",
+            "caption": "={{ $fromAI('caption', 'REQUIRED - always provide. Short caption for the anniversary-list PDF, in the SAME language and script the admin is chatting in.', 'string', '📄 Policy anniversary list - CGP Enterprise') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "listType",
+              "displayName": "listType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "month",
+              "displayName": "month",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "year",
+              "displayName": "year",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "toPhone",
+              "displayName": "toPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      }
     }
   ],
   "connections": {
@@ -4642,6 +4796,28 @@
       ]
     },
     "update_claim": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "maturity_list": {
+      "ai_tool": [
+        [
+          {
+            "node": "CGPE AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "anniversary_list": {
       "ai_tool": [
         [
           {
