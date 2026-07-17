@@ -1,0 +1,128 @@
+{
+ "name": "CGPE — Custom List API",
+ "nodes": [
+  {
+   "id": "a1",
+   "name": "Custom List API",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "cgpe-custom-list",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "webhookId": "cgpe-custom-list"
+  },
+  {
+   "id": "a2",
+   "name": "Pack",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    200,
+    300
+   ],
+   "parameters": {
+    "jsCode": "const b = ($input.first().json || {}).body || {};\nreturn [{ json: { payload: JSON.stringify(b) } }];"
+   }
+  },
+  {
+   "id": "a3",
+   "name": "Call Engine",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.2,
+   "position": [
+    400,
+    300
+   ],
+   "parameters": {
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "MT3WlXDiOJ264eLW",
+     "cachedResultName": "CGPE — Custom List"
+    },
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "payload": "={{ $json.payload }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "payload",
+       "displayName": "payload",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ]
+    },
+    "options": {
+     "waitForSubWorkflow": true
+    }
+   }
+  },
+  {
+   "id": "a4",
+   "name": "Respond",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1,
+   "position": [
+    600,
+    300
+   ],
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ JSON.stringify($json) }}",
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "Custom List API": {
+   "main": [
+    [
+     {
+      "node": "Pack",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pack": {
+   "main": [
+    [
+     {
+      "node": "Call Engine",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Call Engine": {
+   "main": [
+    [
+     {
+      "node": "Respond",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1"
+ },
+ "active": true
+}
