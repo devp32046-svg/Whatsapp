@@ -887,7 +887,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let text = String(($input.first().json || {}).output ?? '').trim();\nconst g = $('Gate').first().json;\nconst ctx = $('Build Context').first().json;\nlet payload;\nlet uiButtons = [];\nconst m = text.match(/\\[BUTTONS:([^\\]]+)\\]/i);\nif (m) {\n  text = text.replace(m[0], '').trim();\n  const btns = m[1].split('|').map(s => s.trim()).filter(Boolean).slice(0, 3).map((b, i) => {\n    const mm = b.match(/^([\\w-]+)\\s*=\\s*(.+)$/);\n    const id = mm ? mm[1] : ('opt' + i);\n    const title = String(mm ? mm[2] : b).trim().slice(0, 20);\n    return { type: 'reply', reply: { id, title } };\n  });\n  uiButtons = btns.map(b => ({ id: b.reply.id, title: b.reply.title }));\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'interactive', interactive: { type: 'button', body: { text: text.slice(0, 1024) || '...' }, action: { buttons: btns } } };\n} else {\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'text', text: { body: text.slice(0, 4000) || 'Sorry, please try again.' } };\n}\nreturn [{ json: {\n  waPayload: payload, replyText: text, uiButtons, channel: g.channel || 'meta',\n  waMessageId: g.waMessageId, senderPhone: g.senderPhone, phoneLast10: g.phoneLast10,\n  role: ctx.role, inbound: ctx.finalText, isVoice: ctx.isVoice,\n  direction: 'in-out', ts: new Date().toISOString(),\n  __fields: 'waMessageId,senderPhone,phoneLast10,role,inbound,isVoice,replyText,direction,channel,ts'\n} }];"
+        "jsCode": "let text = String(($input.first().json || {}).output ?? '').trim();\n// --- Strip leaked tool-call syntax / glitch tokens the model sometimes emits ---\ntext = text\n  .replace(/to\\s*=\\s*functions\\.[A-Za-z0-9_]+/gi, ' ')\n  .replace(/\\{\\s*\"params_[A-Za-z0-9_]+\"\\s*:[\\s\\S]*?\\}/g, ' ')\n  .replace(/\\bfunctions\\.[A-Za-z0-9_]+/gi, ' ')\n  .replace(/[一-鿿぀-ヿ가-힯]+/g, ' ')\n  .replace(/\\bJapgolly\\b/gi, ' ')\n  .replace(/[ \\t]{2,}/g, ' ')\n  .replace(/\\n{3,}/g, '\\n\\n')\n  .trim();\nconst g = $('Gate').first().json;\nconst ctx = $('Build Context').first().json;\n\n// --- Loop detection: if AI output looks like repeated tool errors or is empty after iterations ---\nif (!text || text.length < 3) {\n  text = 'Sorry, I could not process your request. Please try again or rephrase your query. 🙏';\n}\n// Detect if AI got stuck repeating itself (same sentence 3+ times)\nconst sentences = text.split(/[.!?।]/).map(s => s.trim()).filter(s => s.length > 10);\nif (sentences.length >= 6) {\n  const freq = {};\n  sentences.forEach(s => { const k = s.slice(0, 40); freq[k] = (freq[k] || 0) + 1; });\n  const maxFreq = Math.max(...Object.values(freq));\n  if (maxFreq >= 3) {\n    text = 'I encountered an issue processing your request. Could you please rephrase or provide more details? 🙏';\n  }\n}\n\nlet payload;\nlet uiButtons = [];\nconst m = text.match(/\\[BUTTONS:([^\\]]+)\\]/i);\nif (m) {\n  text = text.replace(m[0], '').trim();\n  const btns = m[1].split('|').map(s => s.trim()).filter(Boolean).slice(0, 3).map((b, i) => {\n    const mm = b.match(/^([\\w-]+)\\s*=\\s*(.+)$/);\n    const id = mm ? mm[1] : ('opt' + i);\n    const title = String(mm ? mm[2] : b).trim().slice(0, 20);\n    return { type: 'reply', reply: { id, title } };\n  });\n  uiButtons = btns.map(b => ({ id: b.reply.id, title: b.reply.title }));\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'interactive', interactive: { type: 'button', body: { text: text.slice(0, 1024) || '...' }, action: { buttons: btns } } };\n} else {\n  payload = { messaging_product: 'whatsapp', to: g.senderPhone, type: 'text', text: { body: text.slice(0, 4000) || 'Sorry, please try again.' } };\n}\nreturn [{ json: {\n  waPayload: payload, replyText: text, uiButtons, channel: g.channel || 'meta',\n  waMessageId: g.waMessageId, senderPhone: g.senderPhone, phoneLast10: g.phoneLast10,\n  role: ctx.role, inbound: ctx.finalText, isVoice: ctx.isVoice,\n  direction: 'in-out', ts: new Date().toISOString(),\n  __fields: 'waMessageId,senderPhone,phoneLast10,role,inbound,isVoice,replyText,direction,channel,ts'\n} }];"
       },
       "id": "68ed95a3-0a94-4f30-9971-21ac2da52d29",
       "name": "Parse Reply",
@@ -2597,7 +2597,7 @@
     },
     {
       "parameters": {
-        "description": "Birthday list for a month, sorted by NEAREST UPCOMING birthday first. Input: month (1-12, default current month), page (default 1, 20 per page). Returns: total (SHOW THIS AT THE TOP), a paginated birthdays list (each: name, birthday date, phone, totalPremium, totalCover), a priorityCallList (clients whose TOTAL premium is above 2 lakh - the high-value people to call personally), and a ready teamMessage. FORMAT THE REPLY LIKE THIS: begin with a short summary line at the TOP with the month and total count (example: July birthdays - 369 total - showing 1 to 20, page 1 of 19). Then list birthdays one per line, closest first, cleanly spaced: name, birthday date, phone. Then a clearly separated section titled 'High-value clients to call personally' listing the priorityCallList (name, birthday, premium). Keep spacing clean and readable on WhatsApp - a blank line between sections, no clutter, no long tables. If the admin wants to send this to the team, use the teamMessage text and assign or notify the relevant team members via team_ops to personally call each of those clients.",
+        "description": "Birthday list for a month, sorted by NEAREST UPCOMING birthday first. Admin-only. Input: month (1-12, default current month). Provide 'caption': a short caption for the PDF, in the SAME language and script the admin is chatting in. IMPORTANT: the FULL birthday list (every client for that month) is delivered to the admin AUTOMATICALLY as a WhatsApp PDF document - do NOT paste any link and do NOT list every birthday in your text reply. Returns: total, month, priorityCount and priorityCallList (clients whose TOTAL premium is above 2 lakh - the high-value people to call personally), and a ready teamMessage. REPLY LIKE THIS: one short line with the month and total (example: July birthdays - 367 total - full list sent as PDF), then a clearly separated section titled 'High-value clients to call personally' listing the priorityCallList (name, birthday, phone). Keep it short and readable on WhatsApp. If the admin wants to send this to the team, use the teamMessage text and assign or notify the relevant team members via team_ops.",
         "workflowId": {
           "__rl": true,
           "cachedResultName": "CGPE — Birthday Engine",
@@ -2609,25 +2609,47 @@
           "matchingColumns": [],
           "schema": [
             {
-              "canBeUsedToMatch": true,
-              "display": true,
-              "displayName": "month",
               "id": "month",
+              "displayName": "month",
               "required": false,
-              "type": "string"
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             },
             {
-              "canBeUsedToMatch": true,
-              "display": true,
-              "displayName": "page",
               "id": "page",
+              "displayName": "page",
               "required": false,
-              "type": "string"
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "toPhone",
+              "displayName": "toPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ],
           "value": {
             "month": "={{ $fromAI('month', 'month number 1-12; empty for current month', 'string') }}",
-            "page": "={{ $fromAI('page', 'page number as a string, default 1', 'string') }}"
+            "page": "={{ $fromAI('page', 'page number as a string, default 1', 'string') }}",
+            "toPhone": "={{ $('Gate').first().json.senderPhone }}",
+            "caption": "={{ $fromAI('caption', 'Short friendly caption for the birthday-list PDF file, written in the SAME language and script the admin is chatting in. Example: यह रही July की birthday list 📄', 'string') }}"
           }
         }
       },
