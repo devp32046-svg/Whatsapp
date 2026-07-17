@@ -1,0 +1,328 @@
+{
+  "name": "CGPE — Task Followup & Escalation",
+  "nodes": [
+    {
+      "id": "c1b577d8-e00b-48fc-82bb-2a9bf3432132",
+      "name": "Daily 10AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -120
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "aac58d22-30d8-48c5-a5e5-75887acbd673",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "admins",
+        "query": "{}",
+        "options": {
+          "limit": 20
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "1793b494-680b-4ef1-ba6d-fc0b6e77175c",
+      "name": "Fetch Open Tasks",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        460,
+        0
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "team_tasks",
+        "query": "{\"status\":{\"$nin\":[\"done\",\"closed\",\"completed\",\"cancelled\"]}}",
+        "options": {
+          "limit": 500
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "cef6696e-d2c0-4071-beaa-d0ab43f60583",
+      "name": "Decide",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const tasks = $input.all().map(function(i){ return i.json; }).filter(function(j){ return j && Object.keys(j).length>0; });\nconst admins = $('Fetch Admins').all().map(function(i){ return i.json||{}; });\nfunction norm(p){ var d=String(p||'').replace(/[^0-9]/g,'').slice(-10); if(d.length===10){ d='91'+d; } return d; }\nvar adminPhone = admins.length ? norm(admins[0].phoneLast10||admins[0].phone) : '919601775061';\nvar now = Date.now();\nvar out = [];\ntasks.forEach(function(t){\n  var status = String(t.status||'').toLowerCase();\n  if (['done','closed','completed','cancelled'].indexOf(status)!==-1) { return; }\n  var created = t.createdAt ? new Date(t.createdAt).getTime() : now;\n  var ageDays = (now-created)/86400000;\n  var lastR = t.lastReminderAt ? new Date(t.lastReminderAt).getTime() : 0;\n  var hrs = lastR ? (now-lastR)/3600000 : 999;\n  var updatedT = t.updatedAt ? new Date(t.updatedAt).getTime() : 0;\n  var count = parseInt(t.reminderCount||0,10)||0;\n  var title = t.title || t.details || ('task '+(t.taskId||''));\n  var assignee = norm(t.assigneePhone);\n  if (lastR && updatedT > lastR) {\n    out.push({ json: { taskId: String(t.taskId||''), recipientPhone: '', message: '', reminderCount: 0, lastReminderAt: new Date().toISOString(), escalated: false } });\n    return;\n  }\n  var due = false;\n  if (ageDays < 1) { due = hrs >= 20; }\n  else if (ageDays < 2) { due = hrs >= 8; }\n  else { due = hrs >= 1; }\n  if (!due) { return; }\n  var to, msg;\n  if (assignee.length >= 11 && ageDays < 3) {\n    to = assignee;\n    msg = 'Reminder: your task \"' + title + '\" is still open (day ' + (Math.floor(ageDays)+1) + '). Please reply with an update - in progress, done, or any issue.';\n  } else {\n    to = adminPhone;\n    if (assignee.length >= 11) { msg = 'Task \"' + title + '\" assigned to ' + (t.assigneeName||assignee) + ' is still open after ' + Math.floor(ageDays) + ' days with no completion. Please contact them directly.'; }\n    else { msg = 'UNASSIGNED open ticket (day ' + (Math.floor(ageDays)+1) + '): \"' + title + '\" ' + (t.clientName?('for '+t.clientName):'') + '. Please assign it to someone.'; }\n  }\n  out.push({ json: { taskId: String(t.taskId||''), recipientPhone: to, message: msg, reminderCount: count+1, lastReminderAt: new Date().toISOString(), escalated: (to===adminPhone) } });\n});\nreturn out;"
+      }
+    },
+    {
+      "id": "4cdd5b4c-c6c5-4929-8a31-fb5894b29d39",
+      "name": "Has Recipient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        900,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.recipientPhone }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "4b8a1cda-4843-47ca-b032-5b0bab1421ce",
+      "name": "Send",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        -120
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.recipientPhone }}",
+            "text": "={{ $json.message }}",
+            "purpose": "task_followup",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a8e3d9aa-87cf-4d20-bb7f-d06033dafd2b",
+      "name": "Run Now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "1d2def75-b589-46dd-a475-903b21f6c536",
+      "name": "Update Tasks",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        900,
+        120
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "findOneAndUpdate",
+        "collection": "team_tasks",
+        "updateKey": "taskId",
+        "fields": "reminderCount,lastReminderAt,escalated",
+        "options": {}
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "fanouttask",
+      "name": "Fan Out Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        30
+      ],
+      "parameters": {
+        "jsCode": "// Reminders addressed to the assignee stay one-to-one; only escalations go to every admin.\nconst items = $input.all().map(function (i) { return i.json || {}; });\nlet admins = [];\ntry { admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; }); } catch (e) { admins = []; }\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\nconst seen = {};\nconst targets = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  targets.push({ phone: '91' + p, name: a.name || '' });\n}\nif (!targets.length) targets.push({ phone: '919601775061', name: 'CGPE Admin' });\nconst out = [];\nfor (const it of items) {\n  if (!it.escalated) { out.push({ json: it }); continue; }\n  for (const t of targets) out.push({ json: Object.assign({}, it, { recipientPhone: t.phone, adminName: t.name }) });\n}\nreturn out;"
+      }
+    }
+  ],
+  "connections": {
+    "Daily 10AM": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Fetch Open Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Open Tasks": {
+      "main": [
+        [
+          {
+            "node": "Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide": {
+      "main": [
+        [
+          {
+            "node": "Has Recipient?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Recipient?": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Admins": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}

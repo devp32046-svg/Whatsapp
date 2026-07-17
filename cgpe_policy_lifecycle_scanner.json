@@ -1,0 +1,288 @@
+{
+  "name": "CGPE — Policy Lifecycle Scanner",
+  "nodes": [
+    {
+      "id": "e6040620-a0a2-4148-a7c3-20d5b5fffa8a",
+      "name": "Daily 9AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 9 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "735b43ec-3213-41b9-846f-130db0dc5562",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "admins",
+        "query": "{}",
+        "options": {
+          "limit": 20
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "de3b8dce-e94e-41a2-bb91-23db0447c166",
+      "name": "Fetch Clients",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "clients",
+        "query": "{}",
+        "options": {
+          "limit": 100000,
+          "projection": "{\"name\":1,\"phone\":1,\"phoneLast10\":1,\"policyNo\":1,\"maturityDate\":1,\"fupDate\":1,\"premium\":1,\"sumAssured\":1}"
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "462786a9-6a2e-43f3-83a8-fbf2620049b5",
+      "name": "Build & Notify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const clients=$(\"Fetch Clients\").all().map(function(i){return i.json;}).filter(function(j){return j&&Object.keys(j).length>0;});\nconst admins=$(\"Fetch Admins\").all().map(function(i){return i.json||{};});\nfunction norm(p){var d=String(p||\"\").replace(/[^0-9]/g,\"\");if(d.length>10)d=d.slice(-10);return d;}\nvar ap=admins.length?norm(admins[0].phoneLast10||admins[0].phone):\"9601775061\"; if(ap.length===10) ap=\"91\"+ap;\nvar now=new Date();\nvar y=now.getUTCFullYear(); var mo=now.getUTCMonth()+1; var mm=(mo<10?\"0\":\"\")+mo;\nvar monStart=y+\"-\"+mm+\"-01\"; var monEnd=y+\"-\"+mm+\"-31\";\nvar today=now.toISOString().slice(0,10);\nvar in30=new Date(now.getTime()+30*86400000).toISOString().slice(0,10);\nvar mat=[]; var ren=[];\nclients.forEach(function(c){\n  var md=String(c.maturityDate||\"\").slice(0,10);\n  if(md>=monStart && md<=monEnd) mat.push(c);\n  var fd=String(c.fupDate||\"\").slice(0,10);\n  if(fd && fd>=today && fd<=in30) ren.push(c);\n});\nren.sort(function(a,b){return String(a.fupDate).localeCompare(String(b.fupDate));});\nmat.sort(function(a,b){return String(a.maturityDate).localeCompare(String(b.maturityDate));});\nvar matLines=mat.slice(0,20).map(function(c){return \"- \"+c.name+\" (\"+norm(c.phone||c.phoneLast10)+\") - \"+String(c.maturityDate).slice(0,10)+\" - Rs \"+(c.sumAssured||0);});\nvar renLines=ren.slice(0,20).map(function(c){return \"- \"+c.name+\" (\"+norm(c.phone||c.phoneLast10)+\") - due \"+String(c.fupDate).slice(0,10)+\" - Rs \"+(c.premium||0);});\nvar text=\"📋 Policy Lifecycle (aaje):\\n\\n💰 Maturities this month: \"+mat.length+\"\\n\"+(matLines.join(\"\\n\")||\"-\")+\"\\n\\n🔁 Renewals due (30 din): \"+ren.length+\"\\n\"+(renLines.join(\"\\n\")||\"-\")+\"\\n\\nRenewal CSV lifecycle_log ma save thai.\";\nvar csv=\"name,policyNo,fupDate,premium,phone\\n\"+ren.map(function(c){return [c.name,c.policyNo,String(c.fupDate).slice(0,10),(c.premium||0),norm(c.phone||c.phoneLast10)].join(\",\");}).join(\"\\n\");\nreturn [{ json: { phone:ap, text:text, purpose:\"policy_lifecycle\", maturityCount:mat.length, renewalCount:ren.length, csv:csv, runDate:today } }];"
+      }
+    },
+    {
+      "id": "aa5b53c8-3551-4a9e-9125-a2c93257e6bb",
+      "name": "Send Admin",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d3d54c67-9f67-41d4-b260-96d9e56325a7",
+      "name": "Store Log",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        192
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "insert",
+        "collection": "lifecycle_log",
+        "fields": "runDate,maturityCount,renewalCount,csv",
+        "options": {}
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "269b20e5-ae6d-4875-a646-8ac34f64da2f",
+      "name": "Run Now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "fanoutc3FFbq",
+      "name": "Fan Out Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Expand one composed admin message into one item per opted-in admin.\n// Kept separate from 'Build & Notify' so its other branches still see a single item.\nconst msg = $('Build & Notify').first().json || {};\nlet admins = [];\ntry { admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; }); } catch (e) { admins = []; }\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\n\nconst seen = {};\nconst out = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  out.push({ json: Object.assign({}, msg, { phone: '91' + p, adminName: a.name || '' }) });\n}\nif (!out.length) out.push({ json: Object.assign({}, msg, { phone: '919601775061', adminName: 'CGPE Admin' }) });\nreturn out;"
+      }
+    }
+  ],
+  "connections": {
+    "Daily 9AM": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Fetch Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Clients": {
+      "main": [
+        [
+          {
+            "node": "Build & Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build & Notify": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Admins",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Admins": {
+      "main": [
+        [
+          {
+            "node": "Send Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}

@@ -1,0 +1,353 @@
+{
+  "name": "CGPE — Gift Hamper Dispatch",
+  "nodes": [
+    {
+      "id": "c2455785-3056-4aae-a264-5057000486d7",
+      "name": "Monthly 1st 10AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 1 * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f69b0537-4638-4570-9cc8-7f743000e5de",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "admins",
+        "query": "{}",
+        "options": {
+          "limit": 20
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "4a4236da-6d63-44d0-ad87-da76b2b4e818",
+      "name": "Fetch Clients",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "clients",
+        "query": "{}",
+        "options": {
+          "limit": 100000,
+          "projection": "{\"name\":1,\"groupName\":1,\"premium\":1,\"phone\":1,\"phoneLast10\":1}"
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "42fc8100-dee7-4a96-b153-c7cc51659cad",
+      "name": "Fetch Log",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        96
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "hamper_dispatch_log",
+        "query": "{}",
+        "options": {
+          "limit": 100000
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "c27dbd49-151e-47df-a3e2-f694ed835d35",
+      "name": "Pick Families",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const clients = $(\"Fetch Clients\").all().map(function(i){ return i.json; }).filter(function(j){ return j && Object.keys(j).length>0; });\nconst logRows = $(\"Fetch Log\").all().map(function(i){ return i.json||{}; });\nconst threshold = 200000;\nconst today = new Date().toISOString().slice(0,10);\nfunction num(v){ if(v==null) return 0; var n=parseFloat(String(v).replace(/[^0-9.]/g,\"\")); return isFinite(n)?n:0; }\nfunction norm(p){ var d=String(p||\"\").replace(/[^0-9]/g,\"\"); if(d.length>10) d=d.slice(-10); return d; }\nconst lastMap={};\nlogRows.forEach(function(l){ if(l && l.family){ var dt=l.lastDispatchedOn||\"\"; if(!lastMap[l.family] || dt>lastMap[l.family]) lastMap[l.family]=dt; } });\nconst fam={};\nclients.forEach(function(r){\n  var key=(r.groupName && String(r.groupName).trim()) || (\"SOLO:\"+(r.name||r.phoneLast10||r._id));\n  if(!fam[key]) fam[key]={family:key, members:{}, premium:0, phones:[]};\n  if(r.name) fam[key].members[String(r.name).trim()]=true;\n  fam[key].premium+=num(r.premium);\n  var ph=norm(r.phoneLast10||r.phone);\n  if(ph.length===10 && fam[key].phones.indexOf(ph)<0) fam[key].phones.push(ph);\n});\nvar families=Object.keys(fam).map(function(k){ var f=fam[k]; var famName=f.family.indexOf(\"SOLO:\")===0?f.family.slice(5):f.family; return {family:famName, members:Object.keys(f.members).length, premium:Math.round(f.premium), phone:f.phones[0]||\"\", last:lastMap[famName]||\"\"}; });\nvar eligible=families.filter(function(f){ return f.premium>threshold && f.phone; });\neligible.sort(function(a,b){ if(a.last!==b.last) return a.last<b.last?-1:1; return b.premium-a.premium; });\nvar pick=eligible.slice(0,10);\nreturn pick.map(function(f){\n  var nm=f.family;\n  var msg=\"🎁 Namaste \"+nm+\" parivaar! Aapna vishwaas badal CGPE taraf thi ek nanakdi bhet swikaarso. Aapni sathe ni bhagidaari amaara maate garv ni vaat chhe. 🙏 — C. G. Patel Enterprise\";\n  return { json: { family:nm, phone:\"91\"+f.phone, premium:f.premium, members:f.members, message:msg, lastDispatchedOn:today } };\n});"
+      }
+    },
+    {
+      "id": "6689cfc5-b049-4c70-89e8-5d5f2898480f",
+      "name": "Compose Admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const list=$(\"Pick Families\").all().map(function(i){ return i.json; });\nconst admins=$(\"Fetch Admins\").all().map(function(i){ return i.json||{}; });\nfunction norm(p){ var d=String(p||\"\").replace(/[^0-9]/g,\"\"); if(d.length>10) d=d.slice(-10); return d; }\nvar ap=admins.length?norm(admins[0].phoneLast10||admins[0].phone):\"9601775061\";\nif(ap.length===10) ap=\"91\"+ap;\nif(!list.length){ return [{ json:{ phone:ap, text:\"🎁 Aa cycle maate koi navi hamper-eligible family nathi.\", purpose:\"hamper_dispatch\" } }]; }\nvar lines=list.map(function(p,i){ return (i+1)+\". \"+p.family+\" (\"+p.phone+\") — Rs \"+p.premium+\"\\n   Msg: \"+p.message; });\nvar text=\"🎁 Gift hamper dispatch — \"+list.length+\" families (premium > 2 lakh):\\n\\n\"+lines.join(\"\\n\\n\")+\"\\n\\nHamper mokli, saathe aa personalised message aapo.\";\nreturn [{ json:{ phone:ap, text:text, purpose:\"hamper_dispatch\" } }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "a93bedfa-ab65-4e60-b02b-afa64a609d90",
+      "name": "Send To Admin",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7b935012-947d-4fdc-a541-919037276a76",
+      "name": "Log Dispatch",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        192
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "insert",
+        "collection": "hamper_dispatch_log",
+        "fields": "family,lastDispatchedOn",
+        "options": {}
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7bb9f340-8ba7-4281-9d2c-a79ce1b1efe6",
+      "name": "Run Now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "fanoutoZ7qWn",
+      "name": "Fan Out Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Expand one composed admin message into one item per opted-in admin.\n// Kept separate from 'Compose Admin' so its other branches still see a single item.\nconst msg = $('Compose Admin').first().json || {};\nlet admins = [];\ntry { admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; }); } catch (e) { admins = []; }\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\n\nconst seen = {};\nconst out = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  out.push({ json: Object.assign({}, msg, { phone: '91' + p, adminName: a.name || '' }) });\n}\nif (!out.length) out.push({ json: Object.assign({}, msg, { phone: '919601775061', adminName: 'CGPE Admin' }) });\nreturn out;"
+      }
+    }
+  ],
+  "connections": {
+    "Monthly 1st 10AM": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Fetch Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Clients": {
+      "main": [
+        [
+          {
+            "node": "Fetch Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Log": {
+      "main": [
+        [
+          {
+            "node": "Pick Families",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Families": {
+      "main": [
+        [
+          {
+            "node": "Compose Admin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Admin": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Admins": {
+      "main": [
+        [
+          {
+            "node": "Send To Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}

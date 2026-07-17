@@ -1,0 +1,389 @@
+{
+  "name": "CGPE — Birthday Wish Sender",
+  "nodes": [
+    {
+      "id": "f34363b7-752a-4a5a-987f-ad3784bd8b70",
+      "name": "Daily 8AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        96
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e005da3a-a191-47fc-9241-2c4bdf4dd83f",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        192
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "admins",
+        "query": "{}",
+        "options": {
+          "limit": 20
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "cff0a3fc-6667-4b03-bb22-bf09ecc54a53",
+      "name": "Fetch Birthdays",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        192
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "client_index",
+        "query": "={{ JSON.stringify({ birthdayMonth: new Date().getUTCMonth()+1, birthdayDay: new Date().getUTCDate() }) }}",
+        "options": {
+          "limit": 5000,
+          "projection": "{\"personKey\":1,\"name\":1,\"phone\":1,\"phoneLast10\":1,\"totalPremium\":1,\"sentBirthdayOn\":1}"
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "a656c8da-3fea-414a-96d6-dc817573cf38",
+      "name": "Filter Today",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const today = new Date().toISOString().slice(0,10);\nfunction tc(s){ return String(s||\"\").toLowerCase().replace(/\\b\\w/g, function(m){ return m.toUpperCase(); }); }\nfunction norm(p){ var d = String(p||\"\").replace(/[^0-9]/g,\"\"); if(d.length>10) d=d.slice(-10); return d; }\nconst rows = $input.all().map(function(i){ return i.json; }).filter(function(j){ return j && Object.keys(j).length>0; });\nconst out = [];\nrows.forEach(function(r){\n  if (r.sentBirthdayOn === today) return;\n  var ten = norm(r.phone || r.phoneLast10);\n  if (ten.length !== 10) return;\n  var nm = tc(r.name);\n  var wish = \"🎂 Janmadin ni hardik shubhkaamnaao, \" + nm + \"! CGPE parivaar taraf thi tamne aarogya, samruddhi ane khushiyo thi bharpoor varsh ni shubhechhao. 🙏 — C. G. Patel Enterprise\";\n  out.push({ json: { personKey: r.personKey, name: nm, phone: \"91\"+ten, text: wish, purpose: \"birthday_wish\", sentBirthdayOn: today } });\n});\nreturn out;"
+      }
+    },
+    {
+      "id": "3891f26f-9465-493b-9299-fa96538c001f",
+      "name": "Send Wishes",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "e01139c6-f27e-4b47-b7ce-f2cfc91a9c51",
+      "name": "Compose Admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const list = $(\"Filter Today\").all().map(function(i){ return i.json; });\nconst admins = $(\"Fetch Admins\").all().map(function(i){ return i.json||{}; });\nfunction norm(p){ var d=String(p||\"\").replace(/[^0-9]/g,\"\"); if(d.length>10) d=d.slice(-10); return d; }\nvar ap = admins.length ? norm(admins[0].phoneLast10||admins[0].phone) : \"9601775061\";\nif (ap.length===10) ap = \"91\"+ap;\nif (!list.length) { return [{ json: { phone: ap, text: \"🎂 Aaje koi client no janmadin nathi.\", purpose: \"birthday_admin_summary\" } }]; }\nvar lines = list.map(function(p,i){ return (i+1)+\". \"+p.name+\" (\"+p.phone+\")\"; });\nvar text = \"🎂 Aaje na birthdays: \"+list.length+\"\\n\\n\"+lines.join(\"\\n\")+\"\\n\\nPersonalised birthday wishes bot dwara mokli didha.\";\nreturn [{ json: { phone: ap, text: text, purpose: \"birthday_admin_summary\" } }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "dd2831e4-f1d7-4d56-a6c4-dd55444a5f41",
+      "name": "Send To Admin",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        192
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "0013adc9-0205-40d4-84c7-d052bdb80ea3",
+      "name": "Mark Sent",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        384
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "findOneAndUpdate",
+        "collection": "client_index",
+        "updateKey": "personKey",
+        "fields": "sentBirthdayOn",
+        "options": {}
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "2417576c-e1e2-4c92-a770-098db309b97e",
+      "name": "Run Now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        288
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "fanout8iJP9m",
+      "name": "Fan Out Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        332
+      ],
+      "parameters": {
+        "jsCode": "// Expand one composed admin message into one item per opted-in admin.\n// Kept separate from 'Compose Admin' so its other branches still see a single item.\nconst msg = $('Compose Admin').first().json || {};\nlet admins = [];\ntry { admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; }); } catch (e) { admins = []; }\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\n\nconst seen = {};\nconst out = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  out.push({ json: Object.assign({}, msg, { phone: '91' + p, adminName: a.name || '' }) });\n}\nif (!out.length) out.push({ json: Object.assign({}, msg, { phone: '919601775061', adminName: 'CGPE Admin' }) });\nreturn out;"
+      }
+    }
+  ],
+  "connections": {
+    "Daily 8AM": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Fetch Birthdays",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Birthdays": {
+      "main": [
+        [
+          {
+            "node": "Filter Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Today": {
+      "main": [
+        [
+          {
+            "node": "Send Wishes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compose Admin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Admin": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Admins": {
+      "main": [
+        [
+          {
+            "node": "Send To Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}

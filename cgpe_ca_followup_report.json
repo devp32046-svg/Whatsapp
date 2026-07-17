@@ -1,0 +1,348 @@
+{
+  "name": "CGPE — CA Followup & Report",
+  "nodes": [
+    {
+      "id": "0089b65e-5d9e-4096-b5b8-d369cece7176",
+      "name": "Daily Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -120
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 4 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "22d3a8cb-a2dc-497b-9daf-d3ff290b2b4f",
+      "name": "Decide",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const inp = $input.first() ? ($input.first().json||{}) : {};\nvar forced = String(inp.testMode||'').trim().toLowerCase();\nvar d = new Date(new Date().getTime()+5.5*3600*1000);\nvar dow = d.getUTCDay();\nvar diff = (dow===0?-6:1-dow); var monday=new Date(d.getTime()+diff*86400000);\nvar weekKey = monday.toISOString().slice(0,10);\nvar mode;\nif (forced) { mode = forced; }\nelse if (dow===3||dow===5) { mode='followup'; }\nelse if (dow===0) { mode='report'; }\nelse { mode='none'; }\nreturn [{ json: { mode:mode, weekKey:weekKey } }];"
+      }
+    },
+    {
+      "id": "73176f5a-e031-43fb-8bcf-1592b4825288",
+      "name": "Should Run?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.mode }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "rightValue": "none"
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "3e0e59b7-2bcd-4ffb-8fc5-0b76a28b68d3",
+      "name": "Fetch FU Week",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        -80
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "ca_followups",
+        "query": "={{ JSON.stringify({ weekKey: $('Decide').first().json.weekKey }) }}",
+        "options": {
+          "limit": 500
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "9aecf845-5602-43ad-9334-070dd65c1e0a",
+      "name": "Compose",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -80
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const rows = $input.all().map(function(i){ return i.json; }).filter(function(j){ return j && j.firmName; });\nconst meta = $('Decide').first().json || {};\nvar ap = '919601775061';\nvar pending = rows.filter(function(r){ return String(r.status||'pending')==='pending'; });\nvar replied = rows.filter(function(r){ return String(r.status||'')==='replied'; });\nvar text;\nif (meta.mode==='report') {\n  var lines = rows.map(function(c,i){ return (i+1)+'. '+c.firmName+' - '+(c.status||'pending'); });\n  text = 'CGPE CA weekly report (Sunday). This week: ' + rows.length + ' CAs assigned, ' + replied.length + ' replied, ' + pending.length + ' pending.\\n\\n' + (lines.length?lines.join('\\n'):'No CAs assigned this week.');\n} else {\n  var lines2 = pending.map(function(c,i){ return (i+1)+'. '+c.firmName+(c.phone?(' - '+c.phone):''); });\n  text = 'CGPE CA follow-up reminder. These CAs have not replied yet - please follow up:\\n\\n' + (lines2.length?lines2.join('\\n'):'All CAs have replied. Nothing pending.');\n}\nreturn [{ json: { phone: ap, text: text, purpose: 'ca_'+(meta.mode||'digest') } }];"
+      }
+    },
+    {
+      "id": "388fcc1c-0a6f-4f5a-a58f-76a3d5f9b386",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1540,
+        -80
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "35a311c5-16c8-413c-9f6d-0dd5781fd213",
+      "name": "Run Now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "ff636487-dbf7-4fe8-9524-83f5dd4dc261",
+      "name": "Test Params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return [{ json: { testMode: 'followup' } }];"
+      }
+    },
+    {
+      "id": "cafetchadm",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1300,
+        70
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "parameters": {
+        "collection": "admins",
+        "options": {
+          "limit": 20
+        },
+        "query": "={{ JSON.stringify({ isActive: { $ne: false }, notifyEnquiries: true }) }}"
+      }
+    },
+    {
+      "id": "fanoutca",
+      "name": "Fan Out Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        70
+      ],
+      "parameters": {
+        "jsCode": "// Compose still emits one item; expand it to one per opted-in admin.\nconst msg = $('Compose').first().json || {};\nlet admins = [];\ntry { admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; }); } catch (e) { admins = []; }\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\nconst seen = {};\nconst targets = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  targets.push({ phone: '91' + p, name: a.name || '' });\n}\nif (!targets.length) targets.push({ phone: '919601775061', name: 'CGPE Admin' });\nreturn targets.map(function (t) {\n  return { json: Object.assign({}, msg, { phone: t.phone, adminName: t.name }) };\n});"
+      }
+    }
+  ],
+  "connections": {
+    "Daily Check": {
+      "main": [
+        [
+          {
+            "node": "Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide": {
+      "main": [
+        [
+          {
+            "node": "Should Run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Run?": {
+      "main": [
+        [
+          {
+            "node": "Fetch FU Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch FU Week": {
+      "main": [
+        [
+          {
+            "node": "Compose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now": {
+      "main": [
+        [
+          {
+            "node": "Test Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Params": {
+      "main": [
+        [
+          {
+            "node": "Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Admins": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}

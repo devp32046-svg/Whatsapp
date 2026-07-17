@@ -1,0 +1,316 @@
+{
+  "name": "CGPE — Daily Under-insured Leads",
+  "nodes": [
+    {
+      "id": "4dd8054d-eef2-4bb1-99ae-64cdc600f392",
+      "name": "Daily 9AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -120
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e4d0b3cc-e03f-4fb6-82d0-f38994c02367",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "admins",
+        "query": "{}",
+        "options": {
+          "limit": 20
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "f8449aa2-c9fc-4e61-9874-15c628d518c6",
+      "name": "Fetch Index",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        460,
+        0
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "client_index",
+        "query": "{\"flag_hot_lead\":true}",
+        "options": {
+          "limit": 20000,
+          "projection": "{\"personKey\":1,\"name\":1,\"phone\":1,\"totalCover\":1,\"termCoverEstimate\":1,\"sentDailyOn\":1}"
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "d226697c-a404-465e-91f2-71c127726d88",
+      "name": "Pick 5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const rows = $input.all().map(function(i){ return i.json; }).filter(function(j){ return j && Object.keys(j).length>0; });\nrows.sort(function(a,b){ var x=a.sentDailyOn||''; var y=b.sentDailyOn||''; return x<y?-1:(x>y?1:0); });\nconst five = rows.slice(0,5);\nconst today = new Date().toISOString().slice(0,10);\nreturn five.map(function(r){ return { json: { personKey:r.personKey, name:r.name, phone:r.phone||'', totalCover:r.totalCover||0, sentDailyOn: today } }; });"
+      }
+    },
+    {
+      "id": "b319a7e5-f1cb-4ee1-ac4c-d7250617e469",
+      "name": "Compose Msg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const five = $('Pick 5').all().map(function(i){ return i.json; });\nconst admins = $('Fetch Admins').all().map(function(i){ return i.json||{}; });\nfunction norm(p){ return String(p||'').replace(/[^0-9]/g,'').slice(-10); }\nvar ap = admins.length ? norm(admins[0].phoneLast10||admins[0].phone) : '9601775061';\nif (ap.length===10) { ap = '91'+ap; }\nvar lines = five.map(function(p,i){ return (i+1)+'. '+p.name+(p.phone?(' ('+p.phone+')'):'')+' - cover Rs '+(p.totalCover||0); });\nvar text = 'CGPE daily leads: 5 under-insured clients to follow up today (life cover below 1 crore).\\n\\n' + lines.join('\\n') + '\\n\\nGood prospects for extra term or life cover.';\nreturn [{ json: { phone: ap, text: text, purpose: 'daily_leads' } }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "0c010aa5-db65-48e8-b7ef-33ed3ff3fef3",
+      "name": "Send To Admin",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        -120
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "850ee295-e490-496f-82bf-6d459115d995",
+      "name": "Run Now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a9340b91-a7a9-4824-b358-8fdbff75163b",
+      "name": "Mark Sent",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        900,
+        120
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "findOneAndUpdate",
+        "collection": "client_index",
+        "updateKey": "personKey",
+        "fields": "sentDailyOn",
+        "options": {}
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "fanoutcixYSg",
+      "name": "Fan Out Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        20
+      ],
+      "parameters": {
+        "jsCode": "// Expand one composed admin message into one item per opted-in admin.\n// Kept separate from 'Compose Msg' so its other branches still see a single item.\nconst msg = $('Compose Msg').first().json || {};\nlet admins = [];\ntry { admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; }); } catch (e) { admins = []; }\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\n\nconst seen = {};\nconst out = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  out.push({ json: Object.assign({}, msg, { phone: '91' + p, adminName: a.name || '' }) });\n}\nif (!out.length) out.push({ json: Object.assign({}, msg, { phone: '919601775061', adminName: 'CGPE Admin' }) });\nreturn out;"
+      }
+    }
+  ],
+  "connections": {
+    "Daily 9AM": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Fetch Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Index": {
+      "main": [
+        [
+          {
+            "node": "Pick 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick 5": {
+      "main": [
+        [
+          {
+            "node": "Compose Msg",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Msg": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Admins": {
+      "main": [
+        [
+          {
+            "node": "Send To Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}

@@ -1,0 +1,361 @@
+{
+  "name": "CGPE — Event Invitations",
+  "nodes": [
+    {
+      "id": "4af7617a-4d99-4d63-ac8e-d20aceae631d",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        192
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "eventId",
+              "type": "string"
+            },
+            {
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "name": "date",
+              "type": "string"
+            },
+            {
+              "name": "location",
+              "type": "string"
+            },
+            {
+              "name": "target",
+              "type": "string"
+            },
+            {
+              "name": "limit",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f7fa1cc6-d091-42ae-be3c-f09f42993694",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const j=$input.first()?($input.first().json||{}):{};\nvar t=String(j.target||\"all\").toLowerCase();\nvar q=\"{}\"; if(t===\"hni\") q='{\"flag_high_value\":true}'; else if(t===\"lowcover\") q='{\"flag_life_cover_under_1cr\":true}';\nvar lim=parseInt(j.limit||50,10); if(!isFinite(lim)||lim<1) lim=50;\nreturn [{ json: { eventId:String(j.eventId||(\"EVT-\"+Date.now())), title:String(j.title||\"CGPE Event\"), date:String(j.date||\"\"), location:String(j.location||\"\"), target:t, mongoQuery:q, limit:lim } }];"
+      }
+    },
+    {
+      "id": "82e76309-8463-4d24-a26e-1a623c2e10f5",
+      "name": "Test Run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "516202f1-1d6d-4ba9-941a-5f4317521160",
+      "name": "Test Params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return [{ json: { eventId: \"EVT-1\", title: \"CGPE Investor Meet\", date: \"2026-08-10\", location: \"Surat\", target: \"hni\", limit: \"10\" } }];"
+      }
+    },
+    {
+      "id": "d327a8f4-217e-4bf3-b2f9-9526cf0fa4fb",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        96
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "admins",
+        "query": "{}",
+        "options": {
+          "limit": 20
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "e4a55f83-8ad8-4591-a03d-e6e5bd4b1c40",
+      "name": "Fetch Targets",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        96
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "client_index",
+        "query": "{}",
+        "options": {
+          "limit": 20000,
+          "projection": "{\"name\":1,\"phone\":1,\"phoneLast10\":1,\"flag_high_value\":1,\"flag_life_cover_under_1cr\":1}"
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "2a3217f2-bc25-48ba-b1d7-d035204ae511",
+      "name": "Build Invite",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const meta=$(\"Normalize\").first().json;\nconst idx=$(\"Fetch Targets\").all().map(function(i){return i.json;}).filter(function(j){return j&&Object.keys(j).length>0;});\nconst admins=$(\"Fetch Admins\").all().map(function(i){return i.json||{};});\nfunction norm(p){var d=String(p||\"\").replace(/[^0-9]/g,\"\");if(d.length>10)d=d.slice(-10);return d;}\nvar ap=admins.length?norm(admins[0].phoneLast10||admins[0].phone):\"9601775061\"; if(ap.length===10) ap=\"91\"+ap;\nvar t=String(meta.target||\"all\").toLowerCase();\nvar lim=parseInt(meta.limit,10); if(!isFinite(lim)||lim<1) lim=50;\nvar pool=idx.filter(function(r){ if(t===\"hni\") return r.flag_high_value===true; if(t===\"lowcover\") return r.flag_life_cover_under_1cr===true; return true; });\nvar recips=[];\nfor(var i=0;i<pool.length && recips.length<lim;i++){ var ph=norm(pool[i].phone||pool[i].phoneLast10); if(ph.length===10) recips.push({name:pool[i].name, phone:ph}); }\nvar invite=\"🎉 Aapne CGPE na '\"+meta.title+\"' ma aamantran! 📅 \"+meta.date+\"  📍 \"+meta.location+\". Aapni hajari amaara maate kimti chhe. Aavva mate 'YES' reply karo. 🙏 — C. G. Patel Enterprise\";\nvar sample=recips.slice(0,10).map(function(r,i){ return (i+1)+\". \"+r.name+\" (\"+r.phone+\")\"; });\nvar text=\"🎉 Event invite ready: \"+meta.title+\" (\"+meta.date+\")\\nTarget: \"+t+\" — \"+recips.length+\" recipients\\n\\nInvite text:\\n\"+invite+\"\\n\\nSample:\\n\"+(sample.join(\"\\n\")||\"-\")+\"\\n\\nBulk send karva Campaign Broadcaster vaaparo.\";\nreturn [{ json: { phone:ap, text:text, purpose:\"event_invite\", ok:true, eventId:meta.eventId, title:meta.title, targetType:t, count:recips.length, requested:lim, inviteText:invite, createdAt:new Date().toISOString() } }];"
+      }
+    },
+    {
+      "id": "7e692fbd-cb18-4db2-9485-860f85992c4e",
+      "name": "Send Admin",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f0cc4381-5bfe-4a64-8a62-f8da25334caf",
+      "name": "Store Invite",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        192
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "insert",
+        "collection": "event_invites",
+        "fields": "eventId,title,targetType,count,inviteText,createdAt",
+        "options": {}
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "fanout5vdQNc",
+      "name": "Fan Out Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Expand one composed admin message into one item per opted-in admin.\n// Kept separate from 'Build Invite' so its other branches still see a single item.\nconst msg = $('Build Invite').first().json || {};\nlet admins = [];\ntry { admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; }); } catch (e) { admins = []; }\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\n\nconst seen = {};\nconst out = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  out.push({ json: Object.assign({}, msg, { phone: '91' + p, adminName: a.name || '' }) });\n}\nif (!out.length) out.push({ json: Object.assign({}, msg, { phone: '919601775061', adminName: 'CGPE Admin' }) });\nreturn out;"
+      }
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Run": {
+      "main": [
+        [
+          {
+            "node": "Test Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Params": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Fetch Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Targets": {
+      "main": [
+        [
+          {
+            "node": "Build Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Invite": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Admins",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Admins": {
+      "main": [
+        [
+          {
+            "node": "Send Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}

@@ -1,0 +1,353 @@
+{
+  "name": "CGPE — CA Weekly Assign",
+  "nodes": [
+    {
+      "id": "c450f2d6-44a9-4238-bb84-8c0fd87933dc",
+      "name": "Monday 10AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -120
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 4 * * 1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1444d3ad-0e39-4f28-bd72-e21b10151de2",
+      "name": "Fetch Admins",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "admins",
+        "query": "{}",
+        "options": {
+          "limit": 20
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "10572656-d5f5-485b-a3e6-31ab93d7532b",
+      "name": "Fetch CA",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "ca data",
+        "query": "{}",
+        "options": {
+          "limit": 5000,
+          "projection": "{\"firmName\":1,\"category\":1,\"phone\":1}"
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "95003851-114c-4bbf-8ac8-40f4605b5831",
+      "name": "Fetch FU",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "find",
+        "collection": "ca_followups",
+        "query": "{}",
+        "options": {
+          "limit": 5000,
+          "projection": "{\"firmName\":1,\"assignedOn\":1,\"status\":1,\"weekKey\":1}"
+        }
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "6a0a5fc1-aa2d-4cde-a264-f3f60711e346",
+      "name": "Pick 5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const cas = $('Fetch CA').all().map(function(i){ return i.json; }).filter(function(j){ return j && j.firmName; });\nconst assigned = $('Fetch FU').all().map(function(i){ return i.json; }).filter(function(j){ return j && j.firmName; });\nconst lastOn = {};\nassigned.forEach(function(a){ var k=String(a.firmName).trim().toLowerCase(); var t=String(a.assignedOn||''); if(!lastOn[k]||t>lastOn[k]){ lastOn[k]=t; } });\ncas.sort(function(a,b){ var x=lastOn[String(a.firmName).trim().toLowerCase()]||''; var y=lastOn[String(b.firmName).trim().toLowerCase()]||''; return x<y?-1:(x>y?1:0); });\nconst five = cas.slice(0,5);\nvar d = new Date(new Date().getTime()+5.5*3600*1000);\nvar dow=d.getUTCDay(); var diff=(dow===0?-6:1-dow); var monday=new Date(d.getTime()+diff*86400000);\nvar weekKey = monday.toISOString().slice(0,10);\nvar now = new Date().toISOString();\nreturn five.map(function(c){ return { json: { firmName:c.firmName, phone:c.phone||'', category:c.category||'', weekKey:weekKey, status:'pending', assignedOn: now } }; });"
+      }
+    },
+    {
+      "id": "2771382f-9108-424f-8192-a9d5e7e7aa0c",
+      "name": "Compose Msg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const five = $('Pick 5').all().map(function(i){ return i.json; });\nconst admins = $('Fetch Admins').all().map(function(i){ return i.json||{}; });\nfunction norm(p){ return String(p||'').replace(/[^0-9]/g,'').slice(-10); }\nvar ap = admins.length ? norm(admins[0].phoneLast10||admins[0].phone) : '9601775061';\nif (ap.length===10) { ap='91'+ap; }\nvar lines = five.map(function(c,i){ return (i+1)+'. '+c.firmName+(c.phone?(' - '+c.phone):''); });\nvar text = 'CGPE weekly CA outreach - 5 CAs to contact this week for partnership and recruitment.\\n\\n' + lines.join('\\n') + '\\n\\nPlease reach out to each this week. Reminders on Wed and Fri, report on Sunday.';\nreturn [{ json: { phone: ap, text: text, purpose: 'ca_weekly' } }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "7ee74ec2-229b-4c6c-83ca-5bd9b1b7ebd4",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1320,
+        -120
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mp0qri77iwB2i8G8",
+          "cachedResultName": "CGPE Notify"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "text": "={{ $json.text }}",
+            "purpose": "={{ $json.purpose }}",
+            "buttons": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "buttons",
+              "displayName": "buttons",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "2bc1ed0a-3f4d-443e-a955-a10f1378142c",
+      "name": "Run Now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "537834b8-9ce0-41ae-b7ce-6642c3eed0a5",
+      "name": "Log Followups",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        120
+      ],
+      "parameters": {
+        "resource": "document",
+        "operation": "insert",
+        "collection": "ca_followups",
+        "fields": "firmName,phone,category,weekKey,status,assignedOn"
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "fanoutVT52Fb",
+      "name": "Fan Out Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        20
+      ],
+      "parameters": {
+        "jsCode": "// Expand one composed admin message into one item per opted-in admin.\n// Kept separate from 'Compose Msg' so its other branches still see a single item.\nconst msg = $('Compose Msg').first().json || {};\nlet admins = [];\ntry { admins = $('Fetch Admins').all().map(function (i) { return i.json || {}; }); } catch (e) { admins = []; }\nfunction norm(p) { return String(p || '').replace(/[^0-9]/g, '').slice(-10); }\n\nconst seen = {};\nconst out = [];\nfor (const a of admins) {\n  if (!a || a.isActive === false || a.active === false) continue;\n  if (a.notifyEnquiries !== true) continue;   // admins opt in; the rest keep their rights\n  const p = norm(a.phoneLast10 || a.phone || a.phoneNumber);\n  if (p.length !== 10 || seen[p]) continue;\n  seen[p] = true;\n  out.push({ json: Object.assign({}, msg, { phone: '91' + p, adminName: a.name || '' }) });\n}\nif (!out.length) out.push({ json: Object.assign({}, msg, { phone: '919601775061', adminName: 'CGPE Admin' }) });\nreturn out;"
+      }
+    }
+  ],
+  "connections": {
+    "Monday 10AM": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Admins": {
+      "main": [
+        [
+          {
+            "node": "Fetch CA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch CA": {
+      "main": [
+        [
+          {
+            "node": "Fetch FU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch FU": {
+      "main": [
+        [
+          {
+            "node": "Pick 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick 5": {
+      "main": [
+        [
+          {
+            "node": "Compose Msg",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Followups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Msg": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now": {
+      "main": [
+        [
+          {
+            "node": "Fetch Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Admins": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}
