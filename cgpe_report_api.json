@@ -1,0 +1,142 @@
+{
+ "name": "CGPE — Report API",
+ "nodes": [
+  {
+   "id": "0ff2d114-99a7-47c7-b8cc-13d2917e72eb",
+   "name": "Report API (POST)",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "cgpe-generate-report",
+    "responseMode": "responseNode"
+   },
+   "webhookId": "94cc8c8a-3a32-4ead-b9a1-48577004127d"
+  },
+  {
+   "id": "0d7eeae5-a405-466e-b29d-6539f21374b1",
+   "name": "Prep Input",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    224,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const root = $input.first().json;\nconst b = root.body || root;\nconst params = {};\nif (b.clientName) params.clientName = String(b.clientName);\nif (b.phoneLast10) params.phoneLast10 = String(b.phoneLast10);\nif (b.groupName) params.groupName = String(b.groupName);\nconst hasSeed = params.clientName || params.phoneLast10 || params.groupName;\nif (!hasSeed) return [{ json: { __bad: true } }];\n// toPhone/caption go TOP-LEVEL (same shape the gateway sends) so the access guard sees them\n// Pass the caller's secret through params so the report guard can recognise the admin panel.\nif (b.internalSecret) params.internalSecret = String(b.internalSecret);\nconst out = { operation: 'generate_report', params: JSON.stringify(params) };\nif (b.toPhone) out.toPhone = String(b.toPhone);\nif (b.caption) out.caption = String(b.caption);\nreturn [{ json: out }];"
+   }
+  },
+  {
+   "id": "f4946b65-f8a7-4d71-a6b1-2c15f0f20fce",
+   "name": "Run Report Generator",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.3,
+   "position": [
+    448,
+    0
+   ],
+   "parameters": {
+    "source": "database",
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "5POkiNLDhKOuVadg",
+     "cachedResultName": "CGPE Report Generator"
+    },
+    "mode": "once",
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "operation": "={{ $json.operation }}",
+      "params": "={{ $json.params }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "operation",
+       "displayName": "operation",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "params",
+       "displayName": "params",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ]
+    },
+    "options": {
+     "waitForSubWorkflow": true
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "d17f4b49-dc3a-4528-b830-3b8eaecc6db9",
+   "name": "Respond API",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.5,
+   "position": [
+    672,
+    0
+   ],
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ JSON.stringify($json.__bad ? { ok: false, error: 'Send clientName, phoneLast10 or groupName in the JSON body' } : { ok: $json.ok !== false, reportId: $json.reportId || null, viewUrl: $json.url || null, pdfUrl: $json.url ? ($json.url + '&pdf=1') : null, familyHead: $json.familyHead || null, summary: $json.summary || null, pdfSent: $json.pdfSent || false, pdfStage: $json.pdfStage || null, pdfError: $json.pdfError || null, pdfDetail: $json.pdfDetail || null, pdfSkipped: $json.pdfSkipped || null, error: $json.error || null }) }}"
+   }
+  }
+ ],
+ "connections": {
+  "Report API (POST)": {
+   "main": [
+    [
+     {
+      "node": "Prep Input",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prep Input": {
+   "main": [
+    [
+     {
+      "node": "Run Report Generator",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Run Report Generator": {
+   "main": [
+    [
+     {
+      "node": "Respond API",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "availableInMCP": true
+ },
+ "active": true
+}
