@@ -13,13 +13,16 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.3",
+    "@google/generative-ai": "^0.24.1",
     "axios": "^1.18.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "form-data": "^4.0.6",
     "mongodb": "^7.4.0",
     "mongoose": "^9.7.1",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

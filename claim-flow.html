@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CGPE Health Claim — Bot Flow</title>
+<style>
+  /* ---- edit colours / sizes here ---- */
+  :root{
+    --built:#16a34a;      /* bana hua  */
+    --partial:#d97706;    /* aadha     */
+    --missing:#dc2626;    /* banana hai*/
+    --ink:#1f2937;
+    --muted:#6b7280;
+    --line:#cbd5e1;
+    --bg:#f8fafc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px 18px 60px;background:var(--bg);color:var(--ink);
+       font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.45}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:22px}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:26px;font-size:13px}
+  .legend span{display:flex;align-items:center;gap:7px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+  .flow{max-width:780px;margin:0 auto}
+
+  /* ---- ek stage box ---- */
+  .stage{background:#fff;border:1px solid var(--line);border-left:6px solid var(--muted);
+         border-radius:8px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .stage.built{border-left-color:var(--built)}
+  .stage.partial{border-left-color:var(--partial)}
+  .stage.missing{border-left-color:var(--missing)}
+
+  .stage h3{margin:0 0 8px;font-size:15px;display:flex;align-items:center;gap:9px}
+  .num{background:var(--ink);color:#fff;border-radius:50%;width:22px;height:22px;
+       display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 22px}
+  .stage ul{margin:0;padding-left:18px;font-size:13.5px}
+  .stage li{margin:3px 0}
+  .tag{font-size:11px;font-weight:600;padding:1px 7px;border-radius:20px;margin-left:6px;
+       white-space:nowrap;color:#fff}
+  .t-built{background:var(--built)}
+  .t-partial{background:var(--partial)}
+  .t-missing{background:var(--missing)}
+
+  /* ---- arrow between stages ---- */
+  .arrow{height:26px;position:relative}
+  .arrow::before{content:'';position:absolute;left:50%;top:0;bottom:7px;width:2px;
+                 background:var(--line);transform:translateX(-50%)}
+  .arrow::after{content:'';position:absolute;left:50%;bottom:0;width:0;height:0;
+                border-left:6px solid transparent;border-right:6px solid transparent;
+                border-top:8px solid var(--line);transform:translateX(-50%)}
+
+  /* ---- branch (do raaste) ---- */
+  .branch{display:flex;gap:12px;margin:10px 0 0}
+  .branch div{flex:1;font-size:12.5px;padding:8px 10px;border-radius:6px;background:#f1f5f9;
+              border-left:3px solid var(--line)}
+  .branch .yes{border-left-color:var(--built)}
+  .branch .no{border-left-color:var(--missing)}
+
+  .box{max-width:780px;margin:34px auto 0;background:#fff;border:1px solid var(--line);
+       border-radius:8px;padding:16px 18px}
+  .box h2{font-size:16px;margin:0 0 10px}
+  .box p{font-size:13.5px;margin:6px 0}
+  .warn{border-left:5px solid var(--missing);background:#fef2f2}
+  .ask{border-left:5px solid var(--partial);background:#fffbeb}
+  .next{border-left:5px solid #2563eb;background:#eff6ff}
+  .next ol{margin:6px 0 0;padding-left:20px;font-size:13.5px}
+  .next li{margin:4px 0}
+  code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  @media print{body{background:#fff}.stage{box-shadow:none}}
+</style>
+</head>
+<body>
+
+<h1>CGPE Health Claim — Bot ka poora flow</h1>
+<div class="sub">Intimation se lekar settlement tak &middot; 22 July 2026</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--built)"></i> bana hua, chal raha hai</span>
+  <span><i class="dot" style="background:var(--partial)"></i> tukde hain, jodna hai</span>
+  <span><i class="dot" style="background:var(--missing)"></i> zero se banana hai</span>
+</div>
+
+<div class="flow">
+
+  <!-- ============ 1 ============ -->
+  <div class="stage built">
+    <h3><span class="num">1</span> Intimation <span class="tag t-built">bana hua</span></h3>
+    <ul>
+      <li>Client ya team WhatsApp pe claim intimate karta hai</li>
+      <li>Bot claim record banata hai &mdash; status <code>intimated</code></li>
+      <li>Chhota claim ID milta hai (<code>CLM-1105</code>)</li>
+    </ul>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ============ 2 ============ -->
+  <div class="stage partial">
+    <h3><span class="num">2</span> Record check <span class="tag t-partial">aadha</span></h3>
+    <ul>
+      <li>Client DB mein naam / policy number dhoondo &mdash; 9,012 records</li>
+      <li>Insurer aur TPA pehchano &mdash; 21 TPA + 31 insurer master maujood</li>
+    </ul>
+    <div class="branch">
+      <div class="yes"><b>Mil gaya</b> &rarr; policy details uthao, aage badho</div>
+      <div class="no"><b>Nahi mila</b> &rarr; team ko flag, manually verify</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ============ 3 ============ -->
+  <div class="stage missing">
+    <h3><span class="num">3</span> Email intimation <span class="tag t-missing">banana hai</span></h3>
+    <ul>
+      <li>Insurer ko intimation email</li>
+      <li>Cashless ho to TPA ko bhi</li>
+      <li>Email address master se uthao</li>
+      <li>Bheja hua email claim record mein log ho</li>
+    </ul>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ============ 4 ============ -->
+  <div class="stage missing">
+    <h3><span class="num">4</span> 24 ghante ka follow-up <span class="tag t-missing">banana hai</span></h3>
+    <div class="branch">
+      <div class="yes"><b>Reply aaya</b> &rarr; claim / CIR number save karo</div>
+      <div class="no"><b>Reply nahi</b> &rarr; reminder email + team ko alert</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ============ 5 ============ -->
+  <div class="stage built">
+    <h3><span class="num">5</span> Document collection <span class="tag t-built">bana hua</span></h3>
+    <ul>
+      <li>Client / hospital se documents WhatsApp pe aate hain</li>
+      <li>Har file archive hoti hai aur claim se judi rehti hai</li>
+      <li>20&nbsp;MB+ file apne aap tukdon mein bat kar process hoti hai</li>
+    </ul>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ============ 6 ============ -->
+  <div class="stage built">
+    <h3><span class="num">6</span> OCR + analysis <span class="tag t-built">bana hua</span></h3>
+    <ul>
+      <li>Gemini OCR &mdash; text aur bill ki har line alag</li>
+      <li>Policy terms file se hi padh leta hai (schedule ho to)</li>
+      <li>Har line: payable / non-payable / room-linked</li>
+      <li>Deduction waterfall &mdash; IRDAI ke niyam</li>
+      <li>Bill ka chhapa total vs lines ka jod &mdash; milaake dekhta hai</li>
+    </ul>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ============ 7 ============ -->
+  <div class="stage built">
+    <h3><span class="num">7</span> Submit se pehle verdict <span class="tag t-built">bana hua</span></h3>
+    <ul>
+      <li>23-point document checklist</li>
+      <li>Waiting period / exclusion / policy active check</li>
+      <li>&ldquo;Client se ye mangwayein&rdquo; &mdash; seedha forward karne laayak list</li>
+    </ul>
+    <div class="branch">
+      <div class="no"><b>Blocker hai</b> &rarr; SUBMIT MAT KARO, kami poori karo</div>
+      <div class="yes"><b>File saaf hai</b> &rarr; aage badho</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ============ 8 ============ -->
+  <div class="stage missing">
+    <h3><span class="num">8</span> Submit + tracking <span class="tag t-missing">banana hai</span></h3>
+    <ul>
+      <li>File submit (abhi manual)</li>
+      <li>TPA se query / IR aaye to ticket bane aur apne aap chase ho</li>
+      <li>15 din tak status track ho</li>
+    </ul>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ============ 9 ============ -->
+  <div class="stage missing">
+    <h3><span class="num">9</span> Settlement + seekhna <span class="tag t-missing">banana hai</span></h3>
+    <ul>
+      <li>Settlement amount record ho</li>
+      <li>Jo socha tha vs jo mila &mdash; compare</li>
+      <li>Farak ki wajah note ho</li>
+      <li><b>Yahi se asli data banega, jisse aage ka andaaza sudhrega</b></li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ================= notes ================= -->
+
+<div class="box warn">
+  <h2>Sabse bada gap &mdash; EMAIL</h2>
+  <p>Aaj tak <b>ek bhi email nahi gaya</b> &mdash; 0 claims. Email directory mein sirf
+     <b>5 entry</b> hain, jabki chahiye <b>52</b> (31 insurer + 21 TPA).</p>
+  <p>Poora flow email par tikka hai. Iske bina Stage 3, 4 aur 8 shuru hi nahi ho sakte.</p>
+</div>
+
+<div class="box ask">
+  <h2>Ek faisla chahiye</h2>
+  <p>Abhi document <b>Gemini</b> padhta hai, aur uske jawab ko humari rulebook
+     (IRDAI ke niyam, code mein likhe hue) cross-check karti hai.</p>
+  <p>Claude ki <code>health-claim-review</code> skill ke <b>niyam</b> code mein utaare gaye hain,
+     par <b>skill khud nahi chalti</b>.</p>
+  <p>Agar analysis Claude se karwana ho &mdash; jo gande scan aur ajeeb bill-heads par behtar
+     padhega &mdash; to ho sakta hai, par uspe API ka kharcha aayega.
+     <b>Abhi sab kuch free hai.</b></p>
+</div>
+
+<div class="box next">
+  <h2>Aage ka kram &mdash; sujhav</h2>
+  <ol>
+    <li><b>Email base</b> &mdash; directory bharo, intimation + follow-up &nbsp;<i>(Stage 3, 4)</i></li>
+    <li><b>Query tracking</b> &mdash; TPA query = ticket, apne aap chase &nbsp;<i>(Stage 8)</i></li>
+    <li><b>Settlement loop</b> &mdash; jo mila woh record karo, compare karo, seekho &nbsp;<i>(Stage 9)</i></li>
+    <li><b>Admission alert</b> &mdash; room limit ki warning <b>admission ke din</b>,
+        bill aane ke baad nahi &nbsp;<i>(naya)</i></li>
+  </ol>
+  <p style="margin-top:10px">#4 sabse zyada paisa bachayega. Bill aane ke baad room ka nuksan
+     ho chuka hota hai &mdash; koi tool wapas nahi la sakta. Engine tayyar hai, sirf chhota
+     flow banana hai.</p>
+</div>
+
+</body>
+</html>

@@ -1,8 +1,10 @@
 const express = require('express');
 const path = require("path");
+const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
 const { MongoClient } = require('mongodb');
+const crypto = require('crypto');
 require('dotenv').config();
 
 // Lazy, cached MongoDB connection. Same DB the n8n workflows use — lets the UI read
@@ -46,6 +48,60 @@ app.use(express.static(path.join(__dirname, 'src', 'public')));
 
 // CGPE n8n Webhook URL
 const CGPE_CHAT_URL = "https://ai.cgpe.in/webhook/cgpe-chat";
+
+// Meta Cloud API Configuration
+const META_PHONE_NUMBER_ID = process.env.META_PHONE_NUMBER_ID;
+const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
+const META_WEBHOOK_VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'cgpe_webhook_secret_2026';
+const META_API_URL = `https://graph.instagram.com/v18.0/${META_PHONE_NUMBER_ID}`;
+const ALLOWED_PHONES = (process.env.META_ALLOWED_PHONES || '9601775061,9106988376').split(',').map(p => p.trim());
+
+function normalizeLast10(phone) {
+    return String(phone || '').replace(/\D/g, '').slice(-10);
+}
+
+async function sendWhatsAppMessage(toPhone, text, buttons = []) {
+    try {
+        const payload = {
+            messaging_product: "whatsapp",
+            to: String(toPhone).replace(/\D/g, ''),
+            type: "text",
+            text: { body: text }
+        };
+
+        // If buttons provided, use interactive message
+        if (buttons.length > 0) {
+            payload.type = "interactive";
+            payload.interactive = {
+                type: "button",
+                body: { text },
+                action: {
+                    buttons: buttons.map((btn, idx) => ({
+                        type: "reply",
+                        reply: {
+                            id: `btn_${idx}`,
+                            title: btn.substring(0, 20)
+                        }
+                    }))
+                }
+            };
+        }
+
+        const response = await axios.post(`${META_API_URL}/messages`, payload, {
+            headers: {
+                'Authorization': `Bearer ${META_ACCESS_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 30000
+        });
+
+        console.log(`[Meta] Message sent to ${toPhone}:`, response.data.messages?.[0]?.id);
+        return { success: true, messageId: response.data.messages?.[0]?.id };
+    } catch (error) {
+        console.error(`[Meta] Failed to send to ${toPhone}:`, error.response?.data || error.message);
+        return { success: false, error: error.message };
+    }
+}
 
 /**
  * Upload endpoint — receives base64 media from frontend,
@@ -412,6 +468,173 @@ async function handleTeamTaskAction(payload) {
 }
 
 /**
+ * Meta Webhook Verification (GET)
+ * Called by Meta when setting up the webhook URL
+ */
+app.get('/webhook/meta', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === META_WEBHOOK_VERIFY_TOKEN) {
+        console.log('[Meta] Webhook verified successfully');
+        res.status(200).send(challenge);
+    } else {
+        console.error('[Meta] Webhook verification failed');
+        res.sendStatus(403);
+    }
+});
+
+/**
+ * Meta Webhook Receiver (POST)
+ * Receives messages from WhatsApp users via Meta Cloud API
+ */
+app.post('/webhook/meta', async (req, res) => {
+    try {
+        const body = req.body;
+
+        // Acknowledge receipt immediately
+        res.status(200).json({ received: true });
+
+        // Validate webhook structure
+        if (body.object !== 'whatsapp_business_account') {
+            console.log('[Meta] Skipping non-WhatsApp event:', body.object);
+            return;
+        }
+
+        const entries = body.entry || [];
+        for (const entry of entries) {
+            const changes = entry.changes || [];
+            for (const change of changes) {
+                const value = change.value || {};
+                const messages = value.messages || [];
+                const statuses = value.statuses || [];
+
+                // Handle incoming messages
+                for (const msg of messages) {
+                    const fromPhone = msg.from;
+                    const phoneLast10 = normalizeLast10(fromPhone);
+
+                    // Check allow-list
+                    if (!ALLOWED_PHONES.includes(phoneLast10)) {
+                        console.log(`[Meta] Message from ${fromPhone} blocked (not in allow-list)`);
+                        await sendWhatsAppMessage(fromPhone, 'Maaf kijiye, aapka number is service ke liye authorized nahi hai. Admin se sampark karein.');
+                        continue;
+                    }
+
+                    const msgId = msg.id;
+                    const timestamp = msg.timestamp;
+                    const messageType = msg.type;
+
+                    console.log(`[Meta] Received ${messageType} from ${fromPhone} (${phoneLast10})`);
+
+                    let payload = {
+                        from: fromPhone,
+                        name: value.contacts?.[0]?.profile?.name || 'User',
+                        messageId: msgId,
+                        timestamp: timestamp,
+                        text: '',
+                        audioUrl: null,
+                        imageUrl: null,
+                        videoUrl: null,
+                        documentUrl: null,
+                        filename: null
+                    };
+
+                    // Parse message content by type
+                    if (messageType === 'text') {
+                        payload.text = msg.text?.body || '';
+                    } else if (messageType === 'audio') {
+                        payload.audioUrl = msg.audio?.link;
+                        payload.text = '[Audio message received]';
+                    } else if (messageType === 'image') {
+                        payload.imageUrl = msg.image?.link;
+                        payload.text = msg.image?.caption || '[Image received]';
+                    } else if (messageType === 'video') {
+                        payload.videoUrl = msg.video?.link;
+                        payload.text = msg.video?.caption || '[Video received]';
+                    } else if (messageType === 'document') {
+                        payload.documentUrl = msg.document?.link;
+                        payload.filename = msg.document?.filename;
+                        payload.text = `[Document: ${payload.filename}]`;
+                    } else if (messageType === 'button') {
+                        payload.text = msg.button?.text || '[Button interaction]';
+                    } else if (messageType === 'interactive') {
+                        const interactive = msg.interactive || {};
+                        if (interactive.type === 'button_reply') {
+                            payload.text = interactive.button_reply?.title || '';
+                        } else if (interactive.type === 'list_reply') {
+                            payload.text = interactive.list_reply?.title || '';
+                        }
+                    }
+
+                    if (!payload.text) {
+                        console.log(`[Meta] Skipping message with no text content (type: ${messageType})`);
+                        continue;
+                    }
+
+                    // Send to CGPE and get response
+                    try {
+                        console.log(`[Meta→CGPE] Forwarding:`, JSON.stringify(payload, null, 2));
+                        const cgpeResponse = await axios.post(CGPE_CHAT_URL, payload, {
+                            headers: { 'Content-Type': 'application/json' },
+                            timeout: 90000,
+                            validateStatus: (status) => status < 500,
+                        });
+
+                        const data = cgpeResponse.data;
+                        console.log(`[CGPE→Meta] Response:`, JSON.stringify(data));
+
+                        let replyText = '';
+                        let replyButtons = [];
+
+                        if (data && typeof data === 'object' && data.reply) {
+                            replyText = data.reply;
+                            replyButtons = data.buttons || [];
+                        } else if (typeof data === 'string' && data.trim().length > 0) {
+                            replyText = data.trim();
+                        } else {
+                            replyText = "⏳ Message processed. Kripya dobara try karein.";
+                        }
+
+                        // Send reply back via Meta
+                        await sendWhatsAppMessage(fromPhone, replyText, replyButtons);
+
+                        // Log to MongoDB if available
+                        const inboxCol = await getCollection('ui_inbox');
+                        if (inboxCol) {
+                            await inboxCol.insertOne({
+                                phone: fromPhone,
+                                phoneLast10: phoneLast10,
+                                text: payload.text,
+                                source: 'meta_whatsapp',
+                                delivered: true,
+                                createdAt: new Date(parseInt(timestamp) * 1000).toISOString()
+                            });
+                        }
+
+                    } catch (cgpeError) {
+                        console.error('[Meta] CGPE request failed:', cgpeError.message);
+                        await sendWhatsAppMessage(fromPhone, 'Maaf kijiye, koi technical issue aya. Kripya dobara try karein.');
+                    }
+                }
+
+                // Handle message delivery status updates
+                for (const status of statuses) {
+                    const statusType = status.status;
+                    const msgId = status.id;
+                    console.log(`[Meta] Status update - ${statusType} for message ${msgId}`);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error('[Meta] Webhook error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
  * Proxy endpoint for CGPE chat
  * Accepts the same payload format the n8n workflow expects:
  *   { from, name, messageId, text, audioUrl, imageUrl, videoUrl, documentUrl, filename }
@@ -576,6 +799,98 @@ app.get('/api/inbox', async (req, res) => {
     }
 });
 
+// ============================================================================
+// HUMAN TEAM INBOX — lets a human reply to real clients on the Meta line (9904400699)
+// without the WhatsApp app. Reads live from wa_messages; sends via the proven n8n
+// send path; pausing the bot for that client so it does not reply on top of the human.
+// ============================================================================
+const INBOX_SEND_WEBHOOK = 'https://ai.cgpe.in/webhook/cgpe-inbox-reply';
+const INBOX_PAUSE_MIN = 45; // bot stays silent for this many minutes after a human reply
+
+// Thread list — one row per client, newest first
+app.get('/api/inbox/threads', async (req, res) => {
+    try {
+        const col = getCollection('wa_messages');
+        if (!col) return res.json({ ok: true, threads: [] });
+        const c = await col;
+        const rows = await c.aggregate([
+            { $match: { phoneLast10: { $nin: [null, '', 'null'] } } },
+            { $sort: { _id: -1 } },
+            { $group: {
+                _id: '$phoneLast10',
+                name: { $first: '$senderName' },
+                lastIn: { $first: '$inbound' },
+                lastOut: { $first: '$replyText' },
+                ts: { $first: '$ts' },
+                lastId: { $first: '$_id' }
+            } },
+            { $sort: { lastId: -1 } },
+            { $limit: 60 }
+        ]).toArray();
+        // which clients are currently bot-paused (human handling)
+        const pcol = getCollection('wa_ai_pause');
+        let paused = [];
+        if (pcol) { const p = await pcol; paused = (await p.find({ until: { $gte: new Date().toISOString() } }).toArray()).map(x => x.phoneLast10); }
+        res.json({ ok: true, threads: rows.map(r => ({
+            phone: r._id, name: r.name || '',
+            preview: String(r.lastIn || r.lastOut || '').slice(0, 60),
+            paused: paused.indexOf(r._id) !== -1
+        })) });
+    } catch (e) { console.error('[Inbox threads]', e.message); res.json({ ok: false, threads: [] }); }
+});
+
+// One client's message history (chronological)
+app.get('/api/inbox/thread', async (req, res) => {
+    try {
+        const phone = String(req.query.phone || '').replace(/\D/g, '').slice(-10);
+        if (!phone) return res.json({ ok: true, messages: [] });
+        const col = getCollection('wa_messages');
+        if (!col) return res.json({ ok: true, messages: [] });
+        const c = await col;
+        const docs = await c.find({ phoneLast10: phone }).sort({ _id: -1 }).limit(50).toArray();
+        docs.reverse();
+        const msgs = [];
+        docs.forEach(d => {
+            if (d.inbound && String(d.inbound).trim()) msgs.push({ dir: 'in', text: d.inbound, ts: d.ts });
+            if (d.replyText && String(d.replyText).trim()) msgs.push({ dir: d.role === 'human' ? 'human' : 'bot', text: d.replyText, ts: d.ts });
+        });
+        res.json({ ok: true, phone, messages: msgs });
+    } catch (e) { console.error('[Inbox thread]', e.message); res.json({ ok: false, messages: [] }); }
+});
+
+// Human sends a reply → pause the bot for that client, log it, and send via n8n
+app.post('/api/inbox/reply', async (req, res) => {
+    try {
+        const phone = String((req.body || {}).phone || '').replace(/\D/g, '').slice(-10);
+        const text = String((req.body || {}).text || '').trim();
+        if (phone.length !== 10 || !text) return res.status(400).json({ ok: false, error: 'need phone + text' });
+        const nowIso = new Date().toISOString();
+        const until = new Date(Date.now() + INBOX_PAUSE_MIN * 60000).toISOString();
+        // 1. pause the bot for this client (direct, reliable)
+        const pcol = getCollection('wa_ai_pause');
+        if (pcol) { const p = await pcol; await p.updateOne({ phoneLast10: phone }, { $set: { phoneLast10: phone, until, by: 'inbox' } }, { upsert: true }); }
+        // 2. log the human's outgoing message
+        const mcol = getCollection('wa_messages');
+        if (mcol) { const m = await mcol; await m.insertOne({ waMessageId: 'inbox-' + Date.now(), senderPhone: '91' + phone, phoneLast10: phone, role: 'human', inbound: '', replyText: text, direction: 'in-out', channel: 'meta-inbox', ts: nowIso }); }
+        // 3. send via the proven n8n path
+        let sent = false, err = null;
+        try { const r = await axios.post(INBOX_SEND_WEBHOOK, { phone, text }, { timeout: 30000 }); sent = !!(r.data && r.data.ok); }
+        catch (e) { err = e.response ? JSON.stringify(e.response.data) : e.message; }
+        res.json({ ok: true, sent, paused_until: until, sendError: err });
+    } catch (e) { console.error('[Inbox reply]', e.message); res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Human hands the client back to the bot
+app.post('/api/inbox/resume', async (req, res) => {
+    try {
+        const phone = String((req.body || {}).phone || '').replace(/\D/g, '').slice(-10);
+        if (!phone) return res.status(400).json({ ok: false });
+        const pcol = getCollection('wa_ai_pause');
+        if (pcol) { const p = await pcol; await p.deleteMany({ phoneLast10: phone }); }
+        res.json({ ok: true, resumed: phone });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 /**
  * Reads a people roster (team_members / admins) from MongoDB.
  * Returns a uniform shape the UI can render: { phone, name, dept, role }.
@@ -629,6 +944,210 @@ app.get('/api/admins', async (req, res) => {
     } catch (error) {
         console.error('[Admins] Error:', error.message);
         res.json({ ok: true, admins: [] });
+    }
+});
+
+
+// Insurance Claim OCR Processing - Google Gemini
+const ClaimOCRProcessor = require('./src/services/sarvam-ocr');
+const claimProcessor = new ClaimOCRProcessor(process.env.GEMINI_API_KEY);
+
+app.post('/api/claim/analyze', async (req, res) => {
+    try {
+        const { base64PDF, fileName, clientPhone, claimNumber } = req.body;
+
+        if (!base64PDF) {
+            return res.status(400).json({ success: false, error: 'base64PDF required' });
+        }
+
+        console.log(`[Claim Analysis] Processing: ${fileName || 'unnamed'} for ${clientPhone}`);
+
+        // Convert base64 to file
+        const tempDir = path.join(process.env.TEMP || '/tmp', 'claim-pdfs');
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+        const cleanBase64 = base64PDF.replace(/^data:[^;]+;base64,/, '');
+        const buffer = Buffer.from(cleanBase64, 'base64');
+        const filePath = path.join(tempDir, `${Date.now()}_${fileName}`);
+
+        fs.writeFileSync(filePath, buffer);
+        console.log(`[Claim Analysis] File saved: ${filePath}`);
+
+        // Process with Gemini
+        const result = await claimProcessor.processClaimFile(filePath, {
+            clientPhone,
+            claimNumber,
+            uploadedAt: new Date().toISOString()
+        });
+
+        // Save to MongoDB
+        const collection = await getCollection('claim_analyses');
+        if (collection && result.success) {
+            const record = {
+                fileName: result.data.fileName,
+                clientPhone,
+                claimNumber,
+                extractedText: result.data.extractedText,
+                analysis: result.data.analysis,
+                tables: result.data.tables,
+                status: 'pending_review',
+                createdAt: new Date(),
+                source: 'whatsapp-ocr'
+            };
+
+            const dbResult = await collection.insertOne(record);
+            console.log(`[Claim Analysis] Saved to MongoDB: ${dbResult.insertedId}`);
+
+            result.data.documentId = dbResult.insertedId.toString();
+        }
+
+        // Cleanup temp file
+        fs.unlinkSync(filePath);
+
+        res.json(result);
+
+    } catch (error) {
+        console.error('[Claim Analysis] Error:', error.message);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get clients by family name with total premium >= threshold
+ * Usage: GET /api/clients/by-family?familyName=Narola&minPremium=50000
+ */
+app.get('/api/clients/by-family', async (req, res) => {
+    try {
+        const { familyName, minPremium = 50000 } = req.query;
+
+        if (!familyName) {
+            return res.status(400).json({ ok: false, error: 'familyName required' });
+        }
+
+        const colPromise = getCollection('clients');
+        if (!colPromise) {
+            return res.json({ ok: false, error: 'Database not configured' });
+        }
+
+        const collection = await colPromise;
+
+        // Aggregate: Group by family name, sum premiums, filter >= minPremium
+        const results = await collection.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { name: { $regex: familyName, $options: 'i' } },
+                        { lastName: { $regex: familyName, $options: 'i' } },
+                        { familyName: { $regex: familyName, $options: 'i' } }
+                    ]
+                }
+            },
+            {
+                $group: {
+                    _id: { $toLower: '$familyName' },
+                    totalPremium: { $sum: { $toDouble: '$premium' } },
+                    memberCount: { $sum: 1 },
+                    members: {
+                        $push: {
+                            name: '$name',
+                            phone: '$phoneNumber',
+                            premium: '$premium',
+                            policies: '$policiesCount'
+                        }
+                    },
+                    totalSumInsured: { $sum: { $toDouble: '$sumInsured' } }
+                }
+            },
+            {
+                $match: {
+                    totalPremium: { $gte: parseInt(minPremium) }
+                }
+            },
+            {
+                $sort: { totalPremium: -1 }
+            }
+        ]).toArray();
+
+        res.json({
+            ok: true,
+            familyName,
+            minPremium,
+            matchCount: results.length,
+            data: results.map(r => ({
+                familyName: r._id,
+                totalPremium: Math.round(r.totalPremium),
+                totalSumInsured: Math.round(r.totalSumInsured || 0),
+                memberCount: r.memberCount,
+                members: r.members
+            }))
+        });
+
+    } catch (error) {
+        console.error('[Clients by Family] Error:', error.message);
+        res.status(500).json({ ok: false, error: error.message });
+    }
+});
+
+/**
+ * Get ALL families with premium >= threshold
+ * Usage: GET /api/clients/families?minPremium=50000
+ */
+app.get('/api/clients/families', async (req, res) => {
+    try {
+        const { minPremium = 50000 } = req.query;
+
+        const colPromise = getCollection('clients');
+        if (!colPromise) {
+            return res.json({ ok: false, error: 'Database not configured' });
+        }
+
+        const collection = await colPromise;
+
+        const results = await collection.aggregate([
+            {
+                $group: {
+                    _id: { $toLower: '$familyName' },
+                    totalPremium: { $sum: { $toDouble: '$premium' } },
+                    memberCount: { $sum: 1 },
+                    members: {
+                        $push: {
+                            name: '$name',
+                            phone: '$phoneNumber',
+                            premium: '$premium'
+                        }
+                    },
+                    totalSumInsured: { $sum: { $toDouble: '$sumInsured' } }
+                }
+            },
+            {
+                $match: {
+                    totalPremium: { $gte: parseInt(minPremium) }
+                }
+            },
+            {
+                $sort: { totalPremium: -1 }
+            }
+        ]).toArray();
+
+        res.json({
+            ok: true,
+            minPremium,
+            familiesCount: results.length,
+            data: results.map(r => ({
+                familyName: r._id,
+                totalPremium: Math.round(r.totalPremium),
+                totalSumInsured: Math.round(r.totalSumInsured || 0),
+                memberCount: r.memberCount,
+                members: r.members
+            }))
+        });
+
+    } catch (error) {
+        console.error('[Families List] Error:', error.message);
+        res.status(500).json({ ok: false, error: error.message });
     }
 });
 

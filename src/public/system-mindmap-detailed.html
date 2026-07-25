@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CGPE System - Detailed Mind Map</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .role-section {
+            border: 3px solid;
+            border-radius: 15px;
+            padding: 30px;
+            background: #f9f9f9;
+        }
+
+        .role-section.admin {
+            border-color: #FF6B6B;
+        }
+
+        .role-section.team {
+            border-color: #4ECDC4;
+        }
+
+        .role-section.client {
+            border-color: #45B7D1;
+        }
+
+        .role-section.system {
+            border-color: #FFA502;
+        }
+
+        .role-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .role-section.admin .role-title {
+            background: #FF6B6B;
+        }
+
+        .role-section.team .role-title {
+            background: #4ECDC4;
+        }
+
+        .role-section.client .role-title {
+            background: #45B7D1;
+        }
+
+        .role-section.system .role-title {
+            background: #FFA502;
+        }
+
+        .category {
+            margin-bottom: 25px;
+        }
+
+        .category-header {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: white;
+            border-left: 4px solid;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .role-section.admin .category-header {
+            border-left-color: #FF6B6B;
+            color: #FF6B6B;
+        }
+
+        .role-section.team .category-header {
+            border-left-color: #4ECDC4;
+            color: #4ECDC4;
+        }
+
+        .role-section.client .category-header {
+            border-left-color: #45B7D1;
+            color: #45B7D1;
+        }
+
+        .role-section.system .category-header {
+            border-left-color: #FFA502;
+            color: #FFA502;
+        }
+
+        .category-header:hover {
+            background: #f0f0f0;
+            transform: translateX(5px);
+        }
+
+        .toggle-icon {
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .category.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .features {
+            background: white;
+            border-radius: 8px;
+            padding: 0;
+            margin-top: 10px;
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .category.collapsed .features {
+            max-height: 0;
+        }
+
+        .feature {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .feature:last-child {
+            border-bottom: none;
+        }
+
+        .feature-icon {
+            font-size: 16px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .feature-content {
+            flex: 1;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .feature-desc {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .sub-features {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #ddd;
+            display: none;
+        }
+
+        .feature.expanded .sub-features {
+            display: block;
+        }
+
+        .sub-feature {
+            font-size: 11px;
+            color: #555;
+            padding: 4px 0;
+            padding-left: 12px;
+            border-left: 2px solid #ddd;
+            line-height: 1.4;
+        }
+
+        .sub-feature:before {
+            content: "→ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 4px;
+        }
+
+        .system-section {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+        }
+
+        .workflows-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .workflow-box {
+            background: white;
+            border: 2px solid #FFA502;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .workflow-title {
+            font-weight: bold;
+            color: #FFA502;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+
+        .workflow-detail {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+            padding-left: 10px;
+            border-left: 2px solid #FFA502;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            border: 1px solid #ddd;
+        }
+
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .workflows-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .expand-all {
+            margin-bottom: 20px;
+        }
+
+        .expand-all button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            margin-right: 10px;
+        }
+
+        .expand-all button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 CGPE System - Detailed Mind Map</h1>
+            <p>Complete feature breakdown for every role • Click categories to expand/collapse • Click features to see sub-details</p>
+        </div>
+
+        <div class="expand-all">
+            <button onclick="expandAllAdmin()">Expand Admin</button>
+            <button onclick="expandAllTeam()">Expand Team</button>
+            <button onclick="expandAllClient()">Expand Client</button>
+            <button onclick="expandAllSystem()">Expand System</button>
+            <button onclick="expandAll()">Expand All</button>
+            <button onclick="collapseAll()">Collapse All</button>
+        </div>
+
+        <div class="main-grid">
+            <!-- ADMIN SECTION -->
+            <div class="role-section admin">
+                <div class="role-title">👨‍💼 ADMIN DASHBOARD</div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>🔐 Access Control & Security</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🔑</div>
+                            <div class="feature-content">
+                                <div class="feature-title">User Authentication</div>
+                                <div class="feature-desc">Manage login credentials and 2FA</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Set admin password policies</div>
+                                    <div class="sub-feature">Enable/disable 2-factor auth</div>
+                                    <div class="sub-feature">Reset user passwords</div>
+                                    <div class="sub-feature">View login attempts</div>
+                                    <div class="sub-feature">Session management</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">👥</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Permission Management</div>
+                                <div class="feature-desc">Assign roles and access levels</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Create custom roles</div>
+                                    <div class="sub-feature">Assign permissions by department</div>
+                                    <div class="sub-feature">View permission logs</div>
+                                    <div class="sub-feature">Audit trail tracking</div>
+                                    <div class="sub-feature">Revoke access instantly</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🚨</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Security Alerts</div>
+                                <div class="feature-desc">Monitor system security events</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Failed login attempts</div>
+                                    <div class="sub-feature">Suspicious activity detection</div>
+                                    <div class="sub-feature">Data access alerts</div>
+                                    <div class="sub-feature">Export restriction monitoring</div>
+                                    <div class="sub-feature">IP whitelist management</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>👥 Team Member Management</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">➕</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Add/Remove Members</div>
+                                <div class="feature-desc">Manage team roster</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Bulk upload members via CSV</div>
+                                    <div class="sub-feature">Assign to departments</div>
+                                    <div class="sub-feature">Set active/inactive status</div>
+                                    <div class="sub-feature">Archive old members</div>
+                                    <div class="sub-feature">Rehire tracking</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📍</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Department Management</div>
+                                <div class="feature-desc">Organize by teams and divisions</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Create departments (SALES, HEALTH, etc.)</div>
+                                    <div class="sub-feature">Assign team leads</div>
+                                    <div class="sub-feature">Set department budgets</div>
+                                    <div class="sub-feature">Track dept performance</div>
+                                    <div class="sub-feature">Interdept communication</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📊</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Performance Tracking</div>
+                                <div class="feature-desc">Monitor team metrics</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Messages sent per member</div>
+                                    <div class="sub-feature">Client conversion rates</div>
+                                    <div class="sub-feature">Sales targets vs actual</div>
+                                    <div class="sub-feature">Response time metrics</div>
+                                    <div class="sub-feature">Performance ratings</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">💰</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Compensation Management</div>
+                                <div class="feature-desc">Salary and incentives</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Set commission rates</div>
+                                    <div class="sub-feature">Bonus calculations</div>
+                                    <div class="sub-feature">Performance incentives</div>
+                                    <div class="sub-feature">Attendance tracking</div>
+                                    <div class="sub-feature">Payroll integration</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📞 Client Database Management</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📥</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Import/Export Functions</div>
+                                <div class="feature-desc">Bulk data operations</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Import from CSV/Excel</div>
+                                    <div class="sub-feature">Export to multiple formats</div>
+                                    <div class="sub-feature">Data validation on import</div>
+                                    <div class="sub-feature">Batch update capabilities</div>
+                                    <div class="sub-feature">Duplicate detection</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🔍</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Data Cleanup & Maintenance</div>
+                                <div class="feature-desc">Database optimization</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Merge duplicate records</div>
+                                    <div class="sub-feature">Remove inactive clients</div>
+                                    <div class="sub-feature">Data validation tools</div>
+                                    <div class="sub-feature">Automatic backup</div>
+                                    <div class="sub-feature">Archive old records</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📋</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Client Segmentation</div>
+                                <div class="feature-desc">Organize clients by categories</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Create client segments</div>
+                                    <div class="sub-feature">Tag clients for targeting</div>
+                                    <div class="sub-feature">List management</div>
+                                    <div class="sub-feature">Filter by criteria</div>
+                                    <div class="sub-feature">Bulk operations on segments</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📊 Analytics & Reporting</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📈</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Business Dashboard</div>
+                                <div class="feature-desc">Company-wide metrics</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Revenue dashboard</div>
+                                    <div class="sub-feature">Sales pipeline view</div>
+                                    <div class="sub-feature">Client growth charts</div>
+                                    <div class="sub-feature">Team performance rankings</div>
+                                    <div class="sub-feature">Monthly KPIs</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📑</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Report Generation</div>
+                                <div class="feature-desc">Create custom reports</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Daily/weekly/monthly reports</div>
+                                    <div class="sub-feature">Export to PDF/Excel</div>
+                                    <div class="sub-feature">Scheduled report delivery</div>
+                                    <div class="sub-feature">Customizable templates</div>
+                                    <div class="sub-feature">Email distribution</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📊</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Advanced Analytics</div>
+                                <div class="feature-desc">Deep dive into metrics</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Cohort analysis</div>
+                                    <div class="sub-feature">Trend forecasting</div>
+                                    <div class="sub-feature">Comparative analysis</div>
+                                    <div class="sub-feature">Anomaly detection</div>
+                                    <div class="sub-feature">Predictive modeling</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>⚙️ System Configuration</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🔌</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Integration Management</div>
+                                <div class="feature-desc">Connect external systems</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">n8n workflow configuration</div>
+                                    <div class="sub-feature">WhatsApp API setup</div>
+                                    <div class="sub-feature">Cloudinary integration</div>
+                                    <div class="sub-feature">MongoDB connection</div>
+                                    <div class="sub-feature">API key management</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📧</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Notification Settings</div>
+                                <div class="feature-desc">Configure alerts</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Email notifications</div>
+                                    <div class="sub-feature">SMS alerts</div>
+                                    <div class="sub-feature">Dashboard notifications</div>
+                                    <div class="sub-feature">Alert frequency</div>
+                                    <div class="sub-feature">Recipient groups</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">💾</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Backup & Recovery</div>
+                                <div class="feature-desc">Data safety</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Automatic daily backups</div>
+                                    <div class="sub-feature">Manual backup creation</div>
+                                    <div class="sub-feature">Point-in-time recovery</div>
+                                    <div class="sub-feature">Backup scheduling</div>
+                                    <div class="sub-feature">Disaster recovery plan</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TEAM MEMBER SECTION -->
+            <div class="role-section team">
+                <div class="role-title">👤 TEAM MEMBER PORTAL</div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>💬 WhatsApp Messaging</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📱</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Send Messages</div>
+                                <div class="feature-desc">Direct client communication</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Send text messages</div>
+                                    <div class="sub-feature">Share images/documents</div>
+                                    <div class="sub-feature">Send voice notes</div>
+                                    <div class="sub-feature">Share policy PDFs</div>
+                                    <div class="sub-feature">Send video links</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📋</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Message Templates</div>
+                                <div class="feature-desc">Pre-written message library</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Policy renewal reminder</div>
+                                    <div class="sub-feature">Premium payment due</div>
+                                    <div class="sub-feature">New product offers</div>
+                                    <div class="sub-feature">Customer feedback request</div>
+                                    <div class="sub-feature">Claim support message</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">⏰</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Message Scheduling</div>
+                                <div class="feature-desc">Send messages later</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Schedule by date/time</div>
+                                    <div class="sub-feature">Recurring messages</div>
+                                    <div class="sub-feature">Best time optimization</div>
+                                    <div class="sub-feature">Bulk scheduling</div>
+                                    <div class="sub-feature">Cancel scheduled messages</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">💬</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Message History</div>
+                                <div class="feature-desc">Track all communications</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Search message history</div>
+                                    <div class="sub-feature">View conversation threads</div>
+                                    <div class="sub-feature">Export message logs</div>
+                                    <div class="sub-feature">Archive conversations</div>
+                                    <div class="sub-feature">Response time analytics</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📋 Client Management</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">👥</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Assigned Clients</div>
+                                <div class="feature-desc">View your client list</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Filter by status</div>
+                                    <div class="sub-feature">Sort by last contact</div>
+                                    <div class="sub-feature">View contact details</div>
+                                    <div class="sub-feature">Add notes to clients</div>
+                                    <div class="sub-feature">Tag clients</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📄</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Policy Information</div>
+                                <div class="feature-desc">Client insurance details</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">View active policies</div>
+                                    <div class="sub-feature">Policy renewal dates</div>
+                                    <div class="sub-feature">Coverage details</div>
+                                    <div class="sub-feature">Premium amounts</div>
+                                    <div class="sub-feature">Claim history</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📞</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Communication History</div>
+                                <div class="feature-desc">Track all interactions</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">View all messages sent</div>
+                                    <div class="sub-feature">Call log tracking</div>
+                                    <div class="sub-feature">Meeting notes</div>
+                                    <div class="sub-feature">Follow-up status</div>
+                                    <div class="sub-feature">Next action reminder</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📊 Personal Performance</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📈</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Dashboard</div>
+                                <div class="feature-desc">Your performance stats</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Messages sent today</div>
+                                    <div class="sub-feature">Clients contacted</div>
+                                    <div class="sub-feature">Response rates</div>
+                                    <div class="sub-feature">Conversion metrics</div>
+                                    <div class="sub-feature">Personal targets</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🎯</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Goals & Targets</div>
+                                <div class="feature-desc">Track your sales targets</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Monthly sales target</div>
+                                    <div class="sub-feature">Progress tracking</div>
+                                    <div class="sub-feature">Commission calculation</div>
+                                    <div class="sub-feature">Bonus tracking</div>
+                                    <div class="sub-feature">Achievement badges</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🏆</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Leaderboards</div>
+                                <div class="feature-desc">Compete with team</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Top performers</div>
+                                    <div class="sub-feature">Team rankings</div>
+                                    <div class="sub-feature">Weekly/monthly standings</div>
+                                    <div class="sub-feature">Achievement tracking</div>
+                                    <div class="sub-feature">Rewards program</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>🎯 Task Management</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">✓</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Task List</div>
+                                <div class="feature-desc">Manage daily tasks</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Create new tasks</div>
+                                    <div class="sub-feature">Assign priority</div>
+                                    <div class="sub-feature">Set due dates</div>
+                                    <div class="sub-feature">Subtask creation</div>
+                                    <div class="sub-feature">Recurring tasks</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🔔</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Reminders</div>
+                                <div class="feature-desc">Never miss follow-ups</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Set task reminders</div>
+                                    <div class="sub-feature">Email notifications</div>
+                                    <div class="sub-feature">SMS alerts</div>
+                                    <div class="sub-feature">WhatsApp reminders</div>
+                                    <div class="sub-feature">Snooze reminders</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📅</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Calendar View</div>
+                                <div class="feature-desc">See all activities</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Calendar integration</div>
+                                    <div class="sub-feature">Sync with Outlook/Google</div>
+                                    <div class="sub-feature">Meeting scheduling</div>
+                                    <div class="sub-feature">Block time feature</div>
+                                    <div class="sub-feature">Availability sharing</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📱 Content Library</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📂</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Media Management</div>
+                                <div class="feature-desc">Organize content</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Upload images/PDFs</div>
+                                    <div class="sub-feature">Organize in folders</div>
+                                    <div class="sub-feature">Tag and search</div>
+                                    <div class="sub-feature">Share with team</div>
+                                    <div class="sub-feature">Version control</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🎤</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Voice Notes</div>
+                                <div class="feature-desc">Record audio messages</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Record voice messages</div>
+                                    <div class="sub-feature">Auto transcription</div>
+                                    <div class="sub-feature">Share recordings</div>
+                                    <div class="sub-feature">Audio notes library</div>
+                                    <div class="sub-feature">Quality settings</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLIENT SECTION -->
+            <div class="role-section client">
+                <div class="role-title">👨‍💼 CLIENT PORTAL</div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📱 Receive Communications</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📨</div>
+                            <div class="feature-content">
+                                <div class="feature-title">WhatsApp Messages</div>
+                                <div class="feature-desc">Get updates via WhatsApp</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Policy renewal reminders</div>
+                                    <div class="sub-feature">Premium payment due dates</div>
+                                    <div class="sub-feature">Claim updates</div>
+                                    <div class="sub-feature">Support assistance</div>
+                                    <div class="sub-feature">Promotional offers</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">💬</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Reply & Chat</div>
+                                <div class="feature-desc">Respond to messages</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Send direct replies</div>
+                                    <div class="sub-feature">Ask questions</div>
+                                    <div class="sub-feature">Request callbacks</div>
+                                    <div class="sub-feature">Schedule meetings</div>
+                                    <div class="sub-feature">Escalate issues</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🔔</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Notification Preferences</div>
+                                <div class="feature-desc">Control alerts</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Frequency settings</div>
+                                    <div class="sub-feature">Notification types</div>
+                                    <div class="sub-feature">Do not disturb hours</div>
+                                    <div class="sub-feature">Opt-in/out options</div>
+                                    <div class="sub-feature">Alert channels</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>👤 Profile & Account</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">👤</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Personal Information</div>
+                                <div class="feature-desc">Manage profile</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Update contact details</div>
+                                    <div class="sub-feature">Change address</div>
+                                    <div class="sub-feature">Update email</div>
+                                    <div class="sub-feature">Phone number change</div>
+                                    <div class="sub-feature">Emergency contacts</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🔐</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Security Settings</div>
+                                <div class="feature-desc">Protect your account</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Change password</div>
+                                    <div class="sub-feature">Enable 2FA</div>
+                                    <div class="sub-feature">Active sessions</div>
+                                    <div class="sub-feature">Logout all devices</div>
+                                    <div class="sub-feature">Login history</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">👨‍👩‍👧</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Family Members</div>
+                                <div class="feature-desc">Manage dependents</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Add family members</div>
+                                    <div class="sub-feature">Coverage details</div>
+                                    <div class="sub-feature">Beneficiary info</div>
+                                    <div class="sub-feature">Medical history</div>
+                                    <div class="sub-feature">Nominee details</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📋 Policy Management</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📄</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Active Policies</div>
+                                <div class="feature-desc">View all policies</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Policy summary</div>
+                                    <div class="sub-feature">Coverage details</div>
+                                    <div class="sub-feature">Premium amounts</div>
+                                    <div class="sub-feature">Renewal dates</div>
+                                    <div class="sub-feature">Download policy</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">💸</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Payments</div>
+                                <div class="feature-desc">Manage premiums</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">View payment history</div>
+                                    <div class="sub-feature">Make payments online</div>
+                                    <div class="sub-feature">Download receipts</div>
+                                    <div class="sub-feature">Set up auto-pay</div>
+                                    <div class="sub-feature">Payment reminders</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🩺</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Claims & Benefits</div>
+                                <div class="feature-desc">File and track claims</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Submit claims online</div>
+                                    <div class="sub-feature">Track claim status</div>
+                                    <div class="sub-feature">Benefits utilized</div>
+                                    <div class="sub-feature">Remaining benefits</div>
+                                    <div class="sub-feature">Claim documents</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📊</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Policy Documents</div>
+                                <div class="feature-desc">Access all documents</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Policy documents</div>
+                                    <div class="sub-feature">Brochures and guides</div>
+                                    <div class="sub-feature">FAQs</div>
+                                    <div class="sub-feature">Terms and conditions</div>
+                                    <div class="sub-feature">Rate cards</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📞 Support & Assistance</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">❓</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Help & FAQs</div>
+                                <div class="feature-desc">Get quick answers</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Searchable knowledge base</div>
+                                    <div class="sub-feature">Common questions</div>
+                                    <div class="sub-feature">Video tutorials</div>
+                                    <div class="sub-feature">Glossary</div>
+                                    <div class="sub-feature">Contact support</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">💬</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Contact Support</div>
+                                <div class="feature-desc">Reach support team</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Live chat support</div>
+                                    <div class="sub-feature">Email support</div>
+                                    <div class="sub-feature">Phone support</div>
+                                    <div class="sub-feature">Ticket system</div>
+                                    <div class="sub-feature">Support hours</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📰</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Newsletters & Updates</div>
+                                <div class="feature-desc">Stay informed</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Product updates</div>
+                                    <div class="sub-feature">Industry news</div>
+                                    <div class="sub-feature">Exclusive offers</div>
+                                    <div class="sub-feature">Tips and advice</div>
+                                    <div class="sub-feature">Subscribe/unsubscribe</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SYSTEM SECTION -->
+            <div class="role-section system system-section">
+                <div class="role-title">⚙️ SYSTEM ARCHITECTURE</div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>🔄 n8n Automation Workflows</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📞</div>
+                            <div class="feature-content">
+                                <div class="feature-title">CGPE WhatsApp Gateway (T6JlzF4El2bSb2h3)</div>
+                                <div class="feature-desc">Main WhatsApp integration</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Receive incoming messages</div>
+                                    <div class="sub-feature">Route to correct team member</div>
+                                    <div class="sub-feature">Process attachments</div>
+                                    <div class="sub-feature">Send confirmations</div>
+                                    <div class="sub-feature">Webhook verification</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📊</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Report Generator (5POkiNLDhKOuVadg)</div>
+                                <div class="feature-desc">Create financial reports</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Family policy aggregation</div>
+                                    <div class="sub-feature">AI-generated insights</div>
+                                    <div class="sub-feature">PDF report creation</div>
+                                    <div class="sub-feature">Email delivery</div>
+                                    <div class="sub-feature">Archive storage</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">🎤</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Voice Processing Pipeline</div>
+                                <div class="feature-desc">Audio to text conversion</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Sarvam STT (Speech to Text)</div>
+                                    <div class="sub-feature">Voice note processing</div>
+                                    <div class="sub-feature">Transcription storage</div>
+                                    <div class="sub-feature">Cloudinary hosting</div>
+                                    <div class="sub-feature">Audio cleanup</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">⏰</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Message Scheduler</div>
+                                <div class="feature-desc">Automated message sending</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Renewal reminders</div>
+                                    <div class="sub-feature">Birthday messages</div>
+                                    <div class="sub-feature">Anniversary offers</div>
+                                    <div class="sub-feature">Follow-up campaigns</div>
+                                    <div class="sub-feature">Bulk messaging</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>💾 Database (MongoDB)</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📁</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Collections</div>
+                                <div class="feature-desc">Data storage</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">team_members - Staff roster</div>
+                                    <div class="sub-feature">clients - Customer database</div>
+                                    <div class="sub-feature">messages - Message history</div>
+                                    <div class="sub-feature">policies - Policy details</div>
+                                    <div class="sub-feature">reports - Generated reports</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>☁️ Cloudinary</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📁</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Media Storage</div>
+                                <div class="feature-desc">File hosting</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Policy documents</div>
+                                    <div class="sub-feature">Voice recordings</div>
+                                    <div class="sub-feature">Product brochures</div>
+                                    <div class="sub-feature">Generated PDFs</div>
+                                    <div class="sub-feature">Image optimization</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>📡 WhatsApp API</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📤</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Message Delivery</div>
+                                <div class="feature-desc">Send messages</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Text messages</div>
+                                    <div class="sub-feature">Media messages</div>
+                                    <div class="sub-feature">Template messages</div>
+                                    <div class="sub-feature">Status updates</div>
+                                    <div class="sub-feature">Delivery confirmation</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📥</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Webhook Reception</div>
+                                <div class="feature-desc">Receive messages</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">Incoming message webhooks</div>
+                                    <div class="sub-feature">Media attachments</div>
+                                    <div class="sub-feature">Status callbacks</div>
+                                    <div class="sub-feature">Message verification</div>
+                                    <div class="sub-feature">Rate limiting</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <div class="category-header">
+                        <span>🔗 API Endpoints</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature" onclick="toggleFeature(this)">
+                            <div class="feature-icon">📡</div>
+                            <div class="feature-content">
+                                <div class="feature-title">Express Server Routes</div>
+                                <div class="feature-desc">API endpoints</div>
+                                <div class="sub-features">
+                                    <div class="sub-feature">POST /api/upload - Media upload</div>
+                                    <div class="sub-feature">GET /api/admins - Admin list</div>
+                                    <div class="sub-feature">POST /webhook/cgpe-chat - Message receive</div>
+                                    <div class="sub-feature">GET /api/test-audio - Test audio</div>
+                                    <div class="sub-feature">POST /api/reports - Report trigger</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <strong>CGPE WhatsApp Bot System - Complete Mind Map</strong> | All roles, features, and integrations documented | Last updated: 2026-07-18
+        </div>
+    </div>
+
+    <script>
+        function toggleFeature(element) {
+            element.classList.toggle('expanded');
+        }
+
+        function toggleCategory(element) {
+            const parent = element.closest('.category');
+            parent.classList.toggle('collapsed');
+        }
+
+        // Attach click handlers
+        document.querySelectorAll('.category-header').forEach(header => {
+            header.addEventListener('click', function() {
+                toggleCategory(this);
+            });
+        });
+
+        function expandAll() {
+            document.querySelectorAll('.category').forEach(cat => cat.classList.remove('collapsed'));
+            document.querySelectorAll('.feature').forEach(feat => feat.classList.add('expanded'));
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('.category').forEach(cat => cat.classList.add('collapsed'));
+            document.querySelectorAll('.feature').forEach(feat => feat.classList.remove('expanded'));
+        }
+
+        function expandAllAdmin() {
+            document.querySelector('.role-section.admin').querySelectorAll('.category').forEach(cat => cat.classList.remove('collapsed'));
+        }
+
+        function expandAllTeam() {
+            document.querySelector('.role-section.team').querySelectorAll('.category').forEach(cat => cat.classList.remove('collapsed'));
+        }
+
+        function expandAllClient() {
+            document.querySelector('.role-section.client').querySelectorAll('.category').forEach(cat => cat.classList.remove('collapsed'));
+        }
+
+        function expandAllSystem() {
+            document.querySelector('.role-section.system').querySelectorAll('.category').forEach(cat => cat.classList.remove('collapsed'));
+        }
+    </script>
+</body>
+</html>

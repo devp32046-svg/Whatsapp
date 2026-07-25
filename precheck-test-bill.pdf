@@ -1,0 +1,121 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2261 >>
+stream
+BT
+/F1 10 Tf
+40 770 Td
+13 TL
+(SHREE KRISHNA MULTISPECIALITY HOSPITAL) Tj
+T*
+(Surat, Gujarat            Phone: 0261-2345678) Tj
+T*
+() Tj
+T*
+(FINAL ITEMIZED BILL  \(IPD\)) Tj
+T*
+(--------------------------------------------------------------) Tj
+T*
+(Patient Name       : RAJESH KUMAR) Tj
+T*
+(Bill Number        : IPD/2026/00871) Tj
+T*
+(Admission Date     : 01/06/2026) Tj
+T*
+(Discharge Date     : 06/06/2026) Tj
+T*
+(Diagnosis          : Acute Cholecystitis - Laparoscopic Cholecystectomy) Tj
+T*
+(Room Category      : Private Deluxe  \(Rs 8,000 per day x 5 days\)) Tj
+T*
+() Tj
+T*
+(ITEMIZED CHARGES) Tj
+T*
+(--------------------------------------------------------------) Tj
+T*
+(Description                                          Amount \(Rs\)) Tj
+T*
+(--------------------------------------------------------------) Tj
+T*
+(Room rent \(5 days @ 8,000\)                              40,000) Tj
+T*
+(Nursing charges                                         15,000) Tj
+T*
+(Surgeon fee                                             60,000) Tj
+T*
+(OT charges                                              20,000) Tj
+T*
+(Investigations / diagnostics                            25,000) Tj
+T*
+(Medicines / pharmacy                                    30,000) Tj
+T*
+(Consumables / gloves \(non-medical\)                       8,000) Tj
+T*
+(Attendant / food charges                                 2,000) Tj
+T*
+(--------------------------------------------------------------) Tj
+T*
+(GROSS TOTAL                                           2,00,000) Tj
+T*
+(--------------------------------------------------------------) Tj
+T*
+() Tj
+T*
+(Payment Mode       : Cash / NEFT) Tj
+T*
+(Hospital Stamp     : \(stamped\)) Tj
+T*
+(Authorised Sign    : \(signed\)) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(POLICY DETAILS  \(the bot asks these one at a time\)) Tj
+T*
+(--------------------------------------------------------------) Tj
+T*
+(  Sum insured ..................  500000) Tj
+T*
+(  Room rent limit per day ......    5000) Tj
+T*
+(  Co-pay % .....................      10) Tj
+T*
+(  Policy start date ............  01/04/2022) Tj
+T*
+(  PED case? ....................  NAHI) Tj
+T*
+(  In exclusion list? ...........  NAHI) Tj
+T*
+() Tj
+T*
+(EXPECTED RESULT   Claimable Rs 1,25,437   Non-claimable Rs 74,563) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000002554 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2622
+%%EOF

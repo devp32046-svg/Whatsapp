@@ -1,0 +1,156 @@
+[
+ {
+  "label": "Client count",
+  "sent": "kitne clients hain",
+  "reply": "Hamare paas abhi total 9,012 clients hain.",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Birthday list",
+  "sent": "aaj kis ka birthday hai",
+  "reply": "July mein total 374 birthdays hain, full list PDF mein hai. Aaj ke liye koi high-value client list mein nahi h",
+  "type": "document",
+  "ok": true
+ },
+ {
+  "label": "Premium due",
+  "sent": "is mahine kitne premium due hain",
+  "reply": "July mein total 400 premium due hain, full list PDF mein hai. High-value clients jinhe call karna hai: |  | 1.",
+  "type": "document",
+  "ok": true
+ },
+ {
+  "label": "Team list",
+  "sent": "team members ki list dikhao",
+  "reply": "Here is the list of our 10 team members: |  | 1. Ankit Shah | SALES | Available | 2. CGPE Operations Office | ",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Client search",
+  "sent": "MORADIYA ALPESH ko dhundo",
+  "reply": "I found one matching record: |  | 👤 **MORADIYA ALPESHBHAI BHIKHABHAI** | 🎫 Policy No: 863278412 | 🎂 DOB: 19",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "English",
+  "sent": "how many clients do we have",
+  "reply": "We have a total of 9,012 clients in our database.",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Hindi (Devanagari)",
+  "sent": "आज कितने क्लाइंट हैं",
+  "reply": "हमारे पास कुल 9,012 क्लाइंट्स हैं।",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Gujarati (script)",
+  "sent": "આપણી પાસે કેટલા ક્લાયન્ટ છે",
+  "reply": "આપણી પાસે કુલ 9,012 ક્લાયન્ટ્સ છે.",
+  "type": "?",
+  "ok": true
+ },
+ {
+  "label": "Roman-Hindi",
+  "sent": "hamare paas kitne clients hain bhai",
+  "reply": "Hamare paas kul 9,012 clients hain.",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Roman-Gujarati",
+  "sent": "apni pase ketla client che",
+  "reply": "Apni pase kul 9,012 clients che.",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Short ack keeps language",
+  "sent": "saru",
+  "reply": "Saru.",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "CA directory PDF",
+  "sent": "CA list ki PDF file bhejo",
+  "reply": "Yeh rahi Surat ke 111 CAs ki list.",
+  "type": "document",
+  "ok": true
+ },
+ {
+  "label": "Birthday PDF",
+  "sent": "is mahine ki birthday list PDF me bhejo",
+  "reply": "July birthdays - 374 total - full list sent as PDF. |  | High-value clients to call personally: | - KOTADIYA S",
+  "type": "document",
+  "ok": true
+ },
+ {
+  "label": "New user gets options",
+  "sent": "mujhe insurance chahiye",
+  "reply": "Namaste Rakesh ji, CGPE mein aapka swagat hai. Hum ek independent advisory hain aur aapki zarooraton ke hisaab",
+  "type": "interactive",
+  "ok": true
+ },
+ {
+  "label": "No buttons on plain data",
+  "sent": "kitne clients hain",
+  "reply": "Hamare paas abhi total 9,012 clients hain.",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Self reminder",
+  "sent": "mujhe 20 minute baad reminder do: SWEEP self test",
+  "reply": "Theek hai, aapka \"SWEEP self test\" ka reminder 20 minute baad (17:16) ke liye set kar diya gaya hai (CGPE-REM-",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Cross-person reminder",
+  "sent": "Shivam ko 25 minute baad reminder do: SWEEP cross test",
+  "reply": "Theek hai, Shivam ke liye \"SWEEP cross test\" ka reminder 25 minute baad (17:21) ke liye set kar diya gaya hai ",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Team sees own tasks",
+  "sent": "mere tasks dikhao",
+  "reply": "Shiv, ye rahe aapke open tasks: |  | 1. \"Rameshbhai wala test task - policy file check karo\" [TEST-BOSS-646513",
+  "type": "text",
+  "ok": true
+ },
+ {
+  "label": "Claim PDF -> analysis + claim + ticket",
+  "sent": "sweep.pdf",
+  "ok": false,
+  "type": "claim",
+  "reply": "analysisOk=false bill={}"
+ },
+ {
+  "label": "Claim Approve button",
+  "sent": "tap Approve",
+  "ok": false,
+  "type": "button",
+  "reply": "analyses=pending_review claims=under_review"
+ },
+ {
+  "label": "Voice note -> transcript + reply",
+  "ok": true,
+  "type": "voice",
+  "sent": "अब इस मैच्योरिटी वाले की एक पीडीएफ बना के दे दो।",
+  "reply": "यह रही जुलाई 2026 की मैच्योरिटी लिस्ट, कुल 27 पॉलिसी।"
+ },
+ {
+  "label": "Photo of bill -> claim analysis",
+  "ok": true,
+  "type": "photo",
+  "sent": "claim-photo.jpg",
+  "reply": "analysisOk=true"
+ }
+]

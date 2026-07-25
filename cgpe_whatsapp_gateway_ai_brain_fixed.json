@@ -460,30 +460,24 @@
   },
   {
    "parameters": {
-    "model": {
-     "__rl": true,
-     "mode": "list",
-     "value": "gpt-4o-mini",
-     "cachedResultName": "gpt-4o-mini"
-    },
-    "builtInTools": {},
+    "modelName": "models/gemini-1.5-flash-latest",
     "options": {
-     "timeout": 90000,
-     "temperature": 0.7
+     "temperature": 0.7,
+     "maxOutputTokens": 8192
     }
    },
    "id": "adf0aafe-7822-4e45-a38b-94dd3402bbd0",
-   "name": "GPT Brain Model",
-   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-   "typeVersion": 1.3,
+   "name": "Gemini Brain Model",
+   "type": "@n8n/n8n-nodes-langchain.lmChatGooglePalm",
+   "typeVersion": 1,
    "position": [
     8800,
     -1472
    ],
    "credentials": {
-    "openAiApi": {
-     "id": "Ih2MECxY1EjMsbf2",
-     "name": "OpenAI account 2"
+    "googlePalmApi": {
+     "id": "uApBUgqCWN4CGndr",
+     "name": "Gemini Brain (free)"
     }
    }
   },
@@ -4311,7 +4305,7 @@
     ]
    ]
   },
-  "GPT Brain Model": {
+  "Gemini Brain Model": {
    "ai_languageModel": [
     [
      {

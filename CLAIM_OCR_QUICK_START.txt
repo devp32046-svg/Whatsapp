@@ -1,0 +1,251 @@
+═══════════════════════════════════════════════════════════════════════════════
+                   INSURANCE CLAIM OCR - QUICK START
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 WHAT'S READY
+───────────────────────────────────────────────────────────────────────────────
+✅ Sarvam API Key: sk_r8qxua9i_EXV1ompjRk5FYfN9DZzJpj9P
+✅ Express Endpoint: POST /api/claim/analyze
+✅ Service: src/services/sarvam-ocr.js (SarvamOCR class)
+✅ MongoDB: claim_analyses collection
+✅ n8n: Ready for workflow creation
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚀 STEP-BY-STEP IMPLEMENTATION (45 minutes)
+───────────────────────────────────────────────────────────────────────────────
+
+STEP 1: Verify Setup (5 min)
+└─ Check .env has SARVAM_API_KEY
+└─ Verify server runs: npm start
+└─ Test endpoint responds
+
+STEP 2: Test API (5 min)
+└─ Prepare claim PDF (your real Manipal Cigna file)
+└─ Convert to base64
+└─ Call /api/claim/analyze
+└─ Verify response has analysis
+
+STEP 3: Create n8n Workflow (15 min)
+└─ New workflow: "Insurance Claim Processor"
+└─ 8 nodes:
+   1. Webhook trigger (cgpe-claim-webhook)
+   2. If condition (has attachment?)
+   3. Extract file URL
+   4. Download PDF
+   5. Convert to base64
+   6. Call Express API
+   7. Format response
+   8. Send to customer + admin
+
+STEP 4: Test WhatsApp Integration (10 min)
+└─ Activate n8n workflow
+└─ Send test PDF via WhatsApp
+└─ Verify:
+   ✓ Customer gets summary
+   ✓ Admin gets flags
+   ✓ MongoDB stores result
+
+STEP 5: Test Approval Flow (10 min)
+└─ Admin approves/rejects
+└─ Customer notified
+└─ Status updated in DB
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 QUICK TEST COMMANDS
+───────────────────────────────────────────────────────────────────────────────
+
+Start server:
+  npm start
+
+Test API (with your real claim PDF):
+  curl -X POST http://localhost:3000/api/claim/analyze \
+    -H "Content-Type: application/json" \
+    -d '{
+      "base64PDF": "JVBERi0xLjQK...",
+      "fileName": "Manipal_Cigna_Claim.pdf",
+      "clientPhone": "919876543210",
+      "claimNumber": "CLM-2024-001"
+    }'
+
+View MongoDB results:
+  db.claim_analyses.find().pretty()
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔄 DATA FLOW
+───────────────────────────────────────────────────────────────────────────────
+
+Customer sends claim PDF on WhatsApp
+        ↓
+n8n webhook receives message
+        ↓
+Downloads attachment (PDF)
+        ↓
+Converts to base64
+        ↓
+POST to /api/claim/analyze
+        ↓
+Sarvam OCR extracts text
+        ↓
+Sarvam AI analyzes content
+        ↓
+Returns: Summary + Flags
+        ↓
+Split response:
+├─ Customer: "✅ Received. Summary: ..."
+└─ Admin: "🚨 Flag: Age mismatch detected"
+        ↓
+Stores in MongoDB claim_analyses
+        ↓
+Admin reviews + approves
+        ↓
+Customer: "APPROVED ✅"
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️ EXPECTED RESPONSE EXAMPLE
+───────────────────────────────────────────────────────────────────────────────
+
+{
+  "success": true,
+  "data": {
+    "fileName": "Manipal_Cigna_Claim.pdf",
+    "documentId": "507f1f77bcf86cd799439011",
+    "analysis": {
+      "claim_summary": {
+        "policy_number": "POL-2024-001",
+        "policyholder": "Rajesh Kumar",
+        "hospital": "Breach Candy Hospital",
+        "claimed_amount": 463751,
+        "treatment_dates": "2024-01-15 to 2024-01-22",
+        "diagnosis": "Stroke"
+      },
+      "coverage_flags": {
+        "pre_existing_condition": "⚠️ Not mentioned",
+        "network_hospital": "✅ Yes - Breach Candy",
+        "authorization": "⚠️ Pre-auth required",
+        "treatment_waiting_period": "✅ Covered"
+      },
+      "inconsistencies": [
+        "⚠️ Age mismatch: ID=45, Form=46",
+        "⚠️ Policy number last digit unclear (091175 or 09175?)"
+      ],
+      "risk_score": "MEDIUM",
+      "action_items": [
+        "Validate policy number against DB",
+        "Confirm patient age",
+        "Check pre-auth approval"
+      ]
+    },
+    "extractedText": "Full OCR text here...",
+    "metadata": {
+      "processedAt": "2024-07-18T10:30:00Z"
+    }
+  }
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 N8N WORKFLOW NODES (Quick Reference)
+───────────────────────────────────────────────────────────────────────────────
+
+Node 1: Webhook
+  Type: Webhook
+  Method: POST
+  Path: cgpe-claim-webhook
+
+Node 2: If (Has Document?)
+  Condition: $json.message.type == 'document'
+
+Node 3: Extract URL
+  Function: Return document URL from payload
+
+Node 4: HTTP Download
+  Method: GET
+  URL: from Node 3
+  Return: Binary
+
+Node 5: Convert Base64
+  Function: Buffer.from().toString('base64')
+
+Node 6: Call Express API
+  Method: POST
+  URL: http://localhost:3000/api/claim/analyze
+  Body: base64PDF + metadata
+
+Node 7: Format Customer Response
+  Format analysis for readability
+
+Node 8: Send WhatsApp
+  Customer + Admin messages
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ CHECKLIST
+───────────────────────────────────────────────────────────────────────────────
+
+Setup:
+  ☐ .env has SARVAM_API_KEY
+  ☐ npm start works
+  ☐ POST /api/claim/analyze responds
+
+Testing:
+  ☐ API test with real PDF passes
+  ☐ Sarvam extracts text correctly
+  ☐ Analysis JSON valid
+  ☐ MongoDB stores result
+
+n8n:
+  ☐ Workflow created
+  ☐ 8 nodes configured
+  ☐ Test message triggers workflow
+  ☐ Customer gets summary
+  ☐ Admin gets flags
+
+Live:
+  ☐ n8n workflow activated
+  ☐ First 5 claims tested
+  ☐ Approval flow works
+  ☐ Ready for customers
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⏱️ TIMELINE
+───────────────────────────────────────────────────────────────────────────────
+
+5 min:   Verify setup
+5 min:   Test API endpoint
+15 min:  Create n8n workflow
+10 min:  Test WhatsApp integration
+10 min:  Test approval flow
+────────
+45 min:  TOTAL
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🆘 COMMON ISSUES
+───────────────────────────────────────────────────────────────────────────────
+
+Issue: 401 Unauthorized
+  → Check SARVAM_API_KEY in .env
+  → Verify key: sk_r8qxua9i_EXV1ompjRk5FYfN9DZzJpj9P
+
+Issue: PDF too large
+  → Sarvam max 10 pages per request
+  → Split using Python (pypdf)
+
+Issue: Handwriting not recognized
+  → Scan quality might be low
+  → Sarvam is optimized for Indian forms
+
+Issue: False flags
+  → Prompt has hardened rules
+  → Add more validation in analysis function
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Next: Open CLAIM_OCR_SETUP.md for detailed walkthrough
+
+Ready to build? 🚀

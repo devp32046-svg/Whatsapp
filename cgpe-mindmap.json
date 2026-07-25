@@ -1,0 +1,270 @@
+{
+  "meta": {
+    "title": "CGPE — Admin Panel Mind Map",
+    "version": "0.1-dummy",
+    "note": "Dummy data. Counts aur IDs placeholder hain — real numbers Mongo se aayenge.",
+    "source": "Handwritten note (5 points) + n8n workflows",
+    "legend": {
+      "status": {
+        "done": "already built & working",
+        "partial": "exists but incomplete",
+        "missing": "not built yet",
+        "bug": "built but broken"
+      }
+    }
+  },
+
+  "root": {
+    "id": "cgpe",
+    "label": "CGPE Admin Panel",
+    "children": [
+
+      {
+        "id": "search",
+        "label": "1. DB Search",
+        "status": "partial",
+        "notes": "Bot me hai, panel me nahi",
+        "children": [
+          { "id": "search-name",   "label": "by Name",       "field": "name",        "status": "done" },
+          { "id": "search-phone",  "label": "by Mobile No.",  "field": "phoneLast10", "status": "done" },
+          { "id": "search-policy", "label": "by Policy No.",  "field": "policyNo",    "status": "done" },
+          { "id": "search-ui",     "label": "Panel search box", "status": "missing" }
+        ]
+      },
+
+      {
+        "id": "prospects",
+        "label": "2. Prospect List",
+        "status": "partial",
+        "notes": "Same list panel + WhatsApp dono pe",
+        "children": [
+          {
+            "id": "prospect-conditions",
+            "label": "Conditions (note se)",
+            "children": [
+              {
+                "id": "cond-maturity",
+                "label": "Maturity this year",
+                "status": "done",
+                "query": { "maturityDate": { "$regex": "^2026-" } },
+                "dummyCount": 84
+              },
+              {
+                "id": "cond-birthday",
+                "label": "Birthday next 90 days",
+                "status": "partial",
+                "notes": "Engine hai par window hardcoded — 90 din dynamic nahi",
+                "dummyCount": 37
+              },
+              {
+                "id": "cond-lapsed",
+                "label": "Premium paying band (2024/25/26)",
+                "status": "missing",
+                "notes": "BLOCKER: paid/unpaid status DB me store hi nahi hota, sirf derive hota hai",
+                "dummyCount": 0
+              }
+            ]
+          },
+          {
+            "id": "prospect-channels",
+            "label": "Delivery",
+            "children": [
+              { "id": "ch-whatsapp", "label": "WhatsApp PDF", "status": "done" },
+              { "id": "ch-panel",    "label": "Panel table",  "status": "missing" }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "pdf-tool",
+        "label": "3. PDF Optimize Tool",
+        "status": "missing",
+        "notes": "Bot ko tool chahiye — WhatsApp doc size limit",
+        "children": [
+          { "id": "pdf-compress", "label": "Compress", "status": "missing" },
+          { "id": "pdf-limit",    "label": "WhatsApp cap ~100MB", "status": "missing" }
+        ]
+      },
+
+      {
+        "id": "lists",
+        "label": "4. Dynamic Lists + Export",
+        "status": "partial",
+        "notes": "Engines hain, par admin conditions choose nahi kar sakta",
+        "children": [
+          {
+            "id": "list-engines",
+            "label": "Engines",
+            "children": [
+              { "id": "eng-birthday",  "label": "Birthday",  "workflowId": "CRUxwHAsoqrdYj5V", "status": "done" },
+              { "id": "eng-maturity",  "label": "Maturity",   "workflowId": "G7xWhdusNjzKXK8W", "status": "done" },
+              { "id": "eng-renewal",   "label": "Renewal",    "workflowId": "G7xWhdusNjzKXK8W", "status": "done" },
+              { "id": "eng-family",    "label": "Family Report", "workflowId": "5POkiNLDhKOuVadg", "status": "done" }
+            ]
+          },
+          {
+            "id": "list-dynamic",
+            "label": "Admin-chosen conditions",
+            "status": "missing",
+            "notes": "Note ka core ask — abhi sab hardcoded"
+          },
+          {
+            "id": "list-export",
+            "label": "Export",
+            "children": [
+              { "id": "exp-pdf",   "label": "PDF",   "status": "done" },
+              { "id": "exp-excel", "label": "Excel", "status": "missing" }
+            ]
+          },
+          {
+            "id": "list-gate",
+            "label": "Admin gating",
+            "status": "done",
+            "notes": "isInternal = !toPhone — panel ka hook yahi hai"
+          }
+        ]
+      },
+
+      {
+        "id": "funnels",
+        "label": "5. Funnels (Lead & Pipeline)",
+        "children": [
+
+          {
+            "id": "sales-funnel",
+            "label": "Sales Funnel",
+            "workflowId": "GjaiIydGdqy9PKc3",
+            "collection": "sales_deals",
+            "status": "partial",
+            "children": [
+              { "id": "s1", "label": "Connect",     "stage": "connect",     "dummyCount": 23 },
+              { "id": "s2", "label": "Meeting",     "stage": "meeting",     "dummyCount": 11 },
+              { "id": "s3", "label": "Quotation",   "stage": "quotation",   "dummyCount": 6 },
+              { "id": "s4", "label": "Sale",        "stage": "sale",        "dummyCount": 3 },
+              { "id": "s5", "label": "Approved",    "stage": "approved",    "dummyCount": 2 },
+              { "id": "s6", "label": "Disapproved", "stage": "disapproved", "dummyCount": 1 }
+            ]
+          },
+
+          {
+            "id": "advisor-funnel",
+            "label": "Advisor Funnel",
+            "workflowId": "p6eItjRu3NkSluPy",
+            "collection": "advisor_deals",
+            "status": "partial",
+            "notes": "op = list | advance only. Stages note se exactly match karte hain.",
+            "children": [
+              {
+                "id": "a0",
+                "label": "Entry: recruitment lead",
+                "status": "missing",
+                "notes": "LEAK: bot create_lead(interest='recruitment') karta hai par advisor_deals tak pahunchta hi nahi",
+                "dummyCount": 0
+              },
+              {
+                "id": "a1",
+                "label": "Connect  (note: Prospect)",
+                "stage": "connect",
+                "status": "done",
+                "dummyCount": 12,
+                "dummyPeople": [
+                  { "advId": "CGPE-A-001", "name": "Dummy Rakesh", "phone": "98XXXXXX01" },
+                  { "advId": "CGPE-A-002", "name": "Dummy Priya",  "phone": "98XXXXXX02" }
+                ]
+              },
+              {
+                "id": "a2",
+                "label": "Meeting",
+                "stage": "meeting",
+                "status": "done",
+                "dummyCount": 5,
+                "dummyPeople": [
+                  { "advId": "CGPE-A-003", "name": "Dummy Imran", "phone": "98XXXXXX03" }
+                ]
+              },
+              {
+                "id": "a3",
+                "label": "Event  (note: Eg. → convinced/not)",
+                "stage": "event",
+                "status": "partial",
+                "notes": "convinced/not ka branch missing — mana karne wala hamesha yahi phansa rehta hai",
+                "dummyCount": 3,
+                "children": [
+                  { "id": "a3-yes", "label": "Convinced",     "outcome": "convinced", "status": "missing" },
+                  { "id": "a3-no",  "label": "Not convinced → drop", "outcome": "dropped", "status": "missing" }
+                ]
+              },
+              {
+                "id": "a4",
+                "label": "Exam  (IC-38)",
+                "stage": "exam",
+                "status": "partial",
+                "notes": "'exam' sirf stage hai, RESULT nahi. examResult/attemptCount/examDate koi field nahi.",
+                "dummyCount": 2,
+                "children": [
+                  { "id": "a4-pass",    "label": "Pass → Onboarded", "outcome": "pass",   "status": "missing" },
+                  { "id": "a4-fail",    "label": "Fail",             "outcome": "fail",   "status": "missing" },
+                  { "id": "a4-retry",   "label": "Reattempt (loop back to exam)", "loopTo": "a4", "status": "missing" }
+                ]
+              },
+              {
+                "id": "a5",
+                "label": "Onboarded  (= ADVISOR ban gaya)",
+                "stage": "onboarded",
+                "status": "done",
+                "notes": "Aaj: koi manually op=advance stage=onboarded bhejta hai. Koi auto-check nahi.",
+                "dummyCount": 1,
+                "dummyPeople": [
+                  { "advId": "CGPE-A-004", "name": "Dummy Sunita", "phone": "98XXXXXX04" }
+                ]
+              }
+            ]
+          },
+
+          {
+            "id": "claims",
+            "label": "Claims (health / life)",
+            "status": "missing",
+            "notes": "Note me hai, code me collection ke alawa kuch nahi",
+            "children": [
+              { "id": "c-health", "label": "Health claim flow", "status": "missing" },
+              { "id": "c-life",   "label": "Life claim flow",   "status": "missing" }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "gaps",
+        "label": "⚠ Known Gaps",
+        "children": [
+          {
+            "id": "gap-notes",
+            "label": "BUG: notes discard ho jaate hain",
+            "status": "bug",
+            "where": "p6eItjRu3NkSluPy → Advance Update",
+            "detail": "Normalize notes accept karta hai, par update fields = 'stage,updatedAt' — notes kabhi save nahi hote"
+          },
+          {
+            "id": "gap-create",
+            "label": "advisor_deals me create op hi nahi hai",
+            "status": "missing"
+          },
+          {
+            "id": "gap-premium",
+            "label": "Premium paid/unpaid status stored nahi hai",
+            "status": "missing",
+            "detail": "commencementDate + mode se runtime pe derive hota hai — lapsed list isi wajah se ban nahi sakti"
+          },
+          {
+            "id": "gap-model",
+            "label": "src/models/*.js misleading hai",
+            "status": "bug",
+            "detail": "Client.js real clients shape reflect nahi karta; n8n seedha Mongo query karta hai"
+          }
+        ]
+      }
+    ]
+  }
+}

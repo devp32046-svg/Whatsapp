@@ -1,0 +1,1119 @@
+{
+  "updatedAt": "2026-07-09T06:16:35.000Z",
+  "createdAt": "2026-06-27T12:40:05.707Z",
+  "id": "fs9AinAJdg8Bc88l",
+  "name": "CGPE Client Communication Automation",
+  "description": "Inactive. Unified WhatsApp comms hub for existing clients: claim docs, greetings (birthday/anniversary), policy/renewal updates, premium/payment notices, and promotions. Validates + verifies client, builds safe multilingual message (EN/HI/Hinglish/GU/Gujl",
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cgpe-ai-messages",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6e198547-59f8-4d40-9e15-34f7e20da785",
+      "name": "Claim Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        368
+      ],
+      "webhookId": "097cde16-8672-4784-9474-36f374f03a62"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst root = (items && items.length && items[0] && items[0].json) ? items[0].json : {};\nconst body = (root && typeof root.body === 'object' && root.body && Object.keys(root.body).length) ? root.body : root;\nconst PURPOSE_CATEGORY = { claim_form:'claim', hospital_bills:'claim', discharge_summary:'claim', doctor_prescription:'claim', investigation_reports:'claim', id_proof:'claim', policy_copy:'claim', bank_details:'claim', cancelled_cheque:'claim', previous_medical_history:'claim', missing_document:'claim', clarification:'claim', reminder:'claim', escalation:'claim', confirmation:'claim', follow_up:'claim', birthday:'greeting', anniversary:'greeting', festival:'greeting', greeting:'greeting', policy_update:'policy', policy_issued:'policy', renewal_reminder:'policy', renewal_due:'policy', renewal_confirmation:'policy', premium_received:'billing', premium_due:'billing', payment_confirmation:'billing', payment_reminder:'billing', promotion:'promotion', offer:'promotion', custom:'custom' };\nconst PURPOSE_ALIAS = { bday:'birthday', birthday_wish:'birthday', birthday_wishes:'birthday', happy_birthday:'birthday', anniversary_wish:'anniversary', anniversary_wishes:'anniversary', wedding_anniversary:'anniversary', marriage_anniversary:'anniversary', wish:'greeting', wishes:'greeting', greetings:'greeting', festival_wish:'festival', diwali:'festival', renewal:'renewal_reminder', renew:'renewal_reminder', policy_renewal:'renewal_reminder', renewal_update:'renewal_reminder', premium:'premium_received', premium_paid:'premium_received', premium_payment:'premium_received', payment_received:'payment_confirmation', payment:'payment_confirmation', promo:'promotion', promotion_message:'promotion', marketing:'promotion', claim:'claim_form', claim_document:'claim_form', document_request:'claim_form', doc:'claim_form' };\nconst CATEGORIES = ['claim','greeting','policy','billing','promotion','service','custom'];\nconst KNOWN_CATS = ['claim','greeting','policy','billing','promotion'];\nconst DOC_PURPOSES = { claim_form:1, hospital_bills:1, discharge_summary:1, doctor_prescription:1, investigation_reports:1, id_proof:1, policy_copy:1, bank_details:1, cancelled_cheque:1, previous_medical_history:1 };\nconst LANGS = ['en','hi','hinglish','gu','gujlish'];\nconst PRIORITIES = ['low','normal','high','urgent'];\nconst MAX_LEN = 1200;\nconst DEV_SAFE_MODE = true;\nconst CREATED_BY_ALLOWLIST = [];\nconst PROMO_REQUIRES_CONSENT = true;\nconst s = (v) => (v===undefined||v===null)?'':String(v);\nconst digits = (v) => s(v).replace(/[^0-9]/g,'');\nconst lc = (v) => s(v).trim().toLowerCase();\nfunction normLang(v){ const x = lc(v).replace(/[^a-z]/g,''); const map={english:'en',en:'en',eng:'en',hindi:'hi',hi:'hi',hinglish:'hinglish',hineng:'hinglish',gujarati:'gu',gujrati:'gu',gu:'gu',guj:'gu',gujlish:'gujlish',gujenglish:'gujlish'}; if(map[x]) return map[x]; return LANGS.indexOf(x)>=0?x:''; }\nfunction normPriority(v){ const x = lc(v); return PRIORITIES.indexOf(x)>=0?x:'normal'; }\nconst requestId = s(body.requestId || body.correlationId || body.idempotencyKey).trim();\nconst correlationId = s(body.correlationId || body.requestId || requestId).trim();\nconst createdBy = s(body.createdBy || body.source || body.system).trim();\nconst rawMobile = body.mobile!==undefined?body.mobile:(body.phone!==undefined?body.phone:(body.phoneNumber!==undefined?body.phoneNumber:(body.mobileNumber!==undefined?body.mobileNumber:body.phoneLast10)));\nconst phoneLast10 = digits(rawMobile).slice(-10);\nlet purpose = lc(body.messagePurpose || body.purpose || body.type || body.messageType).replace(/[\\s\\-]+/g,'_');\nif (PURPOSE_ALIAS[purpose]) purpose = PURPOSE_ALIAS[purpose];\nconst purposeKnown = !!PURPOSE_CATEGORY[purpose];\nconst langPref = normLang(body.language || body.languagePreference || body.lang);\nconst languageUnknown = !langPref;\nconst language = langPref || 'hinglish';\nconst priority = normPriority(body.priority);\nconst caseRefIn = s(body.caseRef || body.claimReference || body.claimRef || body.caseReference || body.caseId).trim();\nconst policyNumber = s(body.policyNumber || body.policyNo || body.policy).trim();\nconst clientNameIn = s(body.clientName || body.name || body.customerName).trim();\nconst followUpRequired = body.followUpRequired===true || lc(body.followUpRequired)==='true';\nconst followUpContext = s(body.followUpContext || body.followupContext).slice(0,500);\nconst previousContext = s(body.previousContext || body.conversationContext || body.caseContext).slice(0,1000);\nlet documentList = [];\nconst dlSrc = body.requiredDocuments!==undefined?body.requiredDocuments:(body.documentList!==undefined?body.documentList:body.documents);\nif (Array.isArray(dlSrc)) documentList = dlSrc; else if (dlSrc!==undefined && s(dlSrc).trim()) documentList = s(dlSrc).split(',');\ndocumentList = documentList.map((d)=> lc(d).replace(/[\\s\\-]+/g,'_')).filter(Boolean).slice(0,20);\nif (DOC_PURPOSES[purpose] && documentList.length===0) documentList=[purpose];\nconst instruction = s(body.messageInstruction || body.instruction).slice(0,1000);\nfunction sanitize(t){ let x = s(t); x = x.replace(/[\u0000-\b\u000b\f\u000e-\u001f]/g,' '); x = x.replace(/<[^>]*>/g,' '); x = x.replace(/\\{\\{[\\s\\S]*?\\}\\}/g,' '); x = x.replace(/https?:\\/\\/\\S+/gi,'[link removed]'); x = x.replace(/\\b\\d{12,19}\\b/g,'[redacted]'); x = x.replace(/[ \\t]{2,}/g,' ').replace(/\\n{3,}/g,'\\n\\n').trim(); return x; }\nconst rawBodyMsg = s(body.messageBody || body.message || body.text);\nconst messageBody = sanitize(rawBodyMsg);\nconst currency = (s(body.currency || 'INR').trim().toUpperCase()) || 'INR';\nconst amount = s(body.amount || body.premiumAmount || body.paymentAmount).replace(/[^0-9.]/g,'');\nconst dueDate = s(body.dueDate || body.premiumDueDate || body.paymentDueDate).slice(0,40);\nconst renewalDate = s(body.renewalDate || body.renewDate).slice(0,40);\nconst eventDate = s(body.eventDate || body.occasionDate).slice(0,40);\nconst validTill = s(body.validTill || body.offerValidTill || body.expiry).slice(0,40);\nconst occasion = sanitize(s(body.occasion || body.festival)).slice(0,60);\nconst offerText = sanitize(s(body.offerText || body.promoText || body.offer)).slice(0,600);\nconst promoCode = s(body.promoCode || body.couponCode).replace(/[^A-Za-z0-9_-]/g,'').slice(0,24);\nconst agentName = sanitize(s(body.agentName || body.agent)).slice(0,60);\nconst planName = sanitize(s(body.planName || body.productName || body.policyType)).slice(0,80);\nconst consent = body.consent===true || lc(body.consent)==='true' || lc(body.optIn)==='true';\nlet category = lc(body.category).replace(/[\\s\\-]+/g,'_'); if (CATEGORIES.indexOf(category)<0) category = PURPOSE_CATEGORY[purpose] || 'custom';\nconst canBuild = !!messageBody || purposeKnown || KNOWN_CATS.indexOf(category)>=0 || !!offerText || documentList.length>0;\nconst errors = []; const fail=(c)=>{ if(errors.indexOf(c)<0) errors.push(c); };\nif (!root || typeof body !== 'object') fail('MALFORMED_REQUEST');\nif (!requestId) fail('MISSING_REQUEST_ID');\nif (!createdBy) fail('MISSING_CREATED_BY');\nif (CREATED_BY_ALLOWLIST.length && CREATED_BY_ALLOWLIST.indexOf(createdBy)<0) fail('UNAUTHORIZED_SOURCE');\nif (phoneLast10.length !== 10 || !/^[0-9]{10}$/.test(phoneLast10)) fail('INVALID_PHONE');\nif (purpose==='missing_document' && documentList.length===0 && !messageBody) fail('MISSING_DOCUMENT_LIST');\nif (!canBuild) fail('EMPTY_MESSAGE');\nif (rawBodyMsg && messageBody.length===0) fail('EMPTY_MESSAGE');\nif (messageBody.length > MAX_LEN || instruction.length > MAX_LEN || offerText.length > MAX_LEN) fail('MESSAGE_TOO_LONG');\nif (category==='promotion' && PROMO_REQUIRES_CONSENT && !consent) fail('PROMO_CONSENT_REQUIRED');\nconst order = ['MALFORMED_REQUEST','MISSING_REQUEST_ID','UNAUTHORIZED_SOURCE','MISSING_CREATED_BY','INVALID_PHONE','MISSING_DOCUMENT_LIST','EMPTY_MESSAGE','MESSAGE_TOO_LONG','PROMO_CONSENT_REQUIRED','UNSAFE_MESSAGE'];\nlet errorCode=''; for (let i=0;i<order.length;i++){ if (errors.indexOf(order[i])>=0){ errorCode=order[i]; break; } }\nif (!errorCode && errors.length) errorCode = errors[0];\nconst STATUS = { MALFORMED_REQUEST:400, MISSING_REQUEST_ID:400, MISSING_CREATED_BY:400, UNAUTHORIZED_SOURCE:401, INVALID_PHONE:400, MISSING_DOCUMENT_LIST:422, EMPTY_MESSAGE:422, MESSAGE_TOO_LONG:413, PROMO_CONSENT_REQUIRED:422, UNSAFE_MESSAGE:422 };\nconst MSG = { MALFORMED_REQUEST:'Request body is missing or malformed', MISSING_REQUEST_ID:'requestId (or correlationId) is required for idempotency', MISSING_CREATED_BY:'createdBy (source system) is required', UNAUTHORIZED_SOURCE:'createdBy is not an authorized system', INVALID_PHONE:'A valid 10-digit client mobile number is required', MISSING_DOCUMENT_LIST:'requiredDocuments list is required for missing_document', EMPTY_MESSAGE:'Provide messageBody, a known messagePurpose, a category, documents or offerText so a message can be built', MESSAGE_TOO_LONG:'message exceeds maximum allowed length', PROMO_CONSENT_REQUIRED:'promotional messages require explicit client consent (set consent=true)', UNSAFE_MESSAGE:'message failed safety checks' };\nconst decision = errors.length ? 'reject' : 'valid';\nconst now = new Date().toISOString();\nconst day = now.slice(0,10).replace(/-/g,'');\nlet rnd = (requestId || String(Date.now())).replace(/[^a-zA-Z0-9]/g,'').slice(-6).toUpperCase(); if(!rnd) rnd = Math.random().toString(36).slice(2,8).toUpperCase();\nconst tail = String(Date.now()).slice(-4);\nconst trackingId = 'CGPE-MSG-'+day+'-'+rnd+'-'+tail;\nconst auditId = 'CGPE-AUD-'+day+'-'+rnd+'-'+tail;\nconst caseRef = caseRefIn || ('CGPE-CASE-'+phoneLast10+'-'+rnd);\nconst threadRef = caseRefIn ? caseRefIn : (policyNumber ? ('POL:'+policyNumber) : (category+':'+phoneLast10));\nconst httpStatus = decision==='valid' ? 200 : (STATUS[errorCode]||400);\nconst reasonMessage = decision==='valid' ? null : (MSG[errorCode]||'Request rejected');\nconst nextAction = decision==='valid' ? null : (errorCode==='PROMO_CONSENT_REQUIRED' ? 'Obtain client opt-in, set consent=true, and resubmit' : 'Correct the request and resubmit with the same requestId');\nconst responseJson = decision==='valid' ? null : { success:false, requestId, correlationId, category, messageType:purpose, purposeKnown, clientFound:false, messageSent:false, trackingId:null, caseCommunicationId:null, caseRef: caseRefIn||null, threadRef: caseRefIn?caseRefIn:null, status:'rejected', reason:errorCode, reasonMessage, nextRecommendedAction:nextAction, timestamp:now };\nreturn [{ json: { decision, errorCode, httpStatus, responseJson, requestId, correlationId, createdBy, phoneLast10, policyNumber, clientName: clientNameIn, category, messagePurpose: purpose, messageType: purpose, purposeKnown, documentList, language, languageUnknown, priority, caseRef, caseRefProvided: !!caseRefIn, threadRef, messageBody, messageInstruction: instruction, amount, currency, dueDate, renewalDate, eventDate, validTill, occasion, offerText, promoCode, agentName, planName, consent, followUpRequired, followUpContext, previousContext, trackingId, auditId, safeMode: DEV_SAFE_MODE, event:'request_rejected', outcome:'rejected', reason: errorCode||null, detail: reasonMessage||'', httpStatusAudit: httpStatus, source:'cgpe_claim_message_automation', createdAt: now } }];"
+      },
+      "id": "6722a741-5c18-42dd-8db9-76cb68ed3577",
+      "name": "Validate & Normalize Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.decision }}",
+              "rightValue": "valid",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "9132c05f-3f77-4ccf-9fc5-9dbf222bda74"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fc8253ec-6abc-4bce-bec2-c5126e4bc875",
+      "name": "Request Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "wa_comm_messages",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ JSON.stringify({ requestId: $(\"Validate & Normalize Request\").first().json.requestId }) }}"
+      },
+      "id": "14730971-36bd-41c6-91e8-f0c4edcb46cd",
+      "name": "Check Idempotency",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        272
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Validate & Normalize Request').first().json;\nconst rows = $('Check Idempotency').all().map((i)=>i.json).filter((d)=> d && d.requestId);\nconst prior = rows.find((d)=> String(d.requestId) === String(norm.requestId)) || null;\nconst dupFlag = prior ? 'yes' : 'no';\nconst now = new Date().toISOString();\nreturn [{ json: { dupFlag, prior, auditId: norm.auditId+'-DUP', event:'duplicate_ignored', requestId: norm.requestId, correlationId: norm.correlationId, createdBy: norm.createdBy, phoneLast10: norm.phoneLast10, category: norm.category, messagePurpose: norm.messagePurpose, priority: norm.priority, outcome:'duplicate', reason:'DUPLICATE_REQUEST', httpStatusAudit:200, detail:'Idempotent replay of an already-processed requestId', source:'cgpe_claim_message_automation', createdAt: now } }];"
+      },
+      "id": "5995b135-2dea-43c2-8d04-b42e938d3499",
+      "name": "Evaluate Idempotency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.dupFlag }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fb92286d-2bd0-4103-9cb4-8006223ef255",
+      "name": "Already Processed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "wa_comm_audit",
+        "fields": "auditId,event,requestId,correlationId,createdBy,phoneLast10,category,messagePurpose,priority,outcome,reason,httpStatusAudit,detail,createdAt,source",
+        "options": {
+          "dateFields": "createdAt"
+        }
+      },
+      "id": "7601de84-6c59-4234-bb82-4422b66abdf9",
+      "name": "Log Duplicate Request",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        4032,
+        0
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Validate & Normalize Request').first().json;\nconst prior = $('Evaluate Idempotency').first().json.prior || {};\nconst now = new Date().toISOString();\nconst responseJson = { success:true, duplicate:true, requestId: norm.requestId, correlationId: norm.correlationId, category: norm.category, messageType: norm.messagePurpose, clientFound: true, messageSent: !!prior.sent, messageStatus: prior.sendStatus || 'previously_processed', trackingId: prior.trackingId || null, caseCommunicationId: prior.trackingId || null, caseRef: prior.caseRef || norm.caseRef, threadRef: prior.threadRef || norm.threadRef, status:'duplicate_ignored', reason:null, nextRecommendedAction:'No action needed; original request already processed', timestamp: now };\nreturn [{ json: { responseJson, httpStatus: 200 } }];"
+      },
+      "id": "f6ba035c-f75e-464f-aff2-43aba922f965",
+      "name": "Build Duplicate Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4256,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.responseJson }}",
+        "options": {
+          "responseCode": "={{ $json.httpStatus }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "947b80f2-3b7d-4341-a2af-6f83bc7fe82c",
+      "name": "Respond To AI System",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4480,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "clients",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ JSON.stringify({ phoneLast10: $(\"Validate & Normalize Request\").first().json.phoneLast10 }) }}"
+      },
+      "id": "2f6d7414-ff88-4bc5-b35b-55e369c32622",
+      "name": "Verify Client In Clients DB",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        368
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Validate & Normalize Request').first().json;\nconst rows = $('Verify Client In Clients DB').all().map((i)=>i.json).filter((d)=> d && (d.phoneLast10 || d.clientId || d._id));\nfunction l10(v){ return String(v||'').replace(/[^0-9]/g,'').slice(-10); }\nlet client = rows.find((d)=> l10(d.phoneLast10 || d.phoneNumber || d.mobile) === String(norm.phoneLast10) && d.isActive !== false) || null;\nconst clientFlag = client ? 'found' : 'not_found';\nconst safeClient = client ? { clientId: client.clientId || client._id || null, clientName: client.clientName || client.fullName || client.name || norm.clientName || 'Customer', phoneNumber: client.phoneNumber || client.mobile || null, phoneLast10: norm.phoneLast10 } : null;\nconst now = new Date().toISOString();\nreturn [{ json: { clientFlag, client: safeClient, auditId: norm.auditId+'-NF', event:'client_not_found', requestId: norm.requestId, correlationId: norm.correlationId, createdBy: norm.createdBy, phoneLast10: norm.phoneLast10, category: norm.category, messagePurpose: norm.messagePurpose, priority: norm.priority, outcome:'rejected', reason:'CLIENT_NOT_FOUND', httpStatusAudit:404, detail:'No active client found for the provided mobile/policy', source:'cgpe_claim_message_automation', createdAt: now } }];"
+      },
+      "id": "eb1d374c-6e4c-44b1-982b-99b190325e47",
+      "name": "Resolve Client",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.clientFlag }}",
+              "rightValue": "found",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2c62e090-0acd-4434-9466-4048a1bc0dba",
+      "name": "Client Verified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1792,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Validate & Normalize Request').first().json;\nconst client = ($('Resolve Client').first().json.client) || {};\nconst name = String(client.clientName || norm.clientName || 'Customer').trim() || 'Customer';\nconst lang = norm.language || 'hinglish';\nconst cat = norm.category;\nconst purpose = norm.messagePurpose;\nconst docs = Array.isArray(norm.documentList) ? norm.documentList : [];\nconst sym = (!norm.currency || norm.currency==='INR') ? 'Rs.' : norm.currency;\nconst money = norm.amount ? (sym + ' ' + norm.amount) : '';\nconst dateStr = norm.dueDate || norm.renewalDate || norm.eventDate || norm.validTill || '';\nconst policy = norm.policyNumber || '';\nconst DOC_LABELS = { claim_form:'Claim form', hospital_bills:'Hospital bills', discharge_summary:'Discharge summary', doctor_prescription:'Doctor prescription', investigation_reports:'Investigation / test reports', id_proof:'ID proof', policy_copy:'Policy copy', bank_details:'Bank account details', cancelled_cheque:'Cancelled cheque', previous_medical_history:'Previous medical history' };\nconst docLines = docs.map((d)=> '• ' + (DOC_LABELS[d] || String(d).replace(/_/g,' ')));\nconst TPL = { claim_form:'doc_request', hospital_bills:'doc_request', discharge_summary:'doc_request', doctor_prescription:'doc_request', investigation_reports:'doc_request', id_proof:'doc_request', policy_copy:'doc_request', bank_details:'doc_request', cancelled_cheque:'doc_request', previous_medical_history:'doc_request', missing_document:'missing', reminder:'reminder', clarification:'clarify', confirmation:'confirm', escalation:'escalate', follow_up:'followup', birthday:'birthday', anniversary:'anniversary', festival:'greeting', greeting:'greeting', policy_update:'policy_update', policy_issued:'policy_issued', renewal_reminder:'renewal_reminder', renewal_due:'renewal_due', renewal_confirmation:'renewal_confirmation', premium_received:'premium_received', premium_due:'premium_due', payment_confirmation:'payment_confirmation', payment_reminder:'payment_reminder', promotion:'promotion', offer:'promotion', custom:'custom' };\nconst L = {\n  en: { greet:'Hello {name},', sign:'Warm regards, Team CGPE', channel:'Please share documents only on this official CGPE WhatsApp number. Do not share sensitive details elsewhere.', optout:'You are receiving this as a valued CGPE customer. Reply STOP to opt out of promotional messages.', promo_code:'Offer code: {promo}.', doc_request:'To process your claim {policy}, please share the following:', missing:'We are still missing the following document(s) for your claim {policy}:', reminder:'This is a gentle reminder regarding your pending claim documents {policy}.', clarify:'We need a small clarification to proceed with your claim {policy}:', confirm:'We have received your documents. Thank you. Your claim {policy} is now being processed.', escalate:'Your claim {policy} needs urgent attention. Our team will contact you shortly.', followup:'Following up regarding your claim {policy}.', birthday:'Wishing you a very Happy Birthday, {name}! May the year ahead bring you health and happiness. Team CGPE is always here for you.', anniversary:'Warm wishes on your special day, {name}! Wishing you continued happiness. Thank you for being part of the CGPE family.', greeting:'Wishing you joy and good health, {name}!', policy_update:'Update regarding your policy {policy}: {offer}', policy_issued:'Good news, {name}! Your policy {policy} {plan} has been issued successfully.', renewal_reminder:'Your policy {policy} {plan} is due for renewal on {date}. Please renew on time to keep your coverage active.', renewal_due:'Reminder: renewal of {amount} for policy {policy} is due on {date}.', renewal_confirmation:'Thank you! Your policy {policy} has been renewed successfully.', premium_received:'We have received your premium {amount} for policy {policy}. Thank you for your payment.', premium_due:'Reminder: a premium of {amount} for policy {policy} is due on {date}. Please pay on time to avoid a lapse.', payment_confirmation:'Payment of {amount} received successfully for policy {policy}. Thank you.', payment_reminder:'Reminder: a payment of {amount} for policy {policy} is due on {date}.', promotion:'{offer}', cat_claim:'We have an update regarding your claim {policy}.', cat_greeting:'Warm wishes from Team CGPE, {name}!', cat_policy:'We have an update regarding your policy {policy}.', cat_billing:'We have a billing update for policy {policy}.', cat_promotion:'{offer}', cat_service:'We have an update for you from CGPE.', cat_custom:'We have a message for you from CGPE.' },\n  hinglish: { greet:'Hello {name},', sign:'Dhanyavaad, Team CGPE', channel:'Please documents sirf isi official CGPE WhatsApp number par bhejein. Sensitive details kahin aur share na karein.', optout:'Aap yeh message ek valued CGPE customer ke roop me paa rahe hain. Promotional messages band karne ke liye STOP bhejein.', promo_code:'Offer code: {promo}.', doc_request:'Aapka claim {policy} aage badhane ke liye please yeh bhejein:', missing:'Aapke claim {policy} ke liye abhi yeh document(s) baaki hain:', reminder:'Yeh aapke pending claim documents {policy} ke liye ek polite reminder hai.', clarify:'Aapke claim {policy} ke liye humein ek chhoti si clarification chahiye:', confirm:'Humein aapke documents mil gaye hain. Dhanyavaad. Aapka claim {policy} process ho raha hai.', escalate:'Aapke claim {policy} par urgent attention chahiye. Hamari team jald sampark karegi.', followup:'Aapke claim {policy} ke baare me follow-up.', birthday:'Janmadin ki hardik shubhkamnaayein, {name}! Aane wala saal sehat aur khushiyon se bhara ho. Team CGPE hamesha aapke saath hai.', anniversary:'Aapke khaas din par hardik shubhkamnaayein, {name}! Khushiyaan aapke saath rahein. CGPE parivaar ka hissa banne ke liye dhanyavaad.', greeting:'Aapko sehat aur khushiyon ki shubhkamnaayein, {name}!', policy_update:'Aapki policy {policy} ke baare me update: {offer}', policy_issued:'Khushkhabri, {name}! Aapki policy {policy} {plan} safaltapoorvak issue ho gayi hai.', renewal_reminder:'Aapki policy {policy} {plan} {date} ko renewal ke liye due hai. Coverage active rakhne ke liye samay par renew karein.', renewal_due:'Reminder: policy {policy} ka renewal {amount} {date} ko due hai.', renewal_confirmation:'Dhanyavaad! Aapki policy {policy} safaltapoorvak renew ho gayi hai.', premium_received:'Humein aapka premium {amount} policy {policy} ke liye mil gaya hai. Payment ke liye dhanyavaad.', premium_due:'Reminder: policy {policy} ka premium {amount} {date} ko due hai. Lapse se bachne ke liye samay par bhar dein.', payment_confirmation:'Policy {policy} ke liye {amount} ka payment mil gaya hai. Dhanyavaad.', payment_reminder:'Reminder: policy {policy} ke liye {amount} ka payment {date} ko due hai.', promotion:'{offer}', cat_claim:'Aapke claim {policy} ke baare me ek update hai.', cat_greeting:'Team CGPE ki taraf se hardik shubhkamnaayein, {name}!', cat_policy:'Aapki policy {policy} ke baare me ek update hai.', cat_billing:'Aapki policy {policy} ke liye billing update hai.', cat_promotion:'{offer}', cat_service:'CGPE services ke baare me aapke liye ek update hai.', cat_custom:'CGPE ki taraf se aapke liye ek message hai.' },\n  gujlish: { greet:'Namaste {name},', sign:'Aabhar, Team CGPE', channel:'Krupa kari documents fakt aa official CGPE WhatsApp number par moklo. Sensitive details bija jode share na karo.', optout:'Tame aa message ek valued CGPE customer tarike melvi rahya cho. Promotional messages band karva STOP moklo.', promo_code:'Offer code: {promo}.', doc_request:'Tamaro claim {policy} aagal vadharva mate krupa kari aa moklo:', missing:'Tamara claim {policy} mate haju aa document(s) baaki chhe:', reminder:'Aa tamara pending claim documents {policy} mate ek namra reminder chhe.', clarify:'Tamara claim {policy} mate amne ek nani spashtata joiye chhe:', confirm:'Amne tamara documents mali gaya. Aabhar. Tamaro claim {policy} process thai rahyo chhe.', escalate:'Tamara claim {policy} par taatkalik dhyaan joiye chhe. Amari team jaldi sampark karshe.', followup:'Tamara claim {policy} vishe follow-up.', birthday:'Janmadivas ni hardik shubhkamna, {name}! Tamaru aavnaru varsh tandurasti ane khushio thi bharelu rahe. Team CGPE hammesha tamari sathe chhe.', anniversary:'Tamara khaas divase hardik shubhkamna, {name}! Khushio tamari sathe rahe. CGPE parivaar no hisso banva badal aabhar.', greeting:'Tamne tandurasti ane khushio ni shubhkamna, {name}!', policy_update:'Tamari policy {policy} vishe update: {offer}', policy_issued:'Saras khabar, {name}! Tamari policy {policy} {plan} safdtapoorvak issue thai gai chhe.', renewal_reminder:'Tamari policy {policy} {plan} {date} na roj renewal mate due chhe. Coverage active rakhva samay sar renew karo.', renewal_due:'Reminder: policy {policy} nu renewal {amount} {date} na roj due chhe.', renewal_confirmation:'Aabhar! Tamari policy {policy} safdtapoorvak renew thai gai chhe.', premium_received:'Amne tamaru premium {amount} policy {policy} mate mali gayu chhe. Payment badal aabhar.', premium_due:'Reminder: policy {policy} nu premium {amount} {date} na roj due chhe. Lapse thi bachva samay sar bharo.', payment_confirmation:'Policy {policy} mate {amount} nu payment mali gayu chhe. Aabhar.', payment_reminder:'Reminder: policy {policy} mate {amount} nu payment {date} na roj due chhe.', promotion:'{offer}', cat_claim:'Tamara claim {policy} vishe ek update chhe.', cat_greeting:'Team CGPE taraf thi hardik shubhkamna, {name}!', cat_policy:'Tamari policy {policy} vishe ek update chhe.', cat_billing:'Tamari policy {policy} mate billing update chhe.', cat_promotion:'{offer}', cat_service:'CGPE services vishe tamara mate ek update chhe.', cat_custom:'CGPE taraf thi tamara mate ek message chhe.' },\n  hi: { greet:'नमस्ते {name},', sign:'सादर, टीम CGPE', channel:'कृपया दस्तावेज़ केवल इसी आधिकारिक CGPE WhatsApp नंबर पर भेजें। संवेदनशील जानकारी कहीं और साझा न करें।', optout:'आप यह संदेश एक मूल्यवान CGPE ग्राहक के रूप में प्राप्त कर रहे हैं। प्रचार संदेश बंद करने के लिए STOP भेजें।', doc_request:'आपका क्लेम {policy} आगे बढ़ाने के लिए कृपया ये भेजें:', missing:'आपके क्लेम {policy} के लिए अभी ये दस्तावेज़ बाकी हैं:', reminder:'यह आपके लंबित क्लेम दस्तावेज़ों {policy} के लिए एक विनम्र अनुस्मारक है।', confirm:'हमें आपके दस्तावेज़ मिल गए हैं। धन्यवाद। आपका क्लेम {policy} प्रक्रिया में है।', birthday:'जन्मदिन की हार्दिक शुभकामनाएं, {name}! आने वाला साल सेहत और खुशियों से भरा हो। टीम CGPE हमेशा आपके साथ है।', anniversary:'आपके खास दिन पर हार्दिक शुभकामनाएं, {name}! खुशियां आपके साथ रहें। CGPE परिवार का हिस्सा बनने के लिए धन्यवाद।', greeting:'आपको सेहत और खुशियों की शुभकामनाएं, {name}!', policy_update:'आपकी पॉलिसी {policy} के बारे में अपडेट: {offer}', policy_issued:'खुशखबरी, {name}! आपकी पॉलिसी {policy} {plan} सफलतापूर्वक जारी हो गई है।', renewal_reminder:'आपकी पॉलिसी {policy} {plan} {date} को नवीनीकरण के लिए देय है। कवरेज जारी रखने के लिए समय पर नवीनीकरण करें।', premium_received:'हमें आपका प्रीमियम {amount} पॉलिसी {policy} के लिए मिल गया है। भुगतान के लिए धन्यवाद।', premium_due:'अनुस्मारक: पॉलिसी {policy} का प्रीमियम {amount} {date} को देय है। लैप्स से बचने के लिए समय पर भुगतान करें।', payment_confirmation:'पॉलिसी {policy} के लिए {amount} का भुगतान प्राप्त हो गया है। धन्यवाद।', promotion:'{offer}', cat_greeting:'टीम CGPE की ओर से हार्दिक शुभकामनाएं, {name}!', cat_policy:'आपकी पॉलिसी {policy} के बारे में एक अपडेट है।', cat_billing:'आपकी पॉलिसी {policy} के लिए बिलिंग अपडेट है।', cat_promotion:'{offer}' },\n  gu: { greet:'નમસ્તે {name},', sign:'આભાર, ટીમ CGPE', channel:'કૃપા કરી દસ્તાવેજ ફક્ત આ અધિકૃત CGPE WhatsApp નંબર પર મોકલો. સંવેદનશીલ માહિતી બીજે શેર ન કરો.', optout:'તમે આ સંદેશ એક મૂલ્યવાન CGPE ગ્રાહક તરીકે મેળવી રહ્યા છો. પ્રચાર સંદેશ બંધ કરવા STOP મોકલો.', doc_request:'���મારો ક્લેમ {policy} આગળ વધારવા કૃપા કરી આ મોકલો:', missing:'તમારા ક્લેમ {policy} માટે હજુ આ દસ્તાવેજ બાકી છે:', reminder:'આ તમારા બાકી ક્લેમ દસ્તાવેજો {policy} માટે એક નમ્ર સ્મરણ છે.', confirm:'અમને તમારા દસ્તાવેજ મળ્યા. આભાર. તમારો ક્લેમ {policy} પ્રક્રિયામાં છે.', birthday:'જન્મદિવસની હાર્દિક શુભકામના, {name}! તમારું આવનારું વર્ષ તંદુરસ્તી અને ખુશીઓથી ભરેલું રહે. ટીમ CGPE હંમેશા તમારી સાથે છે.', anniversary:'તમારા ખાસ દિવસે હાર્દિક શુભકામના, {name}! ખુશીઓ તમારી સાથે રહે. CGPE પરિવારનો ભાગ બનવા બદલ આભાર.', greeting:'તમને તંદુરસ્તી અને ખુશીઓની શુભકામના, {name}!', policy_update:'તમારી પોલિસી {policy} વિશે અપડેટ: {offer}', policy_issued:'સરસ સમાચાર, {name}! તમારી પોલિસી {policy} {plan} સફળતાપૂર્વક ઇશ્યૂ થઈ ગઈ છે.', renewal_reminder:'તમારી પોલિસી {policy} {plan} {date} ના રોજ રિન્યુઅલ માટે બાકી છે. કવરેજ ચાલુ રાખવા સમયસર રિન્યુ કરો.', premium_received:'અમને તમારું પ્રીમિયમ {amount} પોલિસી {policy} માટે મળી ગયું છે. ચુકવણી બદલ આભાર.', premium_due:'સ્મરણ: પોલિસી {policy} નું પ્રીમિયમ {amount} {date} ના રોજ બાકી છે. લેપ્સથી બચવા સમયસર ભરો.', payment_confirmation:'પોલિસી {policy} માટે {amount} ની ચુકવણી મળી ગઈ છે. આભાર.', promotion:'{offer}', cat_greeting:'ટીમ CGPE તરફથી હાર્દિક શુભકામના, {name}!', cat_policy:'તમારી પોલિસી {policy} વિશે એક અપડેટ છે.', cat_billing:'તમારી પોલિસી {policy} માટે બિલિંગ અપડેટ છે.', cat_promotion:'{offer}' }\n};\nfunction tx(k){ const d=L[lang]||{}; if(d[k]!=null) return d[k]; const fb= lang==='hi'?'hinglish':(lang==='gu'?'gujlish':'en'); const dd=L[fb]||{}; if(dd[k]!=null) return dd[k]; return (L.en[k]!=null?L.en[k]:''); }\nfunction fill(t){ const v={ name:name, policy:policy, amount:money, date:dateStr, occasion:norm.occasion||'', offer:norm.offerText||'', promo:norm.promoCode||'', plan:norm.planName||'', till:norm.validTill||'' }; let out=String(t); for (const k in v){ out = out.split('{'+k+'}').join(v[k]); } while(out.indexOf('  ')>=0) out = out.split('  ').join(' '); out = out.split(' ,').join(',').split(' .').join('.').split(' :').join(':'); return out.trim(); }\nlet lines = [fill(tx('greet'))];\nconst bodyMsg = norm.messageBody && norm.messageBody.trim();\nif (bodyMsg) { lines.push('', bodyMsg); }\nelse { const key = TPL[purpose] || ('cat_'+cat); let tpl = tx(key); if(!tpl) tpl = tx('cat_'+cat); if(!tpl) tpl = tx('cat_service'); lines.push('', fill(tpl)); if (cat==='claim' && docLines.length) lines = lines.concat(docLines); }\nif (cat==='promotion' && norm.promoCode) lines.push('', fill(tx('promo_code')));\nif (cat==='claim') lines.push('', tx('channel'));\nif (cat==='promotion') lines.push('', tx('optout'));\nlines.push('', fill(tx('sign')));\nlet messageText = lines.join('\\n');\nwhile (messageText.indexOf('\\n\\n\\n')>=0) messageText = messageText.split('\\n\\n\\n').join('\\n\\n');\nmessageText = messageText.trim();\nconst sendMode = norm.safeMode ? 'simulate' : 'live';\nconst to = (client.phoneNumber ? String(client.phoneNumber).replace(/[^0-9]/g,'') : ('91'+norm.phoneLast10));\nconst metaPayload = { messaging_product:'whatsapp', recipient_type:'individual', to, type:'text', text:{ preview_url:false, body: messageText } };\nreturn [{ json: { messageText, sendMode, to, metaPayload, trackingId: norm.trackingId, caseRef: norm.caseRef, threadRef: norm.threadRef, category: cat, language: lang } }];"
+      },
+      "id": "fb798f0d-4193-44f8-a4ce-cbc9dce0e5d9",
+      "name": "Build Safe WhatsApp Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.sendMode }}",
+              "rightValue": "simulate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "0aedf96d-9d87-4cbe-85af-771539127412"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d2a162aa-d7d9-4b76-9d83-837ed719f4b9",
+      "name": "Dev Safe Mode?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { sendResult: { mode:'simulated', sent:false, status:'simulated', wamid:null, httpCode:null, error:null, note:'DEV SAFE MODE - no real WhatsApp message was sent' } } }];"
+      },
+      "id": "129a784d-108e-4e40-8907-bcdd78c40d15",
+      "name": "Simulate WhatsApp Send (Dev)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Validate & Normalize Request').first().json;\nconst client = $('Resolve Client').first().json.client || {};\nconst msg = $('Build Safe WhatsApp Message').first().json;\nconst sr = ($json && $json.sendResult) ? $json.sendResult : { mode:'unknown', sent:false, status:'unknown', wamid:null, error:null, note:'' };\nconst now = new Date().toISOString();\nreturn [{ json: { requestId: norm.requestId, correlationId: norm.correlationId, trackingId: norm.trackingId, caseRef: norm.caseRef, threadRef: norm.threadRef, category: norm.category, messageType: norm.messagePurpose, clientId: client.clientId || null, clientName: client.clientName || null, phoneLast10: norm.phoneLast10, phoneNumber: client.phoneNumber || null, messagePurpose: norm.messagePurpose, documents: norm.documentList, policyNumber: norm.policyNumber, amount: norm.amount, currency: norm.currency, dueDate: norm.dueDate, renewalDate: norm.renewalDate, occasion: norm.occasion, offerText: norm.offerText, promoCode: norm.promoCode, planName: norm.planName, consent: norm.consent, language: norm.language, priority: norm.priority, messageText: msg.messageText, channel:'whatsapp', sendMode: sr.mode, sendStatus: sr.status, sent: sr.sent, wamid: sr.wamid, isSimulated: sr.mode==='simulated', sendNote: sr.note, followUpRequired: norm.followUpRequired, followUpContext: norm.followUpContext, followUpStatus: norm.followUpRequired ? 'pending' : 'none', previousContextRef: !!norm.previousContext, status:'accepted', createdBy: norm.createdBy, source:'cgpe_claim_message_automation', errorDetail: sr.error || null, createdAt: now, updatedAt: now, statusHistory: [{ at: now, status: sr.status, by: norm.createdBy }] } }];"
+      },
+      "id": "243ab9ce-53e0-4315-8e1f-6d648b26f0a0",
+      "name": "Record Send Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "wa_bot_config",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ JSON.stringify({ botId: \"cgpe_main\" }) }}"
+      },
+      "id": "d09542ff-fc12-4459-b751-e88232369b04",
+      "name": "Load WhatsApp Config",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        2464,
+        368
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $('Build Safe WhatsApp Message').first().json;\nconst cfgRows = $('Load WhatsApp Config').all().map((i)=>i.json).filter((d)=> d && (d.botId || d.metaPhoneNumberId || d.phoneNumberId));\nconst cfg = cfgRows[0] || {};\nconst pnid = String(cfg.metaPhoneNumberId || cfg.phoneNumberId || cfg.phone_number_id || '1177041495489279');\nconst version = String(cfg.graphVersion || 'v21.0');\nconst sendUrl = 'https://graph.facebook.com/' + version + '/' + pnid + '/messages';\nreturn [{ json: { sendUrl, metaPayload: msg.metaPayload } }];"
+      },
+      "id": "e139d29f-87c8-4abf-8353-c6007887e773",
+      "name": "Build Send Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = ($json && typeof $json === 'object') ? $json : {};\nconst wamid = (r.messages && r.messages[0] && r.messages[0].id) ? r.messages[0].id : null;\nconst sent = !!wamid;\nconst err = r.error || null;\nreturn [{ json: { sendResult: { mode:'live', sent, status: sent ? 'sent' : (err ? 'send_failed' : 'send_skipped'), wamid, httpCode: err ? (err.code||null) : null, error: err, note: sent ? 'Sent via Meta Cloud API' : (err ? 'WhatsApp send failed' : 'Send node disabled or returned no wamid - enable at go-live') } } }];"
+      },
+      "id": "dbcc339d-8c83-400e-a87f-ae5ade708a99",
+      "name": "Map Send Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "wa_comm_audit",
+        "fields": "auditId,event,requestId,correlationId,createdBy,phoneLast10,category,messagePurpose,priority,outcome,reason,httpStatusAudit,detail,createdAt,source",
+        "options": {
+          "dateFields": "createdAt"
+        }
+      },
+      "id": "7bbd4415-9e70-4385-889c-10b5be256a33",
+      "name": "Log Client Not Found",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        4032,
+        528
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Validate & Normalize Request').first().json;\nconst now = new Date().toISOString();\nconst responseJson = { success:false, requestId: norm.requestId, correlationId: norm.correlationId, category: norm.category, messageType: norm.messagePurpose, clientFound:false, messageSent:false, trackingId:null, caseCommunicationId:null, caseRef: norm.caseRefProvided ? norm.caseRef : null, threadRef: null, status:'rejected', reason:'CLIENT_NOT_FOUND', reasonMessage:'No active client matched the provided mobile/policy', nextRecommendedAction:'Verify client identity (mobile last 10 digits / policy number) and resubmit', timestamp: now };\nreturn [{ json: { responseJson, httpStatus: 404 } }];"
+      },
+      "id": "d06c1202-99ac-4383-88ee-3f4334a045d4",
+      "name": "Build Not Found Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4256,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "wa_comm_audit",
+        "fields": "auditId,event,requestId,correlationId,createdBy,phoneLast10,category,messagePurpose,priority,outcome,reason,httpStatusAudit,detail,createdAt,source",
+        "options": {
+          "dateFields": "createdAt"
+        }
+      },
+      "id": "75c18f04-fc43-4697-accb-2af55bdd69ba",
+      "name": "Log Rejected Request",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        4032,
+        720
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $('Validate & Normalize Request').first().json;\nreturn [{ json: { responseJson: v.responseJson, httpStatus: v.httpStatus } }];"
+      },
+      "id": "7dfdcd8b-727f-431b-b387-b9abe263dfe3",
+      "name": "Build Rejection Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4256,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "findOneAndUpdate",
+        "collection": "wa_comm_messages",
+        "updateKey": "requestId",
+        "fields": "requestId,correlationId,trackingId,caseRef,threadRef,category,messageType,clientId,clientName,phoneLast10,phoneNumber,messagePurpose,documents,policyNumber,amount,currency,dueDate,renewalDate,occasion,offerText,promoCode,planName,consent,language,priority,messageText,channel,sendMode,sendStatus,sent,wamid,isSimulated,sendNote,followUpRequired,followUpContext,followUpStatus,previousContextRef,status,createdBy,source,errorDetail,createdAt,updatedAt,statusHistory",
+        "upsert": true,
+        "options": {
+          "dateFields": "createdAt,updatedAt"
+        }
+      },
+      "id": "e1c8132a-caac-49b2-854e-027d53c3745f",
+      "name": "Persist Comm Message",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        3584,
+        272
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Validate & Normalize Request').first().json;\nconst o = $('Record Send Outcome').first().json;\nconst stageMap = { claim_form:'awaiting_documents', hospital_bills:'awaiting_documents', discharge_summary:'awaiting_documents', doctor_prescription:'awaiting_documents', investigation_reports:'awaiting_documents', id_proof:'awaiting_documents', policy_copy:'awaiting_documents', bank_details:'awaiting_documents', cancelled_cheque:'awaiting_documents', previous_medical_history:'awaiting_documents', missing_document:'awaiting_missing_documents', reminder:'reminded', clarification:'awaiting_clarification', confirmation:'documents_received', escalation:'escalated', follow_up:'in_progress', birthday:'greeting_sent', anniversary:'greeting_sent', festival:'greeting_sent', greeting:'greeting_sent', policy_update:'policy_notified', policy_issued:'policy_issued', renewal_reminder:'renewal_due', renewal_due:'renewal_due', renewal_confirmation:'renewed', premium_received:'premium_paid', premium_due:'premium_due', payment_confirmation:'paid', payment_reminder:'payment_due', promotion:'promo_sent', offer:'promo_sent', custom:'in_progress' };\nconst now = new Date().toISOString();\nreturn [{ json: { threadRef: o.threadRef, threadType: o.category, clientId: o.clientId, clientName: o.clientName, phoneLast10: o.phoneLast10, policyNumber: o.policyNumber, status:'active', currentStage: stageMap[o.messagePurpose] || 'in_progress', lastCategory: o.category, lastPurpose: o.messagePurpose, lastTrackingId: o.trackingId, lastRequestId: o.requestId, lastMessageText: o.messageText, requestedDocuments: o.documents, lastSendStatus: o.sendStatus, followUpRequired: o.followUpRequired, followUpStatus: o.followUpStatus, lastCreatedBy: o.createdBy, lastMessageAt: now, updatedAt: now } }];"
+      },
+      "id": "05945664-c1fc-4fe1-ac5e-532bd768c931",
+      "name": "Shape Thread Doc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3808,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "findOneAndUpdate",
+        "collection": "wa_comm_threads",
+        "updateKey": "threadRef",
+        "fields": "threadRef,threadType,clientId,clientName,phoneLast10,policyNumber,status,currentStage,lastCategory,lastPurpose,lastTrackingId,lastRequestId,lastMessageText,requestedDocuments,lastSendStatus,followUpRequired,followUpStatus,lastCreatedBy,lastMessageAt,updatedAt",
+        "upsert": true,
+        "options": {
+          "dateFields": "lastMessageAt,updatedAt"
+        }
+      },
+      "id": "fb6d0423-423d-4ef0-8000-9b2c2dde1663",
+      "name": "Persist Comm Thread",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        4032,
+        272
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "WZ2iSk9j0aJMoLDk",
+          "name": "MongoDB account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const o = $('Record Send Outcome').first().json;\nconst now = new Date().toISOString();\nlet nextAction;\nif (o.isSimulated) nextAction = 'Dev safe mode: set safeMode=false and enable the Send node to deliver for real';\nelse if (!o.sent) nextAction = 'Check Meta WhatsApp send configuration / retry';\nelse if (o.followUpRequired) nextAction = 'Schedule follow-up: ' + (o.followUpContext || 'as per case context');\nelse if (o.category==='claim') nextAction = 'Await client document submission on the official WhatsApp channel';\nelse nextAction = 'No action required';\nconst status = o.isSimulated ? 'accepted_simulated' : (o.sent ? 'accepted_sent' : 'accepted_pending_send');\nconst responseJson = { success:true, requestId: o.requestId, correlationId: o.correlationId, category: o.category, messageType: o.messageType, clientFound:true, messageSent: !!o.sent, messageStatus: o.sendStatus, trackingId: o.trackingId, caseCommunicationId: o.trackingId, caseRef: o.caseRef, threadRef: o.threadRef, sendMode: o.sendMode, simulated: o.isSimulated, followUpRequired: o.followUpRequired, followUpStatus: o.followUpStatus, status, reason:null, nextRecommendedAction: nextAction, timestamp: now };\nreturn [{ json: { responseJson, httpStatus: 200 } }];"
+      },
+      "id": "0588f165-5b84-4264-a595-eb6a958ca70d",
+      "name": "Build Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4256,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## CGPE Client Communication Automation\nTrusted AI/system POSTs a message request to /webhook/cgpe-claim-message.\nCategories: claim, greeting (birthday/anniversary), policy/renewal, billing (premium/payment), promotion, custom.\nFlow: Validate -> Idempotency -> Verify Client (clients) -> Build safe multilingual message -> (Dev) Simulate / (Live) Meta Cloud API -> Persist tracking -> JSON response.\nInactive by design. Send gated by safeMode (default true) AND the Send node is disabled until go-live.",
+        "height": 200,
+        "width": 300,
+        "color": 4
+      },
+      "id": "57f98862-69db-45f4-8e4a-b8f39824e711",
+      "name": "Sticky Note abd09442",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Security & Compliance\n- Webhook Header Auth (credential: CGPE Claim Webhook Auth) - unauthorized requests rejected before logic runs.\n- requestId + createdBy required; optional createdBy allowlist.\n- Idempotency on requestId prevents duplicate sends.\n- Promotions require explicit consent=true and auto-append an opt-out line.\n- Sanitization strips HTML, links, template-injection and redacts long digit runs (Aadhaar/card/account).",
+        "height": 200,
+        "width": 300,
+        "color": 3
+      },
+      "id": "40e5568e-c8dc-4d75-850a-7d0470fda30a",
+      "name": "Sticky Note b8c2dbf6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Go-Live Toggles (do NOT enable without approval)\n1. Set DEV_SAFE_MODE = false in Validate & Normalize Request.\n2. Enable the disabled Send WhatsApp Message (Meta Cloud API) node.\n3. Configure credential CGPE Meta WhatsApp Token (Authorization: Bearer token).\n4. Confirm wa_bot_config has botId cgpe_main with metaPhoneNumberId.\n5. Create indexes: wa_comm_messages.requestId (unique), wa_comm_threads.threadRef (unique), wa_comm_audit.\n6. For promotions, ensure WhatsApp marketing template approval & consent records.",
+        "height": 200,
+        "width": 300,
+        "color": 2
+      },
+      "id": "b1c44f32-c2dd-4072-828e-0e20ab4bc58d",
+      "name": "Sticky Note f1ec783b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.sendUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.metaPayload) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "6111ba95-c27a-462c-b066-8771d9355d67",
+      "name": "Send WhatsApp Message (Meta Cloud API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2912,
+        368
+      ],
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Verification failed",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -144,
+        -800
+      ],
+      "id": "c282c325-f616-450e-8479-79641a120dae",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query[\"hub.challenge\"] }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -144,
+        -992
+      ],
+      "id": "e634a562-91bf-417a-b5f9-22a667a9e51f",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a17dcd9d-ebbb-4ba1-a2fe-97d583b43a76",
+              "leftValue": "={{ $json.query[\"hub.verify_token\"] }}",
+              "rightValue": "test_token_123",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -368,
+        -896
+      ],
+      "id": "7eca8348-a979-48e2-995a-1ee96ff5e849",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "path": "cgpe-ai-messages",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -592,
+        -896
+      ],
+      "id": "0d789f07-24ad-45f0-be8f-e005b33286c9",
+      "name": "Webhook",
+      "webhookId": "a1fb42e0-51c4-49a6-9106-83507a02bd41"
+    }
+  ],
+  "connections": {
+    "Claim Intake Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate & Normalize Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Normalize Request": {
+      "main": [
+        [
+          {
+            "node": "Request Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request Valid?": {
+      "main": [
+        [
+          {
+            "node": "Check Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Rejected Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Idempotency": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Idempotency": {
+      "main": [
+        [
+          {
+            "node": "Already Processed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Processed?": {
+      "main": [
+        [
+          {
+            "node": "Log Duplicate Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verify Client In Clients DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Duplicate Request": {
+      "main": [
+        [
+          {
+            "node": "Build Duplicate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Duplicate Response": {
+      "main": [
+        [
+          {
+            "node": "Respond To AI System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Client In Clients DB": {
+      "main": [
+        [
+          {
+            "node": "Resolve Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Client": {
+      "main": [
+        [
+          {
+            "node": "Client Verified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client Verified?": {
+      "main": [
+        [
+          {
+            "node": "Build Safe WhatsApp Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Client Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Safe WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "Dev Safe Mode?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dev Safe Mode?": {
+      "main": [
+        [
+          {
+            "node": "Simulate WhatsApp Send (Dev)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Load WhatsApp Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate WhatsApp Send (Dev)": {
+      "main": [
+        [
+          {
+            "node": "Record Send Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Send Outcome": {
+      "main": [
+        [
+          {
+            "node": "Persist Comm Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load WhatsApp Config": {
+      "main": [
+        [
+          {
+            "node": "Build Send Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Send Payload": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Message (Meta Cloud API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Send Result": {
+      "main": [
+        [
+          {
+            "node": "Record Send Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Client Not Found": {
+      "main": [
+        [
+          {
+            "node": "Build Not Found Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Not Found Response": {
+      "main": [
+        [
+          {
+            "node": "Respond To AI System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Rejected Request": {
+      "main": [
+        [
+          {
+            "node": "Build Rejection Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Rejection Response": {
+      "main": [
+        [
+          {
+            "node": "Respond To AI System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Comm Message": {
+      "main": [
+        [
+          {
+            "node": "Shape Thread Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape Thread Doc": {
+      "main": [
+        [
+          {
+            "node": "Persist Comm Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Comm Thread": {
+      "main": [
+        [
+          {
+            "node": "Build Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Success Response": {
+      "main": [
+        [
+          {
+            "node": "Respond To AI System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Message (Meta Cloud API)": {
+      "main": [
+        [
+          {
+            "node": "Map Send Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "e18f4009-18a7-4c44-8d88-c656beef82a2",
+  "activeVersionId": null,
+  "versionCounter": 21,
+  "triggerCount": 2,
+  "sourceWorkflowId": null,
+  "shared": [
+    {
+      "updatedAt": "2026-06-27T12:40:05.717Z",
+      "createdAt": "2026-06-27T12:40:05.717Z",
+      "role": "workflow:owner",
+      "workflowId": "fs9AinAJdg8Bc88l",
+      "projectId": "qI50lh4h4maxXYEe",
+      "project": {
+        "updatedAt": "2026-06-27T05:42:53.910Z",
+        "createdAt": "2026-06-27T05:33:44.594Z",
+        "id": "qI50lh4h4maxXYEe",
+        "name": "smit kakadiya <reactjsaaziko@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "a4ee22f6-db8c-4473-9944-7b9710a88ea2"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

@@ -1,0 +1,213 @@
+{
+  "success": true,
+  "data": {
+    "fileName": "Manipal_Cigna_Stroke_Claim_Jan2024.pdf",
+    "filePath": "/tmp/claim-pdfs/1721302200000_Manipal_Cigna_Stroke_Claim_Jan2024.pdf",
+    "documentId": "507f1f77bcf86cd799439012",
+    "extractedText": "CLAIM FORM - MANIPAL CIGNA HEALTH INSURANCE\n\nPolicy Number: POL-MC-2023-091175\nPolicyholder Name: RAJESH KUMAR\nDate of Birth: 15-JUN-1978\nAge: 45 (ID), 46 (Form)\n\nClaim Number: CLM-2024-001\nHospital: BREACH CANDY HOSPITAL, MUMBAI\nAdmission Date: 15-JAN-2024\nDischarge Date: 22-JAN-2024\nDuration: 7 days\n\nDiagnosis: ACUTE ISCHEMIC STROKE\n\nClaimed Amount: ₹463,751\n(Broken down: Hospital ₹280,000 + Doctor ₹85,000 + Medicines ₹62,000 + Lab ₹36,751)\n\nTreatment Details:\n- CT Scan brain: ₹8,500\n- MRI: ₹12,000\n- Neurology consultation: ₹5,000\n- Stroke protocol medications: ₹45,000\n- Neuro ICU care (7 days): ₹210,000\n\nCheckboxes:\n[✓] Network Hospital\n[✓] Pre-authorization obtained: YES (Auth # NEU-2024-001)\n[ ] Excluded procedure\n[ ] Substance abuse\n[ ] Pre-existing condition\n[✓] Emergency admission",
+    "tables": [
+      {
+        "title": "Itemized Hospital Bills",
+        "rows": [
+          {
+            "description": "Neuro ICU per day (7 days)",
+            "quantity": 7,
+            "rate": 30000,
+            "amount": 210000
+          },
+          {
+            "description": "Emergency room charges",
+            "quantity": 1,
+            "rate": 15000,
+            "amount": 15000
+          },
+          {
+            "description": "Neurology consultations",
+            "quantity": 3,
+            "rate": 5000,
+            "amount": 15000
+          }
+        ]
+      },
+      {
+        "title": "Lab Tests",
+        "rows": [
+          {
+            "test": "CT Scan Brain",
+            "amount": 8500
+          },
+          {
+            "test": "MRI Cerebral Angiography",
+            "amount": 12000
+          },
+          {
+            "test": "Complete Blood Count",
+            "amount": 1500
+          },
+          {
+            "test": "Coagulation Profile",
+            "amount": 2000
+          }
+        ]
+      }
+    ],
+    "analysis": {
+      "claim_summary": {
+        "policy_number": "POL-MC-2023-091175",
+        "policyholder_name": "RAJESH KUMAR",
+        "date_of_birth": "1978-06-15",
+        "hospital_name": "BREACH CANDY HOSPITAL",
+        "hospital_address": "MUMBAI",
+        "admission_date": "2024-01-15",
+        "discharge_date": "2024-01-22",
+        "treatment_duration_days": 7,
+        "diagnosis": "ACUTE ISCHEMIC STROKE",
+        "treatment_type": "EMERGENCY HOSPITALIZATION",
+        "claimed_amount": 463751,
+        "currency": "INR"
+      },
+      "coverage_flags": {
+        "network_hospital": {
+          "status": "✅ COVERED",
+          "details": "Breach Candy is in Cigna network",
+          "severity": "LOW"
+        },
+        "pre_authorization": {
+          "status": "✅ APPROVED",
+          "auth_number": "NEU-2024-001",
+          "details": "Pre-auth obtained before admission",
+          "severity": "LOW"
+        },
+        "emergency_admission": {
+          "status": "✅ COVERED",
+          "details": "Emergency cases auto-approved",
+          "severity": "LOW"
+        },
+        "experimental_treatment": {
+          "status": "✅ NOT APPLICABLE",
+          "details": "Standard stroke protocol",
+          "severity": "LOW"
+        },
+        "pre_existing_condition": {
+          "status": "✅ NOT MENTIONED",
+          "details": "No pre-existing condition declared",
+          "severity": "LOW"
+        },
+        "excluded_procedures": {
+          "status": "✅ NONE DETECTED",
+          "details": "All procedures standard for stroke",
+          "severity": "LOW"
+        }
+      },
+      "inconsistencies_detected": [
+        {
+          "type": "AGE_MISMATCH",
+          "severity": "⚠️ MEDIUM",
+          "details": "ID shows DOB: 1978-06-15 (Age 45 in 2024), but claim form shows Age: 46",
+          "action_required": "Clarify actual age with policyholder",
+          "impact": "May affect premium calculation if age category different"
+        },
+        {
+          "type": "POLICY_NUMBER_UNCLEAR",
+          "severity": "⚠️ MEDIUM",
+          "details": "Handwritten policy number possibly: POL-MC-2023-09117[5 or 75?]",
+          "action_required": "Validate exact policy number against database",
+          "impact": "Claim might be for wrong policy",
+          "recommendation": "Check last digit (is it 5 or 75?)"
+        },
+        {
+          "type": "DATE_CONSISTENCY",
+          "severity": "✅ OK",
+          "details": "All dates consistent (admission, discharge, bills)",
+          "action_required": "None"
+        }
+      ],
+      "amount_verification": {
+        "claimed_total": 463751,
+        "breakdown_check": {
+          "hospital_charges": 280000,
+          "doctor_fees": 85000,
+          "medicines": 62000,
+          "lab_tests": 36751,
+          "sum_of_parts": 463751,
+          "matches_claimed": "✅ YES"
+        },
+        "severity": "LOW",
+        "note": "Amount breakdown adds up correctly"
+      },
+      "document_quality": {
+        "legibility": "✅ GOOD",
+        "handwriting_recognition": "95% confidence",
+        "all_fields_visible": "✅ YES",
+        "signatures_present": "✅ YES (Hospital + Patient)",
+        "hospital_seal": "✅ PRESENT",
+        "missing_documents": "None detected"
+      },
+      "risk_assessment": {
+        "overall_risk_score": "MEDIUM",
+        "risk_level": 6,
+        "scale": "1-10 (1=lowest, 10=highest)",
+        "risk_factors": [
+          "Age mismatch needs clarification",
+          "Policy number needs validation"
+        ],
+        "recommendation": "REQUEST CLARIFICATION before final approval"
+      },
+      "action_items": [
+        {
+          "priority": "🔴 HIGH",
+          "item": "Validate policy number POL-MC-2023-091175 against database",
+          "reason": "Handwritten digit unclear - confirm exact number"
+        },
+        {
+          "priority": "🟡 MEDIUM",
+          "item": "Clarify policyholder's actual date of birth",
+          "reason": "Age discrepancy (45 vs 46) detected between ID and form"
+        },
+        {
+          "priority": "🟡 MEDIUM",
+          "item": "Verify pre-authorization number NEU-2024-001",
+          "reason": "Confirm against pre-auth database"
+        },
+        {
+          "priority": "🟢 LOW",
+          "item": "Cross-check hospital bill itemization",
+          "reason": "Amount breakdown correct, but verify rates are standard"
+        }
+      ],
+      "compliance_check": {
+        "waiting_period_met": "✅ YES (assuming policy active since 2023)",
+        "documentation_complete": "✅ YES",
+        "amount_within_limit": "✅ YES (requires limits check against policy)",
+        "beneficiary_correct": "✅ YES"
+      }
+    },
+    "metadata": {
+      "clientPhone": "919876543210",
+      "claimNumber": "CLM-2024-001",
+      "processedAt": "2024-07-18T10:35:22.123Z",
+      "processingTimeMs": 3200,
+      "ocrConfidence": 0.94,
+      "analysisModel": "sarvam-30b",
+      "dataResidency": "INDIA"
+    },
+    "customer_summary": {
+      "status": "RECEIVED ✅",
+      "next_step": "We are reviewing your claim",
+      "estimated_processing_time": "24-48 hours",
+      "flags_count": 2,
+      "all_documents_received": true,
+      "contact_by": "WhatsApp"
+    },
+    "admin_summary": {
+      "status": "PENDING_REVIEW",
+      "approval_recommendation": "REQUEST_CLARIFICATION",
+      "flags_to_address": [
+        "Policy number validation needed",
+        "Age discrepancy clarification"
+      ],
+      "next_action": "Admin to contact customer for clarification",
+      "estimated_approval_time": "4-6 hours after clarifications"
+    }
+  }
+}
