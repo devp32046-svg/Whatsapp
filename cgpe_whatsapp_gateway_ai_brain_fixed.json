@@ -463,13 +463,13 @@
     "model": {
      "__rl": true,
      "mode": "list",
-     "value": "gpt-5.4",
-     "cachedResultName": "gpt-5.4"
+     "value": "gpt-4o-mini",
+     "cachedResultName": "gpt-4o-mini"
     },
     "builtInTools": {},
     "options": {
-     "reasoningEffort": "low",
-     "timeout": 90000
+     "timeout": 90000,
+     "temperature": 0.7
     }
    },
    "id": "adf0aafe-7822-4e45-a38b-94dd3402bbd0",
