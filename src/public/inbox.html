@@ -1,125 +1,96 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CGPE Team Inbox</title>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CGPE Team Inbox</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  :root { --bg:#0b141a; --panel:#111b21; --panel2:#202c33; --green:#00a884; --txt:#e9edef; --sub:#8696a0; --in:#202c33; --out:#005c4b; --hum:#144d37; }
-  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--txt); height: 100vh; display: flex; overflow: hidden; }
-  #list { width: 340px; background: var(--panel); border-right: 1px solid #222d34; display: flex; flex-direction: column; }
-  #list h1 { font-size: 15px; padding: 14px 16px; background: var(--panel2); color: var(--green); letter-spacing: .3px; }
-  #list h1 small { color: var(--sub); font-weight: 400; display:block; font-size:11px; margin-top:2px; }
-  #threads { overflow-y: auto; flex: 1; }
-  .thread { padding: 11px 16px; border-bottom: 1px solid #1a252c; cursor: pointer; }
-  .thread:hover { background: var(--panel2); }
-  .thread.active { background: var(--panel2); }
-  .thread .top { display: flex; justify-content: space-between; align-items: baseline; }
-  .thread .nm { font-size: 14px; font-weight: 600; }
-  .thread .pv { color: var(--sub); font-size: 12.5px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .badge { font-size: 10px; background: var(--green); color: #04150f; padding: 1px 7px; border-radius: 10px; font-weight: 700; }
-  #chat { flex: 1; display: flex; flex-direction: column; }
-  #chhead { padding: 12px 18px; background: var(--panel2); display: flex; justify-content: space-between; align-items: center; }
-  #chead .who { font-size: 15px; font-weight: 600; }
-  #chead .st { font-size: 11.5px; color: var(--sub); }
-  #chead button { background: #2a3942; color: var(--txt); border: 0; padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
-  #chead button:hover { background: #37474f; }
-  #msgs { flex: 1; overflow-y: auto; padding: 16px 8vw; display: flex; flex-direction: column; gap: 6px; }
-  .m { max-width: 68%; padding: 7px 11px 5px; border-radius: 9px; font-size: 14px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
-  .m .t { font-size: 10px; color: var(--sub); text-align: right; margin-top: 2px; }
-  .m.in { background: var(--in); align-self: flex-start; border-top-left-radius: 2px; }
-  .m.bot { background: var(--out); align-self: flex-end; border-top-right-radius: 2px; }
-  .m.human { background: var(--hum); align-self: flex-end; border-top-right-radius: 2px; }
-  .m.human::before { content: "🧑 you"; display:block; font-size:9px; color:#7fd4b3; margin-bottom:2px; }
-  #composer { padding: 12px 16px; background: var(--panel2); display: flex; gap: 10px; }
-  #composer input { flex: 1; background: var(--panel); color: var(--txt); border: 0; border-radius: 10px; padding: 11px 14px; font-size: 14px; outline: none; }
-  #composer button { background: var(--green); color: #04150f; border: 0; padding: 0 20px; border-radius: 10px; cursor: pointer; font-weight: 700; }
-  #composer button:disabled { opacity: .5; cursor: default; }
-  #empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 14px; }
-  .note { font-size: 11px; color: var(--sub); padding: 6px 16px; }
-</style>
-</head>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#111b21;color:#e9edef;height:100vh;overflow:hidden}
+.app{display:flex;height:100vh}
+/* sidebar */
+.side{width:360px;min-width:300px;max-width:40%;border-right:1px solid #222d34;display:flex;flex-direction:column;background:#111b21}
+.side-hd{background:#202c33;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+.side-hd .logo{font-weight:800;color:#00a884;letter-spacing:1px}
+.side-hd .logo span{font-weight:400;font-size:11px;color:#8696a0;display:block;letter-spacing:0}
+.search{padding:8px 12px;background:#111b21}
+.search input{width:100%;background:#202c33;border:0;border-radius:8px;padding:8px 12px;color:#e9edef;font-size:14px;outline:none}
+.threads{flex:1;overflow-y:auto}
+.trow{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;border-bottom:1px solid #182229}
+.trow:hover{background:#202c33}.trow.active{background:#2a3942}
+.av{width:44px;height:44px;border-radius:50%;background:#00a884;color:#111b21;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;flex-shrink:0}
+.tmeta{flex:1;min-width:0}
+.tname{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tprev{font-size:13px;color:#8696a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.pausebadge{font-size:10px;background:#e9a23b;color:#111b21;border-radius:10px;padding:1px 7px;font-weight:700}
+.newbadge{font-size:11px;background:#00a884;color:#0b141a;border-radius:11px;min-width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;font-weight:800}
+.trow.unread{background:#182b27}
+.trow.unread .tname{font-weight:800;color:#e9edef}
+.trow.unread .tprev{color:#d1f4e8;font-weight:600}
+.tbadges{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+/* chat */
+.chat{flex:1;display:flex;flex-direction:column;background:#0b141a;min-height:0}
+.chat-hd{background:#202c33;padding:10px 16px;display:flex;align-items:center;gap:12px;border-left:1px solid #222d34}
+.chat-hd .n{font-size:16px;font-weight:500}.chat-hd .p{font-size:12px;color:#8696a0}
+.chat-hd .spacer{flex:1}
+.statuspill{font-size:11px;padding:3px 10px;border-radius:12px;font-weight:600}
+.st-bot{background:#0b3d2e;color:#00d09c}.st-human{background:#5a3b0b;color:#e9a23b}
+.btn{background:#00a884;color:#111b21;border:0;border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer;font-size:13px}
+.btn.ghost{background:#2a3942;color:#e9edef}
+.msgs{flex:1;min-height:0;overflow-y:auto;padding:18px 8%;background:#0b141a;background-image:linear-gradient(rgba(11,20,26,.95),rgba(11,20,26,.95))}
+.b{max-width:70%;padding:7px 11px;border-radius:8px;margin:3px 0;font-size:14px;line-height:1.4;word-wrap:break-word;white-space:pre-wrap;position:relative}
+.b .meta{font-size:10px;color:#8696a0;margin-top:3px;text-align:right}
+.b.in{background:#202c33;align-self:flex-start;border-top-left-radius:0}
+.b.bot{background:#005c4b;align-self:flex-end;border-top-right-radius:0}
+.b.human{background:#1d6f5c;align-self:flex-end;border-top-right-radius:0;border:1px solid #00a884}
+.b.human .who{font-size:10px;color:#8ef5d5;font-weight:700;margin-bottom:2px}
+.row{display:flex;flex-direction:column}
+.composer{background:#202c33;padding:10px 16px;display:flex;gap:10px;align-items:center;flex-shrink:0}
+.chat-hd{flex-shrink:0}
+.composer input{flex:1;background:#2a3942;border:0;border-radius:20px;padding:11px 16px;color:#e9edef;font-size:15px;outline:none}
+.composer .send{width:44px;height:44px;border-radius:50%;background:#00a884;color:#111b21;border:0;cursor:pointer;font-size:18px}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8696a0;text-align:center;gap:10px}
+.hint{font-size:12px;color:#667781;padding:6px 16px;background:#0b141a;text-align:center}
+.login{position:fixed;inset:0;background:#0b141a;display:flex;align-items:center;justify-content:center;z-index:99}
+.login .box{background:#202c33;padding:30px;border-radius:12px;text-align:center;width:320px}
+.login h2{color:#00a884;margin-bottom:6px}.login p{color:#8696a0;font-size:13px;margin-bottom:16px}
+.login input{width:100%;padding:11px;border-radius:8px;border:0;background:#2a3942;color:#e9edef;margin-bottom:12px;outline:none}
+@media(max-width:720px){.side{width:100%;max-width:100%}.chat{display:none}.app.showchat .side{display:none}.app.showchat .chat{display:flex}}
+</style></head>
 <body>
-  <div id="list">
-    <h1>CGPE Team Inbox<small>reply as human on 9904400699 · bot auto-pauses</small></h1>
-    <div id="threads"></div>
+<div class="login" id="login" style="display:none"><div class="box"><h2>CGPE Team Inbox</h2><p>Loading...</p></div></div>
+<div class="app" id="app" style="display:flex">
+  <div class="side">
+    <div class="side-hd"><div class="logo">CGPE<span>Team Inbox</span></div><button class="btn ghost" onclick="loadThreads()">&#8635;</button></div>
+    <div class="search"><input id="q" placeholder="Search chats..." oninput="renderThreads()"></div>
+    <div class="threads" id="threads"></div>
   </div>
-  <div id="chat">
-    <div id="empty">Left se ek chat chuno</div>
-  </div>
-
-<script>
-let active = null, threadTimer = null, msgTimer = null;
-
-async function loadThreads() {
-  try {
-    const r = await fetch('/api/inbox/threads'); const d = await r.json();
-    const box = document.getElementById('threads');
-    box.innerHTML = (d.threads || []).map(t => `
-      <div class="thread ${t.phone===active?'active':''}" onclick="openChat('${t.phone}','${(t.name||'').replace(/'/g,"")}')">
-        <div class="top"><span class="nm">${t.name || t.phone}</span>${t.paused?'<span class="badge">HUMAN</span>':''}</div>
-        <div class="pv">${escapeHtml(t.preview)}</div>
-        <div class="pv" style="font-size:11px">${t.phone}</div>
-      </div>`).join('') || '<div class="note">Koi conversation nahi</div>';
-  } catch(e){}
-}
-
-async function openChat(phone, name) {
-  active = phone;
-  document.querySelectorAll('.thread').forEach(el=>el.classList.remove('active'));
-  document.getElementById('chat').innerHTML = `
-    <div id="chead">
-      <div><div class="who">${name || phone}</div><div class="st" id="cst">${phone}</div></div>
-      <button onclick="resumeBot()">🤖 Bot ko wapas do</button>
+  <div class="chat" id="chat">
+    <div class="empty" id="empty"><div style="font-size:40px">&#128172;</div><div>Select a chat to start</div><div class="hint">Client messages + bot replies dikhenge. Aap reply karo &rarr; bot 45 min pause.</div></div>
+    <div id="chatview" style="display:none;flex:1;flex-direction:column;min-height:0">
+      <div class="chat-hd"><div class="av" id="cav">?</div><div><div class="n" id="cname">-</div><div class="p" id="cphone"></div></div><div class="spacer"></div><span class="statuspill st-bot" id="cstatus">Bot active</span><button class="btn ghost" id="pausebtn" onclick="toggleResume()">Resume bot</button></div>
+      <div class="msgs row" id="msgs"></div>
+      <div class="composer"><input id="msg" placeholder="Type a message (bot will pause for this client)" onkeydown="if(event.key==='Enter')send()"><button class="send" onclick="send()">&#10148;</button></div>
     </div>
-    <div id="msgs"></div>
-    <div id="composer">
-      <input id="inp" placeholder="Reply type karo..." onkeydown="if(event.key==='Enter')sendReply()" autocomplete="off"/>
-      <button id="snd" onclick="sendReply()">Send</button>
-    </div>`;
-  await loadMsgs();
-  loadThreads();
-  clearInterval(msgTimer); msgTimer = setInterval(loadMsgs, 4000);
-}
-
-async function loadMsgs() {
-  if (!active) return;
-  try {
-    const r = await fetch('/api/inbox/thread?phone=' + active); const d = await r.json();
-    const box = document.getElementById('msgs'); if (!box) return;
-    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-    box.innerHTML = (d.messages || []).map(m => `
-      <div class="m ${m.dir}">${escapeHtml(m.text)}<div class="t">${fmt(m.ts)}</div></div>`).join('');
-    if (atBottom) box.scrollTop = box.scrollHeight;
-  } catch(e){}
-}
-
-async function sendReply() {
-  const inp = document.getElementById('inp'); const btn = document.getElementById('snd');
-  const text = inp.value.trim(); if (!text || !active) return;
-  btn.disabled = true; inp.value = '';
-  try {
-    const r = await fetch('/api/inbox/reply', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ phone: active, text }) });
-    const d = await r.json();
-    if (!d.sent) alert('Send fail: ' + (d.sendError || 'unknown') + '\n(Meta ka 24-ghante window khatam ho sakta hai)');
-  } catch(e){ alert('Error: ' + e.message); }
-  btn.disabled = false; inp.focus();
-  await loadMsgs(); loadThreads();
-}
-
-async function resumeBot() {
-  if (!active) return;
-  await fetch('/api/inbox/resume', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ phone: active }) });
-  document.getElementById('cst').textContent = active + ' · bot resumed';
-  loadThreads();
-}
-
-function escapeHtml(s){ return String(s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-function fmt(ts){ try{ return new Date(ts).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false}); }catch(e){ return ''; } }
-
-loadThreads();
-threadTimer = setInterval(loadThreads, 5000);
+  </div>
+</div>
+<script>
+var API='https://ai.cgpe.in/webhook/';
+var KEY='cgpe-inbox-7h3k9';
+var threads=[], active=null, activePaused=false;
+var seen={}; try{ var _s=JSON.parse(localStorage.getItem('cgpe_inbox_seen')||'{}'); if(_s&&typeof _s==='object') seen=_s; }catch(e){ seen={}; }
+function markSeen(phone,ts){ try{ if(phone&&ts){ seen[phone]=String(ts); localStorage.setItem('cgpe_inbox_seen',JSON.stringify(seen)); } }catch(e){} }
+function isUnread(t){ try{ return !!(t && t.phone!==active && t.ts && (!seen[t.phone] || String(t.ts) > String(seen[t.phone]))); }catch(e){ return false; } }
+function updateTitle(){ try{ var n=threads.filter(isUnread).length; document.title=(n>0?'('+n+') ':'')+'CGPE Team Inbox'; }catch(e){} }
+function doLogin(){ var k=document.getElementById('key').value.trim(); if(!k){ alert('Access key daaliye'); return; } KEY=k; localStorage.setItem('cgpe_inbox_key',k); start(); }
+function start(){ document.getElementById('login').style.display='none'; document.getElementById('app').style.display='flex'; loadThreads(); setInterval(loadThreads,6000); setInterval(function(){ if(active) loadThread(active,true); },3500); }
+function initials(n,p){ n=(n||'').trim(); if(n) return n.split(/\s+/).map(function(x){return x[0];}).join('').slice(0,2).toUpperCase(); return (p||'').slice(-2); }
+function loadThreads(){ fetch(API+'inbox-threads?key='+encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){ if(!d.ok){ if(d.error==='unauthorized'){ localStorage.removeItem('cgpe_inbox_key'); location.reload(); } return; } threads=d.threads||[]; if(active){ var at=threads.filter(function(t){return t.phone===active;})[0]; if(at) markSeen(active,at.ts); } renderThreads(); updateTitle(); }).catch(function(){}); }
+function renderThreads(){ try{ var q=((document.getElementById('q')||{}).value||'').toLowerCase(); var el=document.getElementById('threads'); if(!el) return; el.innerHTML=''; var list=(threads||[]).slice().sort(function(a,b){ return String((b||{}).ts||'').localeCompare(String((a||{}).ts||'')); }); list.filter(function(t){ return t && (!q || (t.name||'').toLowerCase().indexOf(q)>=0 || String(t.phone||'').indexOf(q)>=0); }).forEach(function(t){ var un=isUnread(t); var d=document.createElement('div'); d.className='trow'+(active===t.phone?' active':'')+(un?' unread':''); d.onclick=function(){ openChat(t); }; var badges=''; if(un) badges+='<span class="newbadge">NEW</span>'; if(t.paused) badges+='<span class="pausebadge">HUMAN</span>'; d.innerHTML='<div class="av">'+initials(t.name,t.phone)+'</div><div class="tmeta"><div class="tname">'+(t.name?esc(t.name):('+91 '+t.phone))+'<span style="float:right;font-weight:400;font-size:11px;color:#8a97a3">'+fmtThreadTs(t.ts)+'</span></div><div class="tprev">'+esc(t.preview||'')+'</div></div>'+(badges?'<div class="tbadges">'+badges+'</div>':''); el.appendChild(d); }); }catch(err){ try{ var el2=document.getElementById('threads'); el2.innerHTML=''; (threads||[]).forEach(function(t){ if(!t) return; var d=document.createElement('div'); d.className='trow'; d.onclick=function(){ openChat(t); }; d.innerHTML='<div class="av">'+initials(t.name,t.phone)+'</div><div class="tmeta"><div class="tname">'+(t.name?esc(t.name):('+91 '+t.phone))+'</div><div class="tprev">'+esc(t.preview||'')+'</div></div>'; el2.appendChild(d); }); }catch(e2){} } }
+function openChat(t){ active=t.phone; activePaused=t.paused; markSeen(t.phone,t.ts); updateTitle(); document.getElementById('empty').style.display='none'; document.getElementById('chatview').style.display='flex'; document.getElementById('app').classList.add('showchat'); document.getElementById('cname').textContent=t.name?t.name:('+91 '+t.phone); document.getElementById('cphone').textContent='+91 '+t.phone; document.getElementById('cav').textContent=initials(t.name,t.phone); updateStatus(t.paused); renderThreads(); loadThread(t.phone,false); }
+function updateStatus(paused){ activePaused=paused; var s=document.getElementById('cstatus'); var b=document.getElementById('pausebtn'); if(paused){ s.className='statuspill st-human'; s.textContent='Human handling'; b.style.display='inline-block'; b.textContent='Resume bot'; } else { s.className='statuspill st-bot'; s.textContent='Bot active'; b.style.display='none'; } }
+function loadThread(phone,keep){ fetch(API+'inbox-thread?key='+encodeURIComponent(KEY)+'&phone='+phone).then(function(r){return r.json();}).then(function(d){ if(active!==phone) return; var m=document.getElementById('msgs'); var atBottom=m.scrollHeight-m.scrollTop-m.clientHeight<80; var html=''; var lastDay=''; (d.messages||[]).forEach(function(x){ var dd=x.ts?fmtDay(x.ts):''; if(dd && dd!==lastDay){ html+='<div style="text-align:center;margin:12px 0 6px"><span style="background:#e8eef2;color:#5b6b7a;font-size:11px;font-weight:600;padding:3px 12px;border-radius:12px">'+dd+'</span></div>'; lastDay=dd; } var cls=x.dir==='in'?'in':(x.dir==='human'?'human':'bot'); var who=x.dir==='human'?'<div class="who">You (human)</div>':''; html+='<div class="b '+cls+'">'+who+esc(x.text)+'<div class="meta">'+fmtTs(x.ts)+'</div></div>'; }); m.innerHTML=html||'<div class="empty">No messages</div>'; if(!keep||atBottom) m.scrollTop=m.scrollHeight; }).catch(function(){}); }
+function send(){ var i=document.getElementById('msg'); var text=i.value.trim(); if(!text||!active) return; i.value=''; var m=document.getElementById('msgs'); m.innerHTML+='<div class="b human"><div class="who">You (human)</div>'+esc(text)+'<div class="meta">sending...</div></div>'; m.scrollTop=m.scrollHeight; fetch(API+'inbox-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,phone:active,text:text})}).then(function(r){return r.json();}).then(function(d){ updateStatus(true); setTimeout(function(){ loadThread(active,false); loadThreads(); },1200); }).catch(function(){ alert('Send failed'); }); }
+function toggleResume(){ if(!active) return; fetch(API+'inbox-resume',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,phone:active})}).then(function(r){return r.json();}).then(function(){ updateStatus(false); loadThreads(); }); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtTs(ts){ if(!ts) return ''; try{ var d=new Date(ts); if(isNaN(d)) return ''; return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+function fmtDay(ts){ if(!ts) return ''; try{ var d=new Date(ts); if(isNaN(d)) return ''; var now=new Date(); var t0=now.toDateString(); var y=new Date(now.getTime()-86400000).toDateString(); if(d.toDateString()===t0) return 'Today'; if(d.toDateString()===y) return 'Yesterday'; return d.toLocaleDateString([], {weekday:'short',day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return ''; } }
+function fmtThreadTs(ts){ if(!ts) return ''; try{ var d=new Date(ts); if(isNaN(d)) return ''; var now=new Date(); if(d.toDateString()===now.toDateString()) return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); if(d.toDateString()===new Date(now.getTime()-86400000).toDateString()) return 'Yesterday'; if(d.getFullYear()===now.getFullYear()) return d.toLocaleDateString([], {day:'2-digit',month:'short'}); return d.toLocaleDateString([], {day:'2-digit',month:'2-digit',year:'2-digit'}); }catch(e){ return ''; } }
+start();
 </script>
-</body>
-</html>
+</body></html>
