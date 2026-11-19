@@ -1,0 +1,12 @@
+# Local entity descriptor pointing back to the central As-Built catalog.
+apiVersion: aaziko.io/v1
+kind: Component
+metadata:
+  id: "component:trade-intelligence/engine"
+  name: "trade-intelligence-engine"
+  central_catalog: "aaziko-it-as-built"
+spec:
+  truth_status: "BUILT_BUT_UNVERIFIED"
+  owner_ref: "UNKNOWN"
+  system_ref: "system:trade-intelligence"
+  points_to: "catalog/components/trade-intelligence-engine.yaml"

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Setu — Team Guide</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1a2233; font-size: 11.5px; line-height: 1.5; margin: 0; }
+  .brand { display:flex; align-items:center; gap:10px; border-bottom:3px solid #16a34a; padding-bottom:10px; margin-bottom:12px; }
+  .brand .logo { font-size:26px; }
+  .brand h1 { margin:0; font-size:21px; color:#0f1b3d; }
+  .brand .sub { margin:2px 0 0; font-size:11px; color:#64748b; }
+  .lead { background:#f1f5f9; border-left:4px solid #0f1b3d; padding:9px 12px; border-radius:6px; margin:0 0 10px; }
+  .warn { background:#fff7ed; border-left:4px solid #f59e0b; padding:8px 12px; border-radius:6px; margin:0 0 14px; font-size:11px; }
+  h2 { font-size:13.5px; color:#0f1b3d; margin:14px 0 5px; border-bottom:1px solid #e2e8f0; padding-bottom:3px; }
+  ol, ul { margin:4px 0 8px; padding-left:20px; }
+  li { margin:2.5px 0; }
+  b { color:#0f1b3d; }
+  .tag { display:inline-block; border-radius:10px; padding:1px 7px; font-size:10px; font-weight:600; }
+  .t-buy { background:#dcfce7; color:#166534; } .t-sup { background:#ede9fe; color:#6d28d9; } .t-oth { background:#e2e8f0; color:#475569; }
+  .flow { background:#0f1b3d; color:#fff; border-radius:8px; padding:10px 14px; font-size:11.5px; margin:10px 0; }
+  .flow b { color:#86efac; }
+  .foot { margin-top:14px; border-top:1px solid #e2e8f0; padding-top:8px; font-size:10px; color:#94a3b8; }
+  .cols { display:flex; gap:16px; }
+  .cols > div { flex:1; }
+  .small { color:#64748b; font-size:10.5px; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <span class="logo">🌉</span>
+    <div><h1>Setu — Team Guide</h1><p class="sub">AI Sourcing Assistant · Aaziko Global LLP · Sales / Sourcing</p></div>
+  </div>
+
+  <p class="lead"><b>Setu aapka AI sourcing assistant hai.</b> Yeh <b>contact@aaziko.com</b> ke real emails khud padhta hai, buyer/supplier pehchanta hai, reply draft karta hai, COA (Certificate of Analysis) read karke buyer ke spec se match karta hai, CIF price nikalta hai, aur quotation draft deta hai. <b>Aapka kaam = review + approve.</b> Baaki Setu karta hai.</p>
+
+  <p class="warn">⚠️ Abhi <b>test (SHADOW) mode</b> — koi real email apne aap kisi customer ko nahi jaata. Jab tak aap <b>"Approve &amp; Send"</b> na dabao kuch nahi jaata, aur send sirf approved test numbers pe.</p>
+
+  <div class="cols">
+    <div>
+      <h2>1. Kaise kholo</h2>
+      <p>Browser: <b>http://localhost:4545/dashboard</b><br><span class="small">Purana lage toh <b>Ctrl+Shift+R</b>.</span> Left me <b>📨 Live Mailbox</b>.</p>
+
+      <h2>2. Kaha focus karo</h2>
+      <p>Har mail pe Setu ne tag lagaya hota:</p>
+      <ul>
+        <li><span class="tag t-buy">🛒 Buyer</span> — humse khareedna chahta → <b>FOCUS</b></li>
+        <li><span class="tag t-sup">🏭 Supplier</span> — humein bechna chahta → <b>FOCUS</b></li>
+        <li><span class="tag t-oth">⚙️ Other</span> — bounce/logistics/event/spam → <b>ignore</b></li>
+      </ul>
+      <p class="small">Inbox ka ~84% noise hota — Setu chhaan deta, aap sirf buyer+supplier (asli kaam) dekho.</p>
+
+      <h2>5. Aap manually kya karo (bas yeh)</h2>
+      <ul>
+        <li><b>Markup % · Forwarding ₹ · Ocean Freight $</b> — CIF calc me (per-deal change hote).</li>
+        <li><b>Har draft review + approve</b> — bhejne se pehle check.</li>
+        <li><b>Send</b> — "✓ Approve &amp; Send" (gated).</li>
+      </ul>
+      <p class="small">Baaki (padhna, draft, COA read, spec-match, pricing, quotation) — <b>Setu karta hai.</b></p>
+    </div>
+
+    <div>
+      <h2>3. Ek SUPPLIER mail (jaise Vinipul)</h2>
+      <ol>
+        <li><b>"Let Setu handle"</b> → supplier-reply draft (terms maangega). Review panel khulega.</li>
+        <li><b>"💬 View thread"</b> → 📎 <b>COA specs</b> table apne aap (scanned bhi OCR se).</li>
+        <li><b>🔍 Spec match</b> me seedha <b>🔗 Auto-match</b> → <b>CONFORM</b> ya <b>DEVIATION</b> (bina paste).</li>
+        <li><b>💰 CIF calc</b>: QTY/buyer auto-filled. Aap sirf <b>Markup / Forwarding / Ocean Freight</b> daalo → <b>Calculate</b> → ₹ &amp; $.</li>
+        <li><b>📧 Draft quotation</b> → buyer ko CIF quote (numbers Setu compute, verified).</li>
+        <li><b>Review → Approve → ✓ Send</b> (gated).</li>
+      </ol>
+
+      <h2>4. Ek BUYER mail</h2>
+      <ol>
+        <li><b>"Let Setu handle"</b> → buyer-style reply draft.</li>
+        <li>Buyer ne spec diya → Setu <b>requirement save</b> kar leta (aage supplier COA auto-match hoga).</li>
+        <li>Review → Approve → (gated) Send.</li>
+      </ol>
+      <p class="small">Manually save: thread me <b>"📋 Save this thread as a buyer requirement"</b>.</p>
+
+      <h2>6. Bharosa kyun (safety)</h2>
+      <ul>
+        <li>Saare <b>numbers CODE se</b> — AI invent nahi karta (2 guards).</li>
+        <li><b>CONFORM/DEVIATION sahi</b>; jhooth "conforms" nahi likhता.</li>
+        <li><b>Supplier vs Buyer</b> sahi — supplier ko landed-quote nahi deta.</li>
+        <li><b>SHADOW</b> — bina approve kuch nahi; send sirf allowlist.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>7. Quick tips</h2>
+  <ul>
+    <li>Mail dikhe nahi? <b>↻ refresh</b> / Ctrl+Shift+R. · Thread window resize → left kinare <b>↔ handle drag</b> (double-click = reset).</li>
+    <li>Laal <b>"DB offline"</b> banner? → IT ko bolo (Tailscale reconnect). · <b>"human triage"</b> = Setu ne socha real buyer/supplier nahi (bounce/vendor).</li>
+  </ul>
+
+  <div class="flow">Ek line me: <b>Buyer/Supplier tag → "Let Setu handle" → "View thread" (COA + auto-match) → CIF (3 manual numbers) → Draft quotation → Review → Approve &amp; Send.</b></div>
+
+  <div class="foot">Setu · Aaziko Global LLP — internal sales tool (SHADOW/test mode). Koi dikkat ho toh Ved/dev ko batao.</div>
+</body>
+</html>

@@ -1,0 +1,5 @@
+2026-10-02T11:01:50.787Z warm cache loaded
+2026-10-02T11:01:50.799Z Trade Intelligence dashboard on http://0.0.0.0:3077
+2026-10-02T11:02:03.550Z compute(startup) ok: 0 buyers, 12 lanes, 11522ms
+2026-10-02T11:02:32.701Z compute(manual) ok: 0 buyers, 12 lanes, 2297ms
+2026-10-02T11:05:20.889Z compute(manual) ok: 0 buyers, 12 lanes, 2044ms

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Jarvis Auto-Sourcing Works</title>
+<style>
+  :root{--bg:#f4f6fb;--ink:#141a24;--mut:#667085;--line:#e4e9f2;--card:#fff;
+    --in:#7c3aed;--src:#2563eb;--quote:#b4740b;--close:#15803d;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(1200px 420px at 50% -140px,#eae9ff 0,rgba(255,255,255,0) 70%),var(--bg);color:var(--ink);font:15px/1.65 -apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 18px 70px;}
+  .hero{text-align:center;padding:12px 0 6px;}
+  .hero .badge{display:inline-block;background:#eef4ff;border:1px solid #cfe0ff;color:var(--src);font-size:12px;font-weight:700;border-radius:20px;padding:4px 12px;margin-bottom:10px;}
+  .hero h1{margin:0 0 8px;font-size:28px;letter-spacing:-.3px;}
+  .hero p{margin:0 auto;max-width:620px;color:var(--mut);}
+  .hero .big{display:block;margin-top:10px;color:var(--ink);font-weight:600;}
+  .map{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 10px;margin:20px 0 10px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .map .mc{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:#f3f5fb;border:1.5px solid var(--line);}
+  .map .ar{color:#c3cde0;font-size:15px;}
+  .legend{text-align:center;color:var(--mut);font-size:12.5px;margin-bottom:22px;}
+  .legend b{color:var(--ink);} .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 12px;vertical-align:middle;}
+  .step{display:flex;gap:15px;position:relative;}
+  .spine{flex:0 0 44px;display:flex;flex-direction:column;align-items:center;}
+  .spine .dot{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;background:#fff;border:2px solid var(--line);z-index:1;}
+  .step.in .dot{border-color:var(--in);} .step.src .dot{border-color:var(--src);} .step.quote .dot{border-color:var(--quote);} .step.close .dot{border-color:var(--close);}
+  .step:not(:last-child) .spine::after{content:"";position:absolute;top:44px;bottom:-16px;width:3px;background:var(--line);border-radius:2px;}
+  .scard{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .step.in .scard{border-left:4px solid var(--in);} .step.src .scard{border-left:4px solid var(--src);} .step.quote .scard{border-left:4px solid var(--quote);} .step.close .scard{border-left:4px solid var(--close);}
+  .shdr{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+  .sn{font-size:10.5px;font-weight:800;letter-spacing:.5px;color:var(--mut);background:#f1f4f9;border-radius:20px;padding:2px 9px;}
+  .shdr h2{margin:0;font-size:17px;}
+  .line{display:flex;gap:10px;margin:7px 0;font-size:14px;}
+  .line .k,.eg .k{flex:0 0 150px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--mut);padding-top:2px;}
+  .line>div:last-child{color:#33405a;}
+  .eg{display:flex;gap:10px;margin-top:9px;background:#f7faff;border:1px dashed #cfe0ff;border-radius:10px;padding:9px 12px;font-size:13.5px;}
+  .eg>div:last-child{color:#1f3a63;}
+  .ok{color:var(--close);}
+  .foot{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-top:14px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .foot h4{margin:0 0 10px;font-size:15px;}
+  .foot .g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .foot .b{font-size:13px;} .foot .b .t{font-weight:700;margin-bottom:3px;}
+  .foot .ok .t{color:var(--close);} .foot .sim .t{color:var(--quote);} .foot .blk .t{color:#b4330a;}
+  .note{text-align:center;color:var(--mut);font-size:12.5px;margin-top:18px;}
+  @media (max-width:640px){.line,.eg{flex-direction:column;gap:2px;}.line .k,.eg .k{flex:none;}.foot .g{grid-template-columns:1fr;}}
+  @media print{body{background:#fff;}.scard,.map,.foot{box-shadow:none;break-inside:avoid;}}
+</style></head>
+<body><div class="wrap">
+  <div class="hero">
+    <div class="badge">EXPLAINER · how it works</div>
+    <h1>⚙️ How Jarvis Auto-Sources an Order</h1>
+    <p>One buyer email goes in. Jarvis runs 11 steps by itself and hands finished drafts to a human to approve.</p>
+    <span class="big">📧 1 email in &nbsp;→&nbsp; 🤖 11 steps auto &nbsp;→&nbsp; ✅ ready to approve</span>
+  </div>
+
+  <div class="map"><div class="mc">📩</div><span class="ar">→</span><div class="mc">🧾</div><span class="ar">→</span><div class="mc">🔢</div><span class="ar">→</span><div class="mc">🏭</div><span class="ar">→</span><div class="mc">✉️</div><span class="ar">→</span><div class="mc">💬</div><span class="ar">→</span><div class="mc">🧮</div><span class="ar">→</span><div class="mc">📝</div><span class="ar">→</span><div class="mc">📤</div><span class="ar">→</span><div class="mc">🔎</div><span class="ar">→</span><div class="mc">✅</div></div>
+  <div class="legend">
+    <span class="dotc" style="background:var(--in)"></span><b>Inbound</b>
+    <span class="dotc" style="background:var(--src)"></span><b>Sourcing</b>
+    <span class="dotc" style="background:var(--quote)"></span><b>Quote</b>
+    <span class="dotc" style="background:var(--close)"></span><b>Close</b>
+  </div>
+
+  
+  <div class="step in">
+    <div class="spine"><div class="dot">📩</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 1</span><h2>A buyer email arrives</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>A buyer writes in asking to source a product.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>It lands in the sales mailbox, or you paste it into the panel's “⚙️ Auto-sourcing” box.</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>Buyer: “We want to source cotton T-shirts, 180 GSM combed, GOTS certified, ~10,000 pcs, delivered to Hamburg. Please share pricing.”</div></div>
+    </div>
+  </div>
+
+  <div class="step src">
+    <div class="spine"><div class="dot">🧾</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 2</span><h2>Understand the requirement</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>Jarvis reads the email and pulls out exactly what the buyer needs.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>AI reads the text and extracts product, quantity, specs, destination — <b>only what the buyer actually wrote</b>, never invents.</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>product = cotton T-shirts · qty = 10,000 · specs = 180 GSM combed, GOTS · destination = Hamburg</div></div>
+    </div>
+  </div>
+
+  <div class="step src">
+    <div class="spine"><div class="dot">🔢</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 3</span><h2>Resolve the HS code</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>Turns the product name into its 6-digit HS code — the universal ID used in global trade & customs.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>The Product Resolver matches the name against our HS-code database (and disambiguates — e.g. “keyboard” = computer vs musical).</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>cotton T-shirts → <b>HS 610910</b></div></div>
+    </div>
+  </div>
+
+  <div class="step src">
+    <div class="spine"><div class="dot">🏭</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 4</span><h2>Find &amp; score Indian suppliers</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>Finds real Indian exporters of this product and ranks the strongest.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>Looks up <b>107,872 real India exporters</b> (customs data) by HS, scores each by export volume + value. If none are found, it <b>stops honestly</b> — no fake quote.</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>FAIR EXPORTS INDIA [78] · SHAHI EXPORTS [63] · BINDU FASHION [29]</div></div>
+    </div>
+  </div>
+
+  <div class="step src">
+    <div class="spine"><div class="dot">✉️</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 5</span><h2>Draft RFQs to suppliers</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>Writes a Request-for-Quotation to each top supplier.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>AI writes each RFQ in Aaziko's style — asking ex-works/FOB price, MOQ, lead-time, payment terms & samples. Saved to the review queue; <b>nothing is sent</b>.</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>3 RFQ drafts ready for a human to review & send.</div></div>
+    </div>
+  </div>
+
+  <div class="step quote">
+    <div class="spine"><div class="dot">💬</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 6</span><h2>Collect the quotes</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>Reads each supplier's reply and pulls out the numbers.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>AI extracts price, currency, MOQ, lead-time, validity from the reply. <i>(In the demo a placeholder quote is used — real supplier emails turn this on.)</i></div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>[simulated] USD 3.20 / pc · MOQ 3,000 · 30–35 days</div></div>
+    </div>
+  </div>
+
+  <div class="step quote">
+    <div class="spine"><div class="dot">🧮</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 7</span><h2>Calculate the landed cost</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>Works out what the buyer actually pays at their port.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>supplier price + import duty (from the tariff database) + freight → <b>computed by code, not AI</b>, so the numbers are exact.</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>3.20 + 0.26 freight → <b>USD 3.46 / pc CIF Hamburg</b></div></div>
+    </div>
+  </div>
+
+  <div class="step quote">
+    <div class="spine"><div class="dot">📝</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 8</span><h2>Prepare the quotation</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>Writes the final quotation email to the buyer.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>AI writes it using <b>only</b> the computed numbers (never invents a price). Saved to the review queue; <b>nothing is sent</b>.</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>“Landed-cost USD 3.46/pc CIF Hamburg… samples ~25 days… valid 30 days… confirm → proforma invoice.”</div></div>
+    </div>
+  </div>
+
+  <div class="step close">
+    <div class="spine"><div class="dot">📤</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 9</span><h2>Send — but gated</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>A human approves, then it goes out.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>The gated send only lets <b>allow-listed test addresses</b> through; a real buyer is blocked until senior switches it on. No email leaves by mistake.</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>Reviewer clicks Approve & Send → (gated) → sent.</div></div>
+    </div>
+  </div>
+
+  <div class="step close">
+    <div class="spine"><div class="dot">🔎</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 10</span><h2>Track the response</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>When the buyer replies, Jarvis decides if it's a yes or a no.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>An AI classifier reads the reply and labels it positive / negative / neutral.</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>“The landed price works, please proceed” → <b class="ok">POSITIVE</b></div></div>
+    </div>
+  </div>
+
+  <div class="step close">
+    <div class="spine"><div class="dot">✅</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 11</span><h2>Update the records</h2></div>
+      <div class="line"><span class="k">👉 What it does</span><div>Closes the loop based on the answer.</div></div>
+      <div class="line"><span class="k">⚙️ How (under the hood)</span><div>Positive → mark the CRM opportunity <b>won</b>. Negative → add the buyer to the <b>newsletter</b> list for future nurture. (Staged in our DB; real CRM/newsletter writes flip on with senior approval.)</div></div>
+      <div class="eg"><span class="k">📍 In our real run</span><div>POSITIVE → CRM opportunity marked won (staged).</div></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <h4>What's real vs demo vs waiting on approval</h4>
+    <div class="g">
+      <div class="b ok"><div class="t">✅ Real & automatic</div>Requirement, HS code, real supplier search + scoring, all drafts, landed-cost maths, response reading.</div>
+      <div class="b sim"><div class="t">🟠 Demo placeholder</div>The supplier quote is simulated until real supplier emails are enabled; freight is an indicative estimate.</div>
+      <div class="b blk"><div class="t">⛔ Needs senior</div>Sending to real buyers/suppliers, real CRM & newsletter writes, live tariff/freight feeds.</div>
+    </div>
+  </div>
+
+  <div class="note">Everything runs in SHADOW mode — every message is human-reviewed, real sending is allow-list gated. Aaziko Global LLP · 2026-10-05</div>
+</div></body></html>

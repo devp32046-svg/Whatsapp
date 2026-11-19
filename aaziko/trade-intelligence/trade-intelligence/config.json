@@ -1,0 +1,11 @@
+{
+  "port": 3077,
+  "watch_hs": [
+    { "hs": "69072100", "label": "Ceramic / porcelain tiles", "family": "Ceramic flags/paving/tiles, water absorption <= 0.5% (porcelain)", "match_terms": ["vitrified tile", "ceramic tile", "porcelain tile", "floor tile", "wall tile"] }
+  ],
+  "buyers_per_hs": 8,
+  "tariff_exporter": "India",
+  "poll_seconds": 45,
+  "daily_hour_utc": 1,
+  "_note": "watch_hs: HS codes (string form as stored in standard_port_data) to track live. Add more entries to widen the console. poll_seconds = movement-check cadence. daily_hour_utc = hour of the guaranteed daily full recompute."
+}

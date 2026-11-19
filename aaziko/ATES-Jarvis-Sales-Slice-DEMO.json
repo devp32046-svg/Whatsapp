@@ -1,0 +1,567 @@
+{
+  "name": "Aaziko ATES Jarvis - Sales Slice (Feasibility DEMO)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "n_trigger",
+      "name": "RUN DEMO (Staging Trigger)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// STEP 1 - manual/staging trigger input (sales_vertical_slice step 1).\n  // Bounded + test-mode-safe. In prod this is a Webhook / Schedule trigger.\n  const staging = {\n    country: 'DE',\n    hsProduct: '4202.92 / cotton shopping bags',\n    buyerCount: 3,\n    testMode: true,                         // GATE: nothing reaches a real buyer\n    testRecipient: 'demo-inbox@aaziko-test.example'\n  };\n  // 3 mock inbound signals - each exercises a DIFFERENT Jarvis decision path.\n  const rawEvents = [\n    { eventId: 'EVT-1001', type: 'NEW_BUYER_SIGNAL', source: 'trade_data_api',\n      receivedAt: '2026-09-20T09:00:00Z', sourceMsgId: 'sig-de-cotton-01',\n      buyer: { name: 'Nordwind Handels GmbH', country: 'DE', product: 'cotton shopping bags', hs: '4202.92', qty: 20000, unit: 'pcs' } },\n    { eventId: 'EVT-1002', type: 'EMAIL_RECEIVED', source: 'zoho_mail',\n      receivedAt: '2026-09-21T11:30:00Z', sourceMsgId: 'mail-us-mug-77',\n      buyer: { name: 'Blue Ridge Imports LLC', country: 'US', product: 'ceramic mugs', hs: '6912.00', qty: 15000, unit: 'pcs' },\n      note: 'Buyer asked us for a quotation 15 days ago; Aaziko has NOT sent it yet.' },\n    { eventId: 'EVT-1003', type: 'NEW_BUYER_SIGNAL', source: 'trade_data_api',\n      receivedAt: '2026-09-22T08:15:00Z', sourceMsgId: 'sig-uk-led-05',\n      buyer: { name: 'Brightwave Retail Ltd', country: 'GB', product: 'LED bulbs', hs: '8539.50', qty: 30000, unit: 'pcs' } }\n  ];\n  return rawEvents.map(e => ({ json: { staging, event: e } }));"
+      },
+      "id": "n_step1",
+      "name": "1 - Staging Trigger Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// CORE-01 - validate source, dedup, persist event, historical-vs-live.\n  // MOCK dedup in-memory; in prod = Mongo aaziko_jarvis.events, unique index on sourceMsgId.\n  const seen = new Set();\n  const out = [];\n  for (const item of $input.all()) {\n    const { staging, event } = item.json;\n    const allowedSources = ['trade_data_api', 'zoho_mail', 'order-service', 'logistics'];\n    const sourceValid = allowedSources.includes(event.source);\n    const duplicate = seen.has(event.sourceMsgId);\n    seen.add(event.sourceMsgId);\n    const ageDays = (Date.now() - new Date(event.receivedAt).getTime()) / 86400000;\n    const mode = ageDays > 30 ? 'HISTORICAL_REPLAY' : 'LIVE';\n    out.push({ json: { staging, event, intake: {\n      persistedEventId: event.eventId, sourceValid, duplicate, mode,\n      persistedAt: new Date().toISOString(), collection: 'aaziko_jarvis.events (MOCK)' } } });\n  }\n  return out;"
+      },
+      "id": "n_core01",
+      "name": "CORE-01 - Event Intake + Dedup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// CORE-02 - resolve entity/contact/company/opportunity/current case.\n  // Ambiguous matches -> human review. MOCK identity directory.\n  const entityDir = {\n    'Nordwind Handels GmbH': { entityId: 'ENT-DE-4471', confidence: 0.98 },\n    'Blue Ridge Imports LLC': { entityId: 'ENT-US-2210', confidence: 0.95 },\n    'Brightwave Retail Ltd': { entityId: 'ENT-GB-8830', confidence: 0.71 }\n  };\n  return $input.all().map(item => {\n    const j = item.json; const b = j.event.buyer;\n    const match = entityDir[b.name] || { entityId: null, confidence: 0 };\n    const ambiguous = match.confidence < 0.5;\n    const caseId = match.entityId ? ('CASE-' + match.entityId + '-' + b.hs) : null;\n    return { json: Object.assign({}, j, { resolution: {\n      entityId: match.entityId, matchConfidence: match.confidence, ambiguous, caseId,\n      caseType: 'BUYER_OPPORTUNITY', route: ambiguous ? 'HUMAN_REVIEW' : 'CONTINUE' } }) };\n  });"
+      },
+      "id": "n_core02",
+      "name": "CORE-02 - Case Resolver",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// CORE-03 - retrieve ONLY relevant authorized evidence: facts + sourceRefs + freshness\n  // + unknowns + conflicts. MOCK stores; in prod = read-only HTTP APIs + query templates.\n  const crmHistory = {\n    'ENT-DE-4471': { lastContact: '2026-06-10', openQuestions: [], aazikoOwes: null, suppressed: false },\n    'ENT-US-2210': { lastContact: '2026-09-06', openQuestions: ['buyer awaiting our quotation'],\n      aazikoOwes: { what: 'send quotation', promisedOn: '2026-09-06', done: false }, suppressed: false },\n    'ENT-GB-8830': { lastContact: null, openQuestions: [], aazikoOwes: null, suppressed: false }\n  };\n  const supplyIntel = {\n    '4202.92': { indianSupply: true, sampleSupplier: 'Rajkot Textiles', moq: 5000, unknowns: ['exact FOB price'] },\n    '6912.00': { indianSupply: true, sampleSupplier: 'Morbi Ceramics', moq: 10000, unknowns: ['exact FOB price'] },\n    '8539.50': { indianSupply: true, sampleSupplier: 'Noida Lighting', moq: 10000, unknowns: ['exact FOB price', 'BIS cert status'] }\n  };\n  const tariffIntel = {\n    'DE-4202.92': { dutyPct: 9.7, source: 'macmap_tariff', asOf: '2026-08-01' },\n    'US-6912.00': { dutyPct: 9.8, source: 'macmap_tariff', asOf: '2026-08-01' },\n    'GB-8539.50': { dutyPct: 3.7, source: 'macmap_tariff', asOf: '2026-08-01' }\n  };\n  return $input.all().map(item => {\n    const j = item.json; const b = j.event.buyer;\n    const crm = crmHistory[j.resolution.entityId] || {};\n    const supply = supplyIntel[b.hs] || {};\n    const tariff = tariffIntel[b.country + '-' + b.hs] || {};\n    return { json: Object.assign({}, j, { context: {\n      facts: { buyer: b, crm, supply, tariff },\n      sourceRefs: ['crm-service', 'vendor-service', 'macmap_tariff'],\n      freshness: { crm: crm.lastContact || 'none', tariffAsOf: tariff.asOf || 'unknown' },\n      unknowns: supply.unknowns || ['supply unknown'],\n      conflicts: [], accessLimitations: 'read-only; no raw price fabricated' } }) };\n  });"
+      },
+      "id": "n_core03",
+      "name": "CORE-03 - Context Builder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Deterministic commercial comparison (prompt: use CODE for calculations, not AI).\n  // UNKNOWN inputs stay UNKNOWN - never invent a price/saving (ai_communication_policy).\n  return $input.all().map(item => {\n    const j = item.json; const t = j.context.facts.tariff || {};\n    const dutyPct = (typeof t.dutyPct === 'number') ? t.dutyPct : 'UNKNOWN';\n    return { json: Object.assign({}, j, { commercial: {\n      fobPrice: 'UNKNOWN - NEEDS VERIFICATION',\n      dutyPct,\n      landedCost: 'UNKNOWN - NEEDS VERIFICATION (FOB not confirmed)',\n      note: 'Deterministic: no savings/price fabricated when inputs missing.' } }) };\n  });"
+      },
+      "id": "n_comm",
+      "name": "Deterministic - Commercial Comparison",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// COMM-01 - decide next action. Sending is only ONE option.\n  // communication_rules: age triggers a REVIEW, never a blind message.\n  return $input.all().map(item => {\n    const j = item.json; const crm = j.context.facts.crm || {};\n    let decision, reason;\n    if (crm.suppressed) { decision = 'SUPPRESS'; reason = 'recipient suppressed'; }\n    else if (j.resolution.ambiguous) { decision = 'HUMAN_REVIEW'; reason = 'identity ambiguous'; }\n    else if (crm.aazikoOwes && crm.aazikoOwes.done === false) {\n      decision = 'CREATE_INTERNAL_TASK';\n      reason = 'Aaziko owes \"' + crm.aazikoOwes.what + '\" since ' + crm.aazikoOwes.promisedOn +\n        ' - do NOT chase buyer; finish our part first.';\n    } else { decision = 'CONTACT'; reason = 'open opportunity, no unfinished Aaziko commitment'; }\n    return { json: Object.assign({}, j, { decision, decisionReason: reason }) };\n  });"
+      },
+      "id": "n_decision",
+      "name": "COMM-01 - Decision Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c_route",
+              "leftValue": "={{ $json.decision }}",
+              "rightValue": "CONTACT",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n_route",
+      "name": "Route - Contact vs Internal Task",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// COMM-02 - draft from a BOUNDED evidence packet (mock AI). Keeps SAFE_TO_SAY / DO_NOT_CLAIM.\n  // For HS 8539.50 we deliberately let the \"AI\" hallucinate a price so QA can catch & block it.\n  return $input.all().map(item => {\n    const j = item.json; const b = j.context.facts.buyer;\n    const safeToSay = ['Aaziko can support sourcing from qualified Indian manufacturers',\n      'We can coordinate inspection, logistics and export documentation'];\n    const doNotClaim = ['price', 'guaranteed MOQ', 'duty savings', 'delivery date'];\n    let body = 'Hello ' + b.name + ' team,\\n\\n' +\n      'We understand you are looking for ' + b.product + ' (approx ' + b.qty + ' ' + b.unit + '). ' +\n      'Aaziko can help source this from qualified Indian suppliers and manage inspection, logistics and export documentation.\\n\\n' +\n      'Could you confirm your target specification and timeline so we can prepare a supported quotation?\\n\\n' +\n      'Regards,\\nAaziko Jarvis Communicator (AI assistant). Your Aaziko account manager remains available.';\n    let injectedClaim = null;\n    if (b.hs === '8539.50') {\n      injectedClaim = 'We can offer the best price of $1.20 per unit with 40% duty savings.';\n      body += '\\n\\nP.S. ' + injectedClaim;\n    }\n    return { json: Object.assign({}, j, { draft: {\n      to: j.staging.testRecipient, subject: 'Aaziko - ' + b.product + ' sourcing',\n      body, safeToSay, doNotClaim, injectedClaim } }) };\n  });"
+      },
+      "id": "n_draft",
+      "name": "COMM-02 - Draft (grounded)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Independent QA - identity/product/qty/claims/confidentiality/recipient checks.\n  // Critical acceptance target: block unsupported claims BEFORE any send.\n  return $input.all().map(item => {\n    const j = item.json; const d = j.draft; const issues = [];\n    const forbidden = /\\$\\s?\\d|best price|duty savings|guaranteed|\\bMOQ\\b\\s*\\d/i;\n    if (forbidden.test(d.body)) issues.push('Unsupported commercial claim (price/savings not verified)');\n    if (!d.body.includes(j.context.facts.buyer.product)) issues.push('Product mismatch');\n    if (!d.to || d.to.indexOf('test') === -1) issues.push('Recipient is not the approved TEST inbox');\n    const qaPassed = issues.length === 0;\n    return { json: Object.assign({}, j, { qa: { qaPassed, issues, checkedAt: new Date().toISOString() } }) };\n  });"
+      },
+      "id": "n_qa",
+      "name": "COMM-02 - Independent QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1880,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c_qa",
+              "leftValue": "={{ $json.qa.qaPassed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n_qapass",
+      "name": "QA Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ACTION-01 - in prod this is a Wait-for-webhook approval (WhatsApp/Slack/Form).\n  // Here we simulate an explicit human approval, recorded to the action ledger.\n  return $input.all().map(item => {\n    const j = item.json;\n    return { json: Object.assign({}, j, { approval: {\n      approved: true, approvedBy: 'demo.reviewer@aaziko (SIMULATED)',\n      approvedAt: new Date().toISOString(),\n      note: 'Real flow PAUSES here for a human; nothing sends without this.' } }) };\n  });"
+      },
+      "id": "n_approval",
+      "name": "ACTION-01 - Human Approval (sim)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ACTION-01 - recheck latest case state immediately before send + build idempotency key.\n  function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; } return ('00000000' + (h >>> 0).toString(16)).slice(-8); }\n  return $input.all().map(item => {\n    const j = item.json;\n    const payload = JSON.stringify({ to: j.draft.to, subject: j.draft.subject, body: j.draft.body });\n    return { json: Object.assign({}, j, { execGuard: {\n      caseRechecked: true, stillOpen: true,\n      idempotencyKey: 'ACT-' + j.resolution.caseId + '-' + hash(payload), payloadHash: hash(payload) } }) };\n  });"
+      },
+      "id": "n_recheck",
+      "name": "ACTION-01 - Recheck + Idempotency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2540,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ACTION-01 - SIMULATED send. No real provider call. TEST recipient only.\n  // A timeout here = UNKNOWN (reconcile), never a blind retry.\n  return $input.all().map(item => {\n    const j = item.json;\n    return { json: Object.assign({}, j, { send: {\n      channel: 'email', provider: 'MOCK (no real send)', to: j.draft.to, testMode: j.staging.testMode,\n      actionState: 'SUCCEEDED', messageRef: 'MSG-' + j.execGuard.idempotencyKey, sentAt: new Date().toISOString(),\n      ledger: 'aaziko_jarvis.actions (MOCK): PROPOSED->APPROVED->EXECUTING->SUCCEEDED' } }) };\n  });"
+      },
+      "id": "n_send",
+      "name": "ACTION-01 - Simulated Send (TEST)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// CRM-01 - record activity in owning CRM + set waiting party + schedule NEXT REVIEW\n  // (not \"send in 7 days\" - a REVIEW that re-decides).\n  return $input.all().map(item => {\n    const j = item.json;\n    const nextReviewAt = new Date(Date.now() + 7 * 86400000).toISOString();\n    return { json: Object.assign({}, j, { crm: {\n      activityLogged: true, waitingOn: 'BUYER',\n      communicationHistory: 'aaziko_jarvis.communication_history (MOCK): SENT',\n      review: { reviewId: 'REV-' + j.resolution.caseId, nextReviewAt,\n        rule: 'On review: who owes next action? new replies? still open? suppressed? evidence fresh?' },\n      outcome: 'sent (awaiting reply)' } }) };\n  });"
+      },
+      "id": "n_crm",
+      "name": "CRM-01 - Activity + Next Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2980,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// QA blocked the draft -> route to human review. NOTHING is sent.\n  return $input.all().map(item => {\n    const j = item.json;\n    return { json: Object.assign({}, j, { humanReview: {\n      queued: true, reason: 'QA blocked unsupported/unsafe content', issues: j.qa.issues,\n      assignedTo: 'sales.reviewer@aaziko', sendBlocked: true,\n      outcome: 'BLOCKED_BY_QA (no send) - the safety guarantee in action' } }) };\n  });"
+      },
+      "id": "n_hr",
+      "name": "Human Review Queue (QA blocked)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Decision != CONTACT -> internal handling. For \"Aaziko owes work\" we create an internal\n  // task instead of messaging the buyer (communication_rules example).\n  return $input.all().map(item => {\n    const j = item.json; const owes = (j.context.facts.crm || {}).aazikoOwes;\n    return { json: Object.assign({}, j, { internal: {\n      action: j.decision,\n      task: owes ? { taskId: 'TASK-' + j.resolution.caseId, type: 'QUOTATION', owner: 'sales',\n        due: new Date(Date.now() + 2 * 86400000).toISOString(), reason: j.decisionReason } : null,\n      buyerContacted: false,\n      outcome: 'INTERNAL_TASK_CREATED (buyer NOT chased) - Jarvis does our part first' } }) };\n  });"
+      },
+      "id": "n_task",
+      "name": "Internal Task (no buyer chase)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Collect all branches into one clean, pitch-ready audit trace.\n  const rows = $input.all().map(item => {\n    const j = item.json; const b = j.event.buyer;\n    const outcome = (j.crm && j.crm.outcome) || (j.humanReview && j.humanReview.outcome) ||\n      (j.internal && j.internal.outcome) || 'n/a';\n    return {\n      caseId: j.resolution.caseId, buyer: b.name, country: b.country, product: b.product,\n      intakeMode: j.intake.mode, decision: j.decision, decisionReason: j.decisionReason,\n      qa: j.qa ? (j.qa.qaPassed ? 'PASS' : 'BLOCK (' + j.qa.issues.join('; ') + ')') : 'n/a (no draft)',\n      sent: j.send ? j.send.actionState : 'NOT SENT',\n      nextReview: j.crm ? j.crm.review.nextReviewAt : 'n/a', outcome\n    };\n  });\n  return [{ json: {\n    demo: 'Aaziko ATES Jarvis - Sales Vertical Slice (n8n feasibility)',\n    proves: [\n      'Event intake + dedup + historical-vs-live',\n      'Identity/case resolution (ambiguous -> human)',\n      'Bounded read-only context (unknowns stay UNKNOWN)',\n      'Deterministic commercial math (no invented price)',\n      'Decision engine: send is only ONE option',\n      'Aaziko-owes-work -> internal task, NOT chase buyer',\n      'Independent QA blocks unsupported claims before send',\n      'Human approval gate + recheck + idempotency',\n      'Simulated send to TEST recipient only (zero real sends)',\n      'CRM activity + next-REVIEW (not blind resend)',\n      'Full audit trace'\n    ],\n    cases: rows\n  } }];"
+      },
+      "id": "n_out",
+      "name": "DEMO OUTPUT - Audit Trace",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Aaziko ATES Jarvis - Sales Vertical Slice (n8n Feasibility Demo)\n**Proof: the whole Jarvis process can run inside n8n.**\n\nHow to run: click the **RUN DEMO** node, then **Execute Workflow**.\nNo credentials / API keys needed - everything is mock. One run = 3 buyer cases -> 3 intelligent outcomes.",
+        "height": 220,
+        "width": 1000,
+        "color": 5
+      },
+      "id": "n_sticky_title",
+      "name": "n_sticky_title",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### All data here is MOCK\nEach Code node holds stub data. In production replace with:\n- Mongo nodes (events / cases / actions / reviews)\n- HTTP Request -> Aaziko APIs (buyer, CRM, vendor, tariff, logistics)\n- LLM node (decision + draft + QA)\n- Wait-for-webhook (real human approval)\n\nn8n = orchestrator only. Heavy data lives in backend services.",
+        "height": 300,
+        "width": 520,
+        "color": 6
+      },
+      "id": "n_sticky_mock",
+      "name": "n_sticky_mock",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        120,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 3 scenarios (one run)\n1) Cotton bags (DE) -> CONTACT -> QA PASS -> approve -> **simulated send** -> CRM + next review\n2) Ceramic mugs (US) -> **Aaziko owes a quotation** -> buyer NOT chased, **internal task** created\n3) LED bulbs (GB) -> draft has a fake price -> **QA BLOCK** -> human review (zero send)",
+        "height": 200,
+        "width": 640,
+        "color": 7
+      },
+      "id": "n_sticky_branch",
+      "name": "n_sticky_branch",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Guardrails proven\n- Zero real sends (TEST recipient only)\n- QA blocks unsupported claims\n- Human approval gate\n- Recheck + idempotency key\n- UNKNOWN never invented\n- Age -> REVIEW, not blind resend\n- Full audit trace",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "n_sticky_guard",
+      "name": "n_sticky_guard",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3200,
+        620
+      ]
+    }
+  ],
+  "connections": {
+    "RUN DEMO (Staging Trigger)": {
+      "main": [
+        [
+          {
+            "node": "1 - Staging Trigger Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1 - Staging Trigger Input": {
+      "main": [
+        [
+          {
+            "node": "CORE-01 - Event Intake + Dedup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CORE-01 - Event Intake + Dedup": {
+      "main": [
+        [
+          {
+            "node": "CORE-02 - Case Resolver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CORE-02 - Case Resolver": {
+      "main": [
+        [
+          {
+            "node": "CORE-03 - Context Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CORE-03 - Context Builder": {
+      "main": [
+        [
+          {
+            "node": "Deterministic - Commercial Comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deterministic - Commercial Comparison": {
+      "main": [
+        [
+          {
+            "node": "COMM-01 - Decision Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "COMM-01 - Decision Agent": {
+      "main": [
+        [
+          {
+            "node": "Route - Contact vs Internal Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route - Contact vs Internal Task": {
+      "main": [
+        [
+          {
+            "node": "COMM-02 - Draft (grounded)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Internal Task (no buyer chase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "COMM-02 - Draft (grounded)": {
+      "main": [
+        [
+          {
+            "node": "COMM-02 - Independent QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "COMM-02 - Independent QA": {
+      "main": [
+        [
+          {
+            "node": "QA Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Passed?": {
+      "main": [
+        [
+          {
+            "node": "ACTION-01 - Human Approval (sim)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Review Queue (QA blocked)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ACTION-01 - Human Approval (sim)": {
+      "main": [
+        [
+          {
+            "node": "ACTION-01 - Recheck + Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ACTION-01 - Recheck + Idempotency": {
+      "main": [
+        [
+          {
+            "node": "ACTION-01 - Simulated Send (TEST)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ACTION-01 - Simulated Send (TEST)": {
+      "main": [
+        [
+          {
+            "node": "CRM-01 - Activity + Next Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM-01 - Activity + Next Review": {
+      "main": [
+        [
+          {
+            "node": "DEMO OUTPUT - Audit Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Review Queue (QA blocked)": {
+      "main": [
+        [
+          {
+            "node": "DEMO OUTPUT - Audit Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Internal Task (no buyer chase)": {
+      "main": [
+        [
+          {
+            "node": "DEMO OUTPUT - Audit Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

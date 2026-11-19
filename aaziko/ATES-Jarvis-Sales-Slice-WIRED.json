@@ -1,0 +1,801 @@
+{
+  "name": "Aaziko ATES Jarvis - Sales Slice (WIRED skeleton)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trig",
+      "name": "RUN (staging)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Staging input (PROD: replace with Webhook/Schedule trigger). One buyer at a time.\n  return [{ json: {\n    buyerName: 'IMPO',\n    buyerEmail: 'websales@impo.com',\n    hs: '690721', country: 'Australia',\n    testMode: true, testRecipient: 'demo-inbox@aaziko-test.example'\n  } }];"
+      },
+      "id": "stg",
+      "name": "Staging Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "find",
+        "collection": "contacts",
+        "query": "={{ JSON.stringify({ email: ($('Staging Input').item.json.buyerEmail||'').trim() }) }}",
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "co",
+      "name": "Resolve Company",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.1,
+      "position": [
+        300,
+        520
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "REPLACE_RO_OUTBOUND",
+          "name": "Aaziko RO - outbound_email"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "find",
+        "collection": "buyer_summaries",
+        "query": "={{ JSON.stringify({ hs_codes: $('Staging Input').item.json.hs }) }}",
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "bi",
+      "name": "Buyer Trade-Intel",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.1,
+      "position": [
+        500,
+        520
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "REPLACE_RO_COMMON",
+          "name": "Aaziko RO - common-service"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "find",
+        "collection": "suppressions",
+        "query": "={{ JSON.stringify({ email: ($('Staging Input').item.json.buyerEmail||'').trim(), active: true }) }}",
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "su",
+      "name": "Suppression Check",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        520
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "REPLACE_RO_OUTBOUND",
+          "name": "Aaziko RO - outbound_email"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "find",
+        "collection": "messages",
+        "query": "={{ JSON.stringify({ toEmail: ($('Staging Input').item.json.buyerEmail||'').trim() }) }}",
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "crm",
+      "name": "CRM / Comms History",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        520
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "REPLACE_RO_OUTBOUND",
+          "name": "Aaziko RO - outbound_email"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "find",
+        "collection": "macmap_tariff",
+        "query": "={{ JSON.stringify({ HsCode: $('Staging Input').item.json.hs, ImportingCountry: { $regex: '^' + $('Staging Input').item.json.country + '$', $options: 'i' } }) }}",
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "tf",
+      "name": "Tariff",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        520
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "REPLACE_RO_DHRUVAL2",
+          "name": "Aaziko RO - Dhruval2"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "find",
+        "collection": "supplier_summaries",
+        "query": "={{ JSON.stringify({ hs_codes: $('Staging Input').item.json.hs }) }}",
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "sp",
+      "name": "Supplier Match",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        520
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "REPLACE_RO_COMMON",
+          "name": "Aaziko RO - common-service"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Assemble a BOUNDED context packet by re-sourcing each read node (avoids the mongo \"replaces output\" trap).\n  const S = $('Staging Input').first().json;\n  function pick(node){ try { const a = $(node).all(); return a.length ? a[0].json : {}; } catch(e){ return {}; } }\n  const company  = pick('Resolve Company');\n  const intel    = pick('Buyer Trade-Intel');\n  const supp     = pick('Suppression Check');\n  const crm      = pick('CRM / Comms History');\n  const tariff   = pick('Tariff');\n  const supplier = pick('Supplier Match');\n  const suppressed = !!(supp && Object.keys(supp).length);\n  return [{ json: {\n    staging: S,\n    context: {\n      facts: { buyer: { name: S.buyerName, email: S.buyerEmail, hs: S.hs, country: S.country },\n               company, intel, crm, tariff, supplier },\n      suppressed,\n      unknowns: ['exact field names - confirm via aaziko-discover.js'],\n      sourceRefs: ['common-service','Dhruval2'],\n      accessLimitations: 'read-only; bounded projection'\n    }\n  } }];"
+      },
+      "id": "asm",
+      "name": "Assemble Context Packet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Deterministic commercial comparison. UNKNOWN inputs stay UNKNOWN - never invent.\n  return $input.all().map(item => { const j = item.json; const t = j.context.facts.tariff || {};\n    return { json: Object.assign({}, j, { commercial: {\n      dutyPct: (typeof t.dutyPct === 'number') ? t.dutyPct : 'UNKNOWN',\n      landedCost: 'UNKNOWN - NEEDS VERIFICATION' } }) }; });"
+      },
+      "id": "cmp",
+      "name": "Commercial Comparison",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// COMM-01 decision. Suppression -> DO_NOT_CONTACT; Aaziko owes work -> internal task; else CONTACT.\n  return $input.all().map(item => { const j = item.json; const crm = j.context.facts.crm || {}; let decision, reason;\n    if (j.context.suppressed) { decision = 'DO_NOT_CONTACT'; reason = 'recipient in suppressions/unsubscribes'; }\n    else if (crm.aazikoOwes && crm.aazikoOwes.done === false) { decision = 'CREATE_INTERNAL_TASK'; reason = 'Aaziko owes work - finish our part first'; }\n    else { decision = 'CONTACT'; reason = 'open opportunity, no unfinished commitment'; }\n    return { json: Object.assign({}, j, { decision, decisionReason: reason }) }; });"
+      },
+      "id": "dec",
+      "name": "Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "routec",
+              "leftValue": "={{ $json.decision }}",
+              "rightValue": "CONTACT",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route",
+      "name": "Route (Contact vs Task)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// COMM-02 draft. PROD: replace with an LLM node using a bounded packet + SAFE_TO_SAY/DO_NOT_CLAIM.\n  return $input.all().map(item => { const j = item.json; const b = j.context.facts.buyer;\n    return { json: Object.assign({}, j, { draft: {\n      to: j.staging.testRecipient, subject: 'Aaziko - ' + b.hs + ' sourcing',\n      body: 'Hello ' + (b.name || 'there') + ',\\n\\nAaziko can help you source from qualified Indian suppliers and manage inspection, logistics and export documentation. Could you confirm your target specification and timeline so we can prepare a supported quotation?\\n\\nRegards,\\nAaziko Jarvis Communicator (AI assistant).',\n      note: 'PROD: LLM node here' } }) }; });"
+      },
+      "id": "draft",
+      "name": "Draft (LLM in prod)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Independent QA - blocks unsupported claims + non-test recipient before any send.\n  return $input.all().map(item => { const j = item.json; const d = j.draft; const issues = [];\n    const forbidden = /\\$\\s?\\d|best price|duty savings|guaranteed/i;\n    if (forbidden.test(d.body)) issues.push('unsupported commercial claim');\n    if (!d.to || d.to.indexOf('test') === -1) issues.push('recipient not TEST inbox');\n    return { json: Object.assign({}, j, { qa: { qaPassed: issues.length === 0, issues } }) }; });"
+      },
+      "id": "qa",
+      "name": "Independent QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2520,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "qapc",
+              "leftValue": "={{ $json.qa.qaPassed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "qap",
+      "name": "QA Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "appr",
+      "name": "Approval (Wait in prod)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2940,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ACTION-01 recheck + idempotency key (before send).\n  function hash(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))|0; } return ('00000000'+(h>>>0).toString(16)).slice(-8); }\n  return $input.all().map(item => { const j = item.json; const p = JSON.stringify(j.draft);\n    return { json: Object.assign({}, j, { execGuard: { idempotencyKey: 'ACT-' + hash(p), rechecked: true } }) }; });"
+      },
+      "id": "rec",
+      "name": "Recheck + Idempotency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3140,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://REPLACE.aaziko.internal/outbound_email/send",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.draft.to, subject: $json.draft.subject, body: $json.draft.body, testOnly: true }) }}",
+        "options": {}
+      },
+      "id": "send",
+      "name": "Send via outbound_email (TEST)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3340,
+        320
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Shape the action-ledger record for aaziko_jarvis.actions.\n// Re-source from Recheck (the HTTP Send node replaces $input with its response/error).\nconst j = $('Recheck + Idempotency').item.json;\nconst co = (j.context && j.context.facts && j.context.facts.company) || {};\nreturn [{ json: {\n  action_id: 'ACT-' + Date.now(),\n  case_id: co._id || 'CASE-TBD',\n  action_type: 'EMAIL_SEND',\n  idempotencyKey: (j.execGuard && j.execGuard.idempotencyKey) || null,\n  state: 'SUCCEEDED_SIMULATED',\n  to: (j.draft && j.draft.to) || null,\n  at: new Date().toISOString()\n} }];"
+      },
+      "id": "ba",
+      "name": "Build Action Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3540,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "actions",
+        "fields": "action_id,case_id,action_type,idempotencyKey,state,to,at",
+        "options": {}
+      },
+      "id": "wa",
+      "name": "Write -> aaziko_jarvis.actions",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.1,
+      "position": [
+        3740,
+        320
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "REPLACE_RW_JARVIS",
+          "name": "Aaziko Jarvis RW"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// QA blocked -> human review. Nothing sent.\n  return $input.all().map(item => { const j = item.json;\n    return { json: Object.assign({}, j, { humanReview: { queued: true, issues: (j.qa && j.qa.issues) || [], sendBlocked: true, outcome: 'BLOCKED_BY_QA' } }) }; });"
+      },
+      "id": "hr",
+      "name": "Human Review (QA blocked)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2940,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Shape the internal-task record for aaziko_jarvis.tasks (buyer NOT contacted).\n  return $input.all().map(item => { const j = item.json;\n    return { json: {\n      task_id: 'TASK-' + Date.now(), type: 'QUOTATION', owner: 'sales', status: 'open',\n      due: new Date(Date.now() + 2*86400000).toISOString(),\n      reason: j.decisionReason || 'internal handling', buyerContacted: false } }; });"
+      },
+      "id": "bt",
+      "name": "Build Task Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "tasks",
+        "fields": "task_id,type,owner,status,due,reason,buyerContacted",
+        "options": {}
+      },
+      "id": "wt",
+      "name": "Write -> aaziko_jarvis.tasks",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.1,
+      "position": [
+        2540,
+        700
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "REPLACE_RW_JARVIS",
+          "name": "Aaziko Jarvis RW"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map(it => it.json);\n  return [{ json: { demo: 'ATES Jarvis - WIRED skeleton',\n    note: 'Reads hit real DBs (read-only); writes go to aaziko_jarvis only. Set credentials + confirm fields to run.',\n    results: rows } }];"
+      },
+      "id": "out",
+      "name": "OUTPUT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3980,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ATES Jarvis - Sales Slice (WIRED skeleton)\n**Real MongoDB/HTTP nodes pre-placed.** To make it run:\n1. Create 3 credentials (see note below).\n2. Run `aaziko/scripts/aaziko-discover.js` -> confirm the field names.\n3. Fix the query filters marked (field TODO), then Execute.\nReads are READ-ONLY + bounded. Writes go ONLY to `aaziko_jarvis`.",
+        "width": 900,
+        "height": 240,
+        "color": 5
+      },
+      "id": "sticky_title",
+      "name": "sticky_title",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Credentials to create (per-DB)\n- **Aaziko RO - common-service** (read-only) -> Resolve Company, Buyer Trade-Intel, Suppression, CRM, Supplier\n- **Aaziko RO - Dhruval2** (read-only) -> Tariff\n- **Aaziko Jarvis RW** (read-write, net-new DB) -> the two Write nodes\nHTTP: outbound_email endpoint URL -> Send node.",
+        "width": 900,
+        "height": 200,
+        "color": 6
+      },
+      "id": "sticky_cred",
+      "name": "sticky_cred",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        300,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### READ chain (read-only, fixed query + limit)\nEach query re-sources `Staging Input` so context is never lost. Field filters (name/hsCode/email/companyName/hs) are BEST-GUESS - confirm exact names via discovery. Never full-scan standard_port_data.",
+        "width": 620,
+        "height": 160,
+        "color": 4
+      },
+      "id": "sticky_read",
+      "name": "sticky_read",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### WRITE nodes = Jarvis own DB only\nShown: actions + tasks. Add the same way: `events`, `cases`, `communication_history`, `reviews`. Source data is NEVER written.",
+        "width": 520,
+        "height": 170,
+        "color": 4
+      },
+      "id": "sticky_write",
+      "name": "sticky_write",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3540,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "RUN (staging)": {
+      "main": [
+        [
+          {
+            "node": "Staging Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Staging Input": {
+      "main": [
+        [
+          {
+            "node": "Resolve Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Company": {
+      "main": [
+        [
+          {
+            "node": "Buyer Trade-Intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buyer Trade-Intel": {
+      "main": [
+        [
+          {
+            "node": "Suppression Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suppression Check": {
+      "main": [
+        [
+          {
+            "node": "CRM / Comms History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM / Comms History": {
+      "main": [
+        [
+          {
+            "node": "Tariff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tariff": {
+      "main": [
+        [
+          {
+            "node": "Supplier Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supplier Match": {
+      "main": [
+        [
+          {
+            "node": "Assemble Context Packet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Context Packet": {
+      "main": [
+        [
+          {
+            "node": "Commercial Comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commercial Comparison": {
+      "main": [
+        [
+          {
+            "node": "Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision": {
+      "main": [
+        [
+          {
+            "node": "Route (Contact vs Task)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route (Contact vs Task)": {
+      "main": [
+        [
+          {
+            "node": "Draft (LLM in prod)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Task Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft (LLM in prod)": {
+      "main": [
+        [
+          {
+            "node": "Independent QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Independent QA": {
+      "main": [
+        [
+          {
+            "node": "QA Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Passed?": {
+      "main": [
+        [
+          {
+            "node": "Approval (Wait in prod)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Review (QA blocked)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval (Wait in prod)": {
+      "main": [
+        [
+          {
+            "node": "Recheck + Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recheck + Idempotency": {
+      "main": [
+        [
+          {
+            "node": "Send via outbound_email (TEST)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send via outbound_email (TEST)": {
+      "main": [
+        [
+          {
+            "node": "Build Action Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Action Record": {
+      "main": [
+        [
+          {
+            "node": "Write -> aaziko_jarvis.actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write -> aaziko_jarvis.actions": {
+      "main": [
+        [
+          {
+            "node": "OUTPUT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Review (QA blocked)": {
+      "main": [
+        [
+          {
+            "node": "OUTPUT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Task Record": {
+      "main": [
+        [
+          {
+            "node": "Write -> aaziko_jarvis.tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write -> aaziko_jarvis.tasks": {
+      "main": [
+        [
+          {
+            "node": "OUTPUT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

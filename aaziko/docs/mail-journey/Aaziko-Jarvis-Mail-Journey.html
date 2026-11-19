@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mail Journey — Aaziko Jarvis</title>
+<style>
+  :root{
+    --bg:#f4f6fb;--ink:#141a24;--mut:#667085;--line:#e4e9f2;--card:#ffffff;
+    --jar:#2563eb;--jarsoft:#eff5ff;--jarline:#cadcff;
+    --amber:#b4740b;--ambersoft:#fff7ea;--amberline:#f0dcae;
+    --green:#15803d;--greensoft:#eafaf0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:
+      radial-gradient(1200px 400px at 50% -120px,#e8f0ff 0,rgba(255,255,255,0) 70%),var(--bg);
+    color:var(--ink);font:15px/1.65 -apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+  .wrap{max-width:860px;margin:0 auto;padding:26px 18px 70px;}
+
+  /* hero */
+  .hero{text-align:center;padding:14px 0 6px;}
+  .hero h1{margin:0 0 6px;font-size:28px;letter-spacing:-.3px;}
+  .hero p{margin:0 auto;max-width:560px;color:var(--mut);font-size:15px;}
+  .stats{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:16px 0 4px;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 16px;min-width:120px;box-shadow:0 1px 2px rgba(20,26,36,.04);}
+  .stat b{display:block;font-size:20px;color:var(--jar);line-height:1.1;}
+  .stat span{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;}
+  .stat.g b{color:var(--green);}
+
+  /* journey map */
+  .map{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;margin:22px 0 26px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 10px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .mstep{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:92px;}
+  .mstep .mc{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;background:var(--jarsoft);border:2px solid var(--jarline);}
+  .mstep.amber .mc{background:var(--ambersoft);border-color:var(--amberline);}
+  .mstep small{font-size:12px;color:var(--mut);font-weight:600;}
+  .marrow{color:#b9c6de;font-size:20px;padding:0 2px;margin-bottom:18px;}
+
+  /* stages */
+  .stage{display:flex;gap:16px;position:relative;}
+  .spine{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;}
+  .spine .dot{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;background:var(--jarsoft);border:2px solid var(--jarline);z-index:1;}
+  .stage.amber .spine .dot{background:var(--ambersoft);border-color:var(--amberline);}
+  .stage:not(:last-child) .spine::after{content:"";position:absolute;top:46px;bottom:-22px;width:3px;background:linear-gradient(#cadcff,#e4e9f2);border-radius:2px;}
+  .stage.amber .spine::after{background:linear-gradient(#f0dcae,#e4e9f2) !important;}
+  .scard{flex:1;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:22px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .shdr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .sn{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--jar);background:var(--jarsoft);border:1px solid var(--jarline);border-radius:20px;padding:2px 10px;}
+  .shdr h2{margin:0;font-size:18px;}
+  .plain{display:flex;gap:9px;align-items:flex-start;background:#fbfdff;border:1px dashed var(--jarline);border-radius:12px;padding:11px 13px;margin:12px 0 14px;font-size:14.5px;color:#33405a;}
+  .plain span{font-size:16px;line-height:1.3;}
+  .incoming{background:#f3f5f9;border-left:4px solid #c4ccda;border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:14.5px;color:#39445a;font-style:italic;}
+  .incoming .ilbl{font-style:normal;font-size:11.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
+  .email{border:1px solid var(--jarline);border-radius:12px;overflow:hidden;}
+  .ehdr{background:var(--jarsoft);padding:9px 14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--jarline);}
+  .ehdr .who{font-weight:700;font-size:13px;color:var(--jar);}
+  .ehdr .subj{font-size:13px;color:#44506a;}
+  .chips{padding:10px 14px 2px;}
+  .chip{display:inline-block;background:#fff;border:1px solid var(--jarline);border-radius:20px;padding:2px 10px;font-size:11.5px;color:#39445a;margin:0 6px 8px 0;}
+  .chip b{color:var(--jar);}
+  .ebody{padding:4px 14px 12px;font-size:14.5px;color:#283245;}
+  .esig{padding:0 14px 12px;color:var(--mut);font-size:12px;font-style:italic;}
+  .gate{margin-top:12px;background:var(--greensoft);border:1px solid #bfe6cd;border-radius:10px;padding:9px 13px;font-size:13px;color:#1c5b38;text-align:center;}
+
+  /* amber email variant for purchase */
+  .stage.amber .email{border-color:var(--amberline);}
+  .stage.amber .ehdr{background:var(--ambersoft);border-color:var(--amberline);}
+  .stage.amber .ehdr .who,.stage.amber .sn{color:var(--amber);}
+  .stage.amber .sn{background:var(--ambersoft);border-color:var(--amberline);}
+  .stage.amber .chip{border-color:var(--amberline);}
+  .stage.amber .chip b{color:var(--amber);}
+  .stage.amber .plain{border-color:var(--amberline);background:#fffdf8;}
+  .sup{display:inline-block;background:#fff;border:1px solid var(--amberline);border-radius:8px;padding:3px 11px;font-size:12.5px;margin:0 7px 8px 0;font-weight:600;color:#6b4a0f;}
+  .suprow{margin:2px 0 14px;}
+
+  /* footer */
+  .foot{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px;}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .box.ok{border-top:4px solid var(--green);}
+  .box.block{border-top:4px solid var(--amber);}
+  .box h4{margin:0 0 8px;font-size:15px;}
+  .box ul{margin:0;padding-left:20px;font-size:13.5px;color:#39445a;}
+  .box li{margin:4px 0;}
+  .note{text-align:center;color:var(--mut);font-size:12.5px;margin-top:22px;}
+  @media (max-width:640px){.foot{grid-template-columns:1fr;}.map{gap:0;}.mstep{min-width:70px;}}
+  @media print{body{background:#fff;}.scard,.box,.map{box-shadow:none;break-inside:avoid;}}
+</style></head>
+<body><div class="wrap">
+
+  <div class="hero">
+    <h1>📨 One Buyer's Full Journey</h1>
+    <p>From the very first outreach to a sourcing RFQ — <b>every Jarvis message below is real AI output</b>, nothing scripted on our side.</p>
+    <div class="stats">
+      <div class="stat"><b>5</b><span>Stages</span></div>
+      <div class="stat g"><b>100%</b><span>QA passed</span></div>
+      <div class="stat g"><b>0</b><span>Fake prices</span></div>
+      <div class="stat"><b>4</b><span>Real suppliers</span></div>
+    </div>
+  </div>
+
+  <div class="map">
+    <div class="mstep "><div class="mc">📣</div><small>Outreach</small></div><div class="marrow">→</div><div class="mstep "><div class="mc">💬</div><small>Price ask</small></div><div class="marrow">→</div><div class="mstep "><div class="mc">🤝</div><small>Objection</small></div><div class="marrow">→</div><div class="mstep "><div class="mc">🧪</div><small>Samples</small></div><div class="marrow">→</div><div class="mstep amber"><div class="mc">🏭</div><small>Source India</small></div>
+  </div>
+
+  <div class="stage jar">
+    <div class="spine"><div class="dot">📣</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STAGE 1</span><h2>Jarvis reaches out first</h2></div>
+      <div class="plain"><span>💡</span><div>Jarvis emails the buyer first — citing their real 60-day buying cycle, their September peak, and their over-reliance on one supplier.</div></div>
+      
+      <div class="email">
+        <div class="ehdr"><span class="who">🤖 Jarvis → Buyer</span><span class="subj">Sourcing cotton t-shirts from India — Aaziko</span></div>
+        <div class="chips"><span class="chip"><b>angle:</b> diversification</span><span class="chip"><b>QA:</b> PASS ✓</span></div>
+        <div class="ebody">Dear Lumière Textiles team,<br><br>As an active and regular importer of cotton t-shirts, Lumière Textiles may be looking to diversify its supplier base, given the high dependency on a single supplier. We've noticed your company tends to import these products every 60 days, with a peak in September. India is a cost-competitive source for cotton t-shirts, and we connect buyers with vetted Indian suppliers. You'll pay the manufacturer's price directly, with no commission on top, and we quote full landed cost into your port in France. If you're interested, please send us your product specifications, and we'll come back with a quote.</div>
+        <div class="esig">— Sagar J, Export Executive · Aaziko Global LLP</div>
+      </div>
+      <div class="gate">✅ A human approves in the panel → <b>gated send</b> (only allow-listed addresses) → the email goes out</div>
+    </div>
+  </div>
+<div class="stage jar">
+    <div class="spine"><div class="dot">💬</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STAGE 2</span><h2>Buyer asks for a price</h2></div>
+      <div class="plain"><span>💡</span><div>The buyer asks "what's your price?" — Jarvis does NOT guess a number. It asks for quantity &amp; port first.</div></div>
+      <div class="incoming"><div class="ilbl">🏢 Buyer wrote</div>“Thanks for reaching out. We may be interested. What price can you offer for cotton t-shirts?”</div>
+      <div class="email">
+        <div class="ehdr"><span class="who">🤖 Jarvis → Buyer</span><span class="subj">Re: Sourcing cotton t-shirts from India</span></div>
+        <div class="chips"><span class="chip"><b>detected:</b> quote request</span><span class="chip"><b>QA:</b> PASS ✓</span><span class="chip"><b>invented price:</b> none</span></div>
+        <div class="ebody">Hello,<br><br>Thank you for considering Aaziko for your cotton t-shirts sourcing needs. To prepare a quotation, could you please confirm your desired quantity and destination port in France? We will then provide a costed quotation — you pay the manufacturer's price directly without any commission, with the full landed cost into your port.</div>
+        <div class="esig">— Sagar J, Export Executive · Aaziko Global LLP</div>
+      </div>
+      
+    </div>
+  </div>
+<div class="stage jar">
+    <div class="spine"><div class="dot">🤝</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STAGE 3</span><h2>Buyer shares specs + doubts quality</h2></div>
+      <div class="plain"><span>💡</span><div>The buyer gives full specs but says "India sounds cheap-quality, our Bangladesh supplier is fine." Jarvis repeats every spec back, addresses the worry, and offers samples.</div></div>
+      <div class="incoming"><div class="ilbl">🏢 Buyer wrote</div>“We need 8,000 pcs, 180 GSM combed cotton, GOTS certified, delivered to Le Havre. But honestly India sounds like cheap quality, and our current Bangladesh supplier is fine.”</div>
+      <div class="email">
+        <div class="ehdr"><span class="who">🤖 Jarvis → Buyer</span><span class="subj">Re: Sourcing cotton t-shirts from India</span></div>
+        <div class="chips"><span class="chip"><b>detected:</b> objection → quality doubt</span><span class="chip"><b>captured specs:</b> 8,000 pcs · 180 GSM · GOTS · Le Havre</span><span class="chip"><b>QA:</b> PASS ✓</span></div>
+        <div class="ebody">Dear Sourcing Team at Lumière Textiles,<br><br>Thank you for sharing your specific requirements — 8,000 pcs of 180 GSM combed cotton, GOTS certified, to be delivered to Le Havre. We understand your concern about quality and your current satisfaction with your Bangladesh supplier. We can arrange samples for evaluation within ~25 days. Please let us proceed with preparing a costed quotation for your specified requirements.</div>
+        <div class="esig">— Sagar J, Export Executive · Aaziko Global LLP</div>
+      </div>
+      
+    </div>
+  </div>
+<div class="stage jar">
+    <div class="spine"><div class="dot">🧪</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STAGE 4</span><h2>Buyer wants samples first</h2></div>
+      <div class="plain"><span>💡</span><div>The buyer asks for samples before committing. Jarvis confirms samples in ~25 days and asks for the exact grade.</div></div>
+      <div class="incoming"><div class="ilbl">🏢 Buyer wrote</div>“OK. Can you send samples first before we commit to anything?”</div>
+      <div class="email">
+        <div class="ehdr"><span class="who">🤖 Jarvis → Buyer</span><span class="subj">Re: Sourcing cotton t-shirts from India</span></div>
+        <div class="chips"><span class="chip"><b>detected:</b> sample request</span><span class="chip"><b>QA:</b> PASS ✓</span></div>
+        <div class="ebody">Dear Sourcing Team at Lumière Textiles,<br><br>We can arrange samples for your evaluation in ~25 days once we confirm the exact product and grade. To proceed, please specify the precise grade of cotton t-shirts you're interested in, including any specific certifications, so we can arrange samples that meet your standards.</div>
+        <div class="esig">— Sagar J, Export Executive · Aaziko Global LLP</div>
+      </div>
+      
+    </div>
+  </div>
+
+  <div class="stage amber">
+    <div class="spine"><div class="dot">🏭</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STAGE 5</span><h2>Source the order from India (Purchase side)</h2></div>
+      <div class="plain"><span>💡</span><div>Now the sourcing side kicks in. Jarvis finds real Indian factories for this product and writes a Request-for-Quotation asking them for price, MOQ, lead-time and samples.</div></div>
+      <div class="suprow"><span class="sup">🏭 FAIR EXPORTS INDIA</span><span class="sup">🏭 SHAHI EXPORTS</span><span class="sup">🏭 RICHA GLOBAL</span><span class="sup">🏭 RICHACO EXPORTS</span></div>
+      <div class="email">
+        <div class="ehdr"><span class="who">🤖 Jarvis → Indian supplier</span><span class="subj">RFQ — cotton t-shirts | Aaziko</span></div>
+        <div class="chips"><span class="chip"><b>To:</b> India team to send — supplier email pending</span><span class="chip"><b>asks for:</b> price · MOQ · lead-time · samples</span></div>
+        <div class="ebody">Dear FAIR EXPORTS INDIA PRIVATE LIMITED,<br><br>We are sourcing cotton t-shirts (HS 610910) for our overseas buyer — 8,000 pcs, 180 GSM combed cotton, GOTS certified, destination Le Havre, France. Could you please quote your ex-works and FOB price (USD), minimum order quantity, production lead time, and payment terms? We would also appreciate samples and the relevant test documents.</div>
+        <div class="esig">— Sagar J, Export Executive · Aaziko Global LLP</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="box ok"><h4>✅ Built &amp; working today (SHADOW)</h4><ul>
+      <li>Proactive, intel-aware outreach</li>
+      <li>Multi-turn replies — understands intent each time</li>
+      <li>Never invents a price; echoes the buyer's specs</li>
+      <li>Independent QA on every draft; a human approves</li>
+      <li>Gated send — only allow-listed test addresses</li>
+      <li>Finds real Indian suppliers + drafts the RFQ</li>
+    </ul></div>
+    <div class="box block"><h4>⛔ Needs senior to go fully live</h4><ul>
+      <li>Supplier emails — to actually send the RFQ</li>
+      <li>Real sales mailbox + domain auth — to email buyers</li>
+      <li>Widen the allowlist beyond test addresses</li>
+      <li>Buyer-email enrichment for customs prospects</li>
+    </ul></div>
+  </div>
+
+  <div class="note">Aaziko Global LLP · Jarvis sales-automation — every message is human-reviewed, real sending is allowlist-gated · 2026-10-03</div>
+
+</div></body></html>

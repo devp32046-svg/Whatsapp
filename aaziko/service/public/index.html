@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATES Setu — Sales Review</title>
+<style>
+  :root { --bg:#0f1420; --card:#161d2e; --line:#26304a; --tx:#e7ecf5; --mut:#93a0bd; --ac:#4f8cff; --ok:#35c07a; --bad:#ff5d6c; --warn:#f4b740; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:14px/1.55 -apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  header { padding:12px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; flex-wrap:wrap; position:sticky; top:0; background:var(--bg); z-index:5; }
+  h1 { font-size:16px; margin:0; font-weight:650; }
+  .pill { font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--mut); }
+  .pill.shadow { color:var(--warn); border-color:#5a4a1e; background:#241d0b; }
+  .wrap { max-width:900px; margin:0 auto; padding:16px 16px 80px; }
+  .intro { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin-bottom:16px; color:var(--mut); font-size:13px; }
+  .intro b { color:var(--tx); }
+  .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; margin-bottom:18px; }
+  .step { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .step h3 { margin:0 0 4px; font-size:14px; }
+  .step p { margin:0 0 10px; color:var(--mut); font-size:12px; }
+  button { background:var(--ac); color:#fff; border:0; border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer; font-weight:600; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--tx); }
+  button.ok { background:var(--ok); } button.bad { background:var(--bad); } button.warn { background:var(--warn); color:#1a1405; }
+  button.sm { padding:5px 10px; font-size:12px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  select, input, textarea { background:#0c1120; color:var(--tx); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font-size:13px; font-family:inherit; }
+  label.chk { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:5px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .row { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+  .muted { color:var(--mut); } .small { font-size:12px; }
+  .tag { font-size:11px; padding:2px 8px; border-radius:6px; border:1px solid var(--line); white-space:nowrap; }
+  .tag.ok{color:var(--ok);border-color:#1d5236} .tag.bad{color:var(--bad);border-color:#5a2026} .tag.ac{color:var(--ac);border-color:#223a66} .tag.warn{color:var(--warn);border-color:#5a4a1e} .tag.mut{color:var(--mut)}
+  .chip { display:inline-block; font-size:11px; padding:1px 7px; margin:1px 3px 1px 0; border-radius:999px; border:1px solid var(--line); color:var(--mut); background:#0c1120; }
+  .tierbadge { font-weight:700; border-radius:6px; padding:1px 7px; margin-right:6px; }
+  .tierbadge.A{color:var(--ok);border:1px solid #1d5236} .tierbadge.B{color:var(--warn);border:1px solid #5a4a1e} .tierbadge.C{color:var(--mut);border:1px solid var(--line)}
+  .box { background:#0c1120; border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-top:8px; white-space:pre-wrap; }
+  .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); margin:12px 0 4px; }
+  .acts { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; align-items:center; }
+  textarea { width:100%; min-height:150px; }
+  details summary { cursor:pointer; color:var(--mut); font-size:12px; }
+  .empty { text-align:center; color:var(--mut); padding:40px; }
+  .scroll { max-height:320px; overflow:auto; margin-top:6px; }
+  .prow { display:flex; justify-content:space-between; align-items:center; gap:10px; border-top:1px solid var(--line); padding:8px 2px; }
+  .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .legend { font-size:12px; color:var(--mut); }
+  .legend span { margin-right:14px; white-space:nowrap; }
+  .savednote { font-size:12px; color:var(--ok); }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ ATES Setu — Sales Review</h1>
+  <span class="pill shadow">SHADOW · no emails sent</span>
+  <span class="pill" id="modelPill">model…</span>
+  <span style="flex:1"></span>
+  <span class="muted small" id="count"></span>
+</header>
+
+<div class="wrap">
+
+  <div class="intro">
+    <b>How this works:</b> Setu reads real buyer emails &amp; trade data, writes a draft reply, and self-checks it.
+    You just <b>review</b> each draft and Approve / Edit / Reject. <b>Nothing is ever emailed</b> — this is a safe practice (shadow) panel.
+  </div>
+
+  <div id="pipeline" class="card" style="padding:12px 16px;margin-bottom:14px;display:none"></div>
+
+  <!-- two clear starting actions -->
+  <div class="steps">
+    <div class="step">
+      <h3>📥 Reply to buyer emails</h3>
+      <p>Buyers who replied to us — pick one and Setu drafts the reply.</p>
+      <button id="pickBtn">Open inbound replies</button>
+    </div>
+    <div class="step">
+      <h3>🎯 Reach new buyers</h3>
+      <p>Enter a product (HS code) → Setu finds real importers → drafts a first-touch email.</p>
+      <button id="targetBtn">Find buyers by product</button>
+    </div>
+    <div class="step">
+      <h3>🏭 Source from India (RFQ)</h3>
+      <p>Buyer requirement → Setu finds real Indian exporters → drafts a quote-request.</p>
+      <button id="rfqBtn">Find Indian suppliers</button>
+    </div>
+    <div class="step">
+      <h3>⚙️ Auto-sourcing loop</h3>
+      <p>Paste a buyer email → Setu runs the whole loop itself: requirement → suppliers → RFQs → quote → landed cost → quotation.</p>
+      <button id="autoBtn">Run the full loop</button>
+    </div>
+  </div>
+
+  <div id="purchaseCard" class="card" style="display:none">
+    <div class="lbl" style="margin-top:0">Source from India — Request for Quotation (RFQ)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <input id="rfqHs" placeholder="HS code e.g. 620443" style="width:150px">
+      <input id="rfqProduct" placeholder="Product (e.g. synthetic dresses)" style="width:230px">
+      <input id="rfqQty" placeholder="Qty e.g. 2000 pcs" style="width:150px">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <input id="rfqSpecs" placeholder="Specs / grade (optional)" style="width:260px">
+      <input id="rfqDest" placeholder="Destination port/country" style="width:200px">
+      <button class="sm" id="findExpBtn">Find Indian suppliers</button>
+    </div>
+    <div class="scroll"><div id="exporters" class="small muted">Enter an HS code and click “Find Indian suppliers”.</div></div>
+  </div>
+
+  <!-- auto-sourcing loop -->
+  <div id="autoCard" class="card" style="display:none">
+    <div class="lbl" style="margin-top:0">⚙️ Auto-sourcing loop — paste a buyer email, Setu runs the whole thing</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <input id="autoFrom" placeholder="Buyer email (optional)" style="width:230px">
+      <input id="autoSubj" placeholder="Subject (optional)" style="width:230px">
+    </div>
+    <textarea id="autoBody" style="min-height:90px" placeholder="Paste the buyer's email here, e.g.: We are looking to source cotton t-shirts, 180 GSM combed, GOTS certified, ~10,000 pcs, delivered to Hamburg. Please find Indian suppliers and share pricing."></textarea>
+    <input id="autoResp" placeholder="(optional) buyer's reply to the quotation — e.g. 'price works, please proceed'" style="width:100%;margin-top:6px">
+    <div style="margin-top:8px"><button class="sm" id="runAutoBtn">▶ Run auto-loop (~1–2 min)</button> <span class="muted small">SHADOW — drafts only, nothing sent</span></div>
+    <div id="autoResult" class="small" style="margin-top:10px"></div>
+  </div>
+
+  <!-- sourcing pipeline -->
+  <div id="sourcingCard" class="card" style="display:none">
+    <div class="lbl" style="margin-top:0">📦 Sourcing pipeline (auto-sourced requirements)</div>
+    <div class="scroll"><div id="sourcing" class="small muted">loading…</div></div>
+  </div>
+
+  <!-- inbound picker -->
+  <div id="pickerCard" class="card" style="display:none">
+    <div class="row">
+      <div class="lbl" style="margin:0">Buyers who replied — pick one to draft a reply</div>
+      <label class="chk"><input type="checkbox" id="showAll"> show non-buyers too</label>
+    </div>
+    <div class="scroll"><div id="inbound" class="small muted">loading…</div></div>
+  </div>
+
+  <!-- HS target picker -->
+  <div id="targetCard" class="card" style="display:none">
+    <div class="lbl" style="margin-top:0">Find new buyers by product</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <input id="kwInput" placeholder="Type a product e.g. keyboard, rice, tiles" style="width:290px">
+      <button class="sm ghost" id="resolveBtn">Resolve → HS</button>
+      <span class="muted small">or enter an HS code directly below</span>
+    </div>
+    <div id="senses" class="small" style="margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+      <select id="targetSource" style="width:230px">
+        <option value="known">✉ Known buyers (emailable — sendable)</option>
+        <option value="customs">🛰 Customs prospects (discovery)</option>
+      </select>
+      <input id="hsInput" placeholder="HS code e.g. 620443" style="width:180px">
+      <button class="sm" id="findBtn">Find buyers</button>
+      <button class="sm ghost" id="rankBtn" title="Score customs prospects by opportunity (patterns, timing, supplier dependency) — ~10s">🧠 Score &amp; rank</button>
+      <span class="muted small">Try: 620443 (dresses), 100630 (rice), 690721 (tiles)</span>
+    </div>
+    <div class="scroll"><div id="targets" class="small muted">Enter an HS code and click “Find buyers”.</div></div>
+  </div>
+
+  <!-- review queue -->
+  <div class="toolbar">
+    <b>Review queue</b>
+    <select id="filter">
+      <option value="drafts">Drafts to review</option>
+      <option value="ready">✓ Checks passed</option>
+      <option value="attention">⚠ Needs attention</option>
+      <option value="triage">📋 Triage (no draft)</option>
+      <option value="all">Everything</option>
+    </select>
+    <button class="ghost sm" id="refreshBtn">↻ Refresh</button>
+    <button class="ghost sm" id="followBtn">⏳ Follow-ups</button>
+    <span style="flex:1"></span>
+    <button class="ghost sm bad" id="clearBtn">Clear all</button>
+  </div>
+  <div id="followCard" class="card" style="display:none;margin-top:12px"></div>
+  <div class="legend">
+    <span><span class="tag ok">✓ Checks passed</span> = safe to review</span>
+    <span><span class="tag bad">⚠ Needs attention</span> = Setu flagged something</span>
+    <span><span class="tag warn">📋 Triage</span> = unknown sender, no draft</span>
+  </div>
+
+  <div id="list" style="margin-top:12px"></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let MODEL='', INBOUND=[], TARGETS=[];
+
+async function api(url, opts){ const r=await fetch(url,opts); const j=await r.json(); if(!r.ok) throw new Error(j.error||r.status); return j; }
+async function health(){ try{ const h=await api('/api/health'); MODEL=h.model; $('#modelPill').textContent=h.model; }catch(e){} }
+function setStatus(t,ok){ const el=$('#count'); el.textContent=t; el.className='muted small'+(ok?' savednote':''); }
+
+/* ---------- human labels ---------- */
+function typeLabel(p){
+  if(p.type==='rfq') return '🏭 RFQ to India';
+  if(p.type==='quotation') return '💷 Quotation to buyer';
+  if(p.type==='followup') return '⏳ Follow-up';
+  if(p.type==='outreach') return '🎯 Cold outreach';
+  if(p.type==='needs_triage') return '📋 Needs triage';
+  if(p.type==='suppressed') return '🚫 Opted out';
+  return '📩 Reply';
+}
+function qaBadge(p){
+  if(!p.draft) return '<span class="tag warn">📋 triage</span>';
+  if(!p.qa) return '';
+  return p.qa.verdict==='PASS' ? '<span class="tag ok">✓ checks passed</span>' : '<span class="tag bad">⚠ needs attention</span>';
+}
+
+/* ---------- inbound picker ---------- */
+function renderPicker(){
+  const all = $('#showAll').checked;
+  let items = INBOUND.slice().sort((a,b)=>(b.isBuyer?1:0)-(a.isBuyer?1:0));
+  if(!all) items = items.filter(m=>m.isBuyer);
+  $('#inbound').innerHTML = items.length ? items.map(m =>
+    '<div class="prow">'+
+      '<div class="small">'+(m.isBuyer?'🟢 ':'⚪ ')+'<b>'+esc(m.buyerName||m.fromEmail)+'</b> <span class="muted">&lt;'+esc(m.fromEmail)+'&gt;</span><br>'+
+        '<span class="muted">'+esc((m.subject||'(no subject)').slice(0,60))+(m.isBuyer?(' · '+esc(m.country||'?')):' · not in CRM')+'</span></div>'+
+      '<button class="sm '+(m.isBuyer?'':'ghost')+'" onclick="processOne(\''+m._id+'\',this)">Draft reply</button>'+
+    '</div>').join('') : '<div class="muted small" style="padding:8px">No '+(all?'inbound mails':'buyer replies')+' found.'+(all?'':' Tick “show non-buyers” to see all.')+'</div>';
+}
+async function loadInbound(){
+  $('#inbound').innerHTML='loading…';
+  try{ INBOUND = await api('/api/inbound?limit=40'); renderPicker(); }
+  catch(e){ $('#inbound').innerHTML='error: '+esc(e.message); }
+}
+async function processOne(id, btn){
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  setStatus('Setu thinking (AI)… ~10s');
+  try{
+    const r=await api('/api/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inboundId:id})});
+    const eng=r&&r.engine||{}; const act=eng.decision&&eng.decision.action;
+    await load();
+    if(eng.skipped){ setStatus('⏭ '+eng.skipped); if(btn){btn.disabled=false;btn.textContent='Draft reply';} }
+    else if(act && act!=='RESPOND'){ setStatus('📋 '+act+' — no draft (tick "Triage" filter to see it)'); if(btn){btn.disabled=false;btn.textContent='Draft reply';} }
+    else { $('#pickerCard').style.display='none'; setStatus('✅ draft ready',1); }
+  }
+  catch(e){ setStatus('error: '+e.message); if(btn){btn.disabled=false;btn.textContent='Draft reply';} }
+}
+
+/* ---------- Purchase: Indian suppliers + RFQ ---------- */
+let EXPORTERS=[];
+async function findExporters(){
+  const hs=$('#rfqHs').value.trim(); if(!hs){ $('#exporters').innerHTML='Enter an HS code.'; return; }
+  $('#exporters').innerHTML='finding Indian suppliers…';
+  try{
+    EXPORTERS=await api('/api/exporters?hs='+encodeURIComponent(hs));
+    $('#exporters').innerHTML = EXPORTERS.length ? EXPORTERS.map((s,i)=>
+      '<div class="prow"><div class="small"><b>'+esc(s.name)+'</b><br><span class="muted">'+esc(s.shipments||'?')+' export shipments'+(s.iec?' · IEC '+esc(s.iec):'')+'</span></div>'+
+      '<button class="sm" onclick="draftRfq('+i+',this)">Draft RFQ</button></div>').join('')
+      : '<div class="muted small" style="padding:8px">No Indian exporters found for HS '+esc(hs)+'.</div>';
+  }catch(e){ $('#exporters').innerHTML='error: '+esc(e.message); }
+}
+async function draftRfq(i,btn){
+  if(btn){btn.disabled=true;btn.textContent='…';} setStatus('drafting RFQ (AI)…');
+  try{
+    await api('/api/rfq',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ hs:$('#rfqHs').value.trim(), product:$('#rfqProduct').value.trim(), qty:$('#rfqQty').value.trim(), specs:$('#rfqSpecs').value.trim(), destination:$('#rfqDest').value.trim(), supplierName:EXPORTERS[i].name })});
+    $('#purchaseCard').style.display='none'; await load(); setStatus('✅ RFQ draft ready',1);
+  }catch(e){ setStatus('error: '+e.message); if(btn){btn.disabled=false;btn.textContent='Draft RFQ';} }
+}
+
+/* ---------- keyword -> HS (Product Resolver) ---------- */
+async function resolveKw(){
+  const kw=$('#kwInput').value.trim(); if(!kw){ $('#senses').innerHTML=''; return; }
+  $('#senses').innerHTML='<span class="muted">resolving…</span>';
+  try{
+    const r=await api('/api/resolve?kw='+encodeURIComponent(kw));
+    const ss=(r.senses||[]).filter(s=>s.inDb!==false);
+    $('#senses').innerHTML = ss.length
+      ? '<span class="muted">Pick product → </span>'+ss.map(s=>'<button class="sm" style="margin:2px" title="'+esc(s.dbDesc||s.why||'')+'" onclick="pickSense(\''+esc(s.hs6)+'\')">'+esc(s.label)+' · HS '+esc(s.hs6)+'</button>').join('')+(r.ambiguous?' <span class="muted small">(multiple meanings — pick one)</span>':'')
+      : '<span class="muted">no product match — try an HS code</span>';
+  }catch(e){ $('#senses').innerHTML='error: '+esc(e.message); }
+}
+function pickSense(hs6){ $('#hsInput').value=hs6; findTargets(); }
+
+/* ---------- HS targeting ---------- */
+async function findTargets(){
+  const hs=$('#hsInput').value.trim(); if(!hs){ $('#targets').innerHTML='Enter an HS code.'; return; }
+  const src=$('#targetSource').value;
+  $('#targets').innerHTML = src==='known' ? 'finding emailable buyers…' : 'searching customs data…';
+  try{
+    const url=(src==='known'?'/api/known-targets?hs=':'/api/targets?hs=')+encodeURIComponent(hs)+'&limit=10';
+    const resp=await api(url);
+    TARGETS = Array.isArray(resp) ? resp : (resp.buyers||[]);
+    const india = resp && resp.india;
+    const warn = (india && india.ok===false) ? '<div class="small" style="color:var(--warn);padding:4px 2px">⚠ India has no matching suppliers for this product — these buyers may be a poor fit (we might not be able to source it).</div>' : (india && india.ok ? '<div class="small" style="color:var(--ok);padding:4px 2px">✓ India supplies this ('+esc(india.count)+' suppliers)</div>' : '');
+    $('#targets').innerHTML = warn + (TARGETS.length ? TARGETS.map((b,i)=>{
+      const meta = b.email
+        ? ('✉ '+esc(b.email)+(b.buyer_tier?' · tier '+esc(b.buyer_tier):''))
+        : (esc(b.total_shipments||'?')+' shipments · ~$'+esc(b.total_value_usd?Math.round(b.total_value_usd).toLocaleString():'?')+(b.buyer_tier?' · tier '+esc(b.buyer_tier):''));
+      return '<div class="prow"><div class="small"><b>'+esc(b.buyer_name||'?')+'</b> <span class="muted">'+esc(b.buyer_country||'?')+'</span><br>'+
+        '<span class="muted">'+meta+'</span></div>'+
+        '<button class="sm" onclick="draftTarget('+i+',this)">Draft outreach</button></div>'; }).join('')
+      : '<div class="muted small" style="padding:8px">No '+(src==='known'?'emailable buyers':'buyers')+' found for HS '+esc(hs)+'. Try 620443 / 100630 / 690721.</div>');
+  }catch(e){ $('#targets').innerHTML='error: '+esc(e.message); }
+}
+
+/* ---------- smart lead scoring: rank customs prospects by opportunity ---------- */
+async function rankTargets(){
+  const hs=$('#hsInput').value.trim(); if(!hs){ $('#targets').innerHTML='Enter an HS code.'; return; }
+  $('#targetSource').value='customs';                 // scoring needs customs shipment history
+  if(!TARGETS.length || TARGETS.some(b=>b.email)){ await findTargets(); }   // ensure a customs base list
+  $('#targets').innerHTML='🧠 scoring buyers by opportunity (patterns · timing · supplier dependency)… ~10s';
+  try{
+    const resp=await api('/api/rank?hs='+encodeURIComponent(hs)+'&limit=10');
+    const ranked=resp.ranked||[];
+    const byName={}; TARGETS.forEach(b=>{ byName[(b.buyer_name||'').toUpperCase()]=b; });
+    const ordered=ranked.map(r=>({r, b: byName[(r.buyer_name||'').toUpperCase()]})).filter(x=>x.b);
+    if(!ordered.length){ $('#targets').innerHTML='<div class="muted small" style="padding:8px">No scorable buyers (customs history needed).</div>'; return; }
+    TARGETS = ordered.map(x=>x.b);                     // reorder so draftTarget(i) indices line up
+    $('#targets').innerHTML = '<div class="small muted" style="padding:4px 2px">Ranked by opportunity — hottest first. Tier A≥70 · B≥50 · C below.</div>' +
+      ordered.map((x,i)=>{
+        const r=x.r;
+        const labels=(r.labels||[]).map(l=>'<span class="chip">'+esc(l)+'</span>').join(' ');
+        const reason=(r.reasons&&r.reasons.length)?'<div class="muted small" style="margin-top:3px">'+esc(r.reasons.slice(0,2).join(' '))+'</div>':'';
+        return '<div class="prow"><div class="small"><span class="tierbadge '+esc(r.tier)+'">'+esc(r.tier)+' · '+esc(r.score)+'</span><b>'+esc(r.buyer_name)+'</b> <span class="muted">/ '+esc(r.country||'?')+'</span><br>'+labels+reason+'</div>'+
+          '<button class="sm" onclick="draftTarget('+i+',this)">Draft outreach</button></div>';
+      }).join('');
+  }catch(e){ $('#targets').innerHTML='error: '+esc(e.message); }
+}
+async function draftTarget(i, btn){
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  setStatus('Setu thinking → drafting → self-reviewing (AI)… ~40s');
+  try{
+    const r=await api('/api/target',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer:TARGETS[i]})});
+    const sk = r && r.engine && r.engine.skipped;
+    await load();
+    if(sk){ setStatus('⏭ skipped — '+sk); if(btn){btn.disabled=false;btn.textContent='Draft outreach';} }
+    else { $('#targetCard').style.display='none'; setStatus('✅ draft ready',1); }
+  }
+  catch(e){ setStatus('error: '+e.message); if(btn){btn.disabled=false;btn.textContent='Draft outreach';} }
+}
+
+/* pull the BUYER INTELLIGENCE lines out of the context packet into a visible chip */
+function intelBox(cs){
+  if(!cs) return '';
+  const i=cs.indexOf('BUYER INTELLIGENCE'); if(i<0) return '';
+  const lines=cs.slice(i).split('\n').filter(l=>/^(Primary product|Also imports|Buying pattern|Peak buying|TIMING|Current sourcing|India CAN)/i.test(l.trim()));
+  if(!lines.length) return '';
+  return '<div class="lbl">📊 Buyer intelligence (real port data)</div><div class="box small" style="border-color:#223a66;color:#cfe0ff">'+esc(lines.join('\n'))+'</div>';
+}
+/* ---------- "how Setu decided" (reasoning transparency) ---------- */
+function reasonBox(p){
+  const parts=[];
+  if(p.plan && (p.plan.angle||p.plan.why)){
+    let s='<b>Angle:</b> '+esc(p.plan.angle||'?')+(p.plan.why?' — '+esc(p.plan.why):'');
+    if(p.plan.hook) s+='\n<b>Hook:</b> '+esc(p.plan.hook);
+    if(Array.isArray(p.plan.points)&&p.plan.points.length) s+='\n<b>Points:</b> '+esc(p.plan.points.join('  •  '));
+    if(p.plan.cta) s+='\n<b>CTA:</b> '+esc(p.plan.cta);
+    parts.push(s);
+  }
+  if(p.classification && p.classification.intent){
+    let s='<b>Read buyer as:</b> '+esc(p.classification.intent)+(p.classification.objection_type&&p.classification.objection_type!=='none'?' · '+esc(p.classification.objection_type)+' objection':'');
+    if(Array.isArray(p.classification.provided)&&p.classification.provided.length) s+='\n<b>Buyer already gave:</b> '+esc(p.classification.provided.join(', '));
+    parts.push(s);
+  }
+  if(Array.isArray(p.critique)&&p.critique.length) parts.push('<b>Self-review fixed:</b> '+esc(p.critique.join('  •  ')));
+  if(!parts.length) return '';
+  return '<details style="margin-top:10px" open><summary>🧠 How Setu decided</summary><div class="box small">'+parts.join('\n\n')+'</div></details>';
+}
+/* ---------- review cards ---------- */
+function card(p){
+  const d=p.draft;
+  const whatBox = p.type==='outreach'
+    ? '<div class="lbl">Why this buyer</div><div class="box small">'+(p.source&&p.source.shipments
+        ? 'Customs data: imports this product into '+esc(p.buyer.country||'?')+' · '+esc(p.source.shipments)+' shipments · ~$'+esc(p.source.valueUsd?Math.round(p.source.valueUsd).toLocaleString():'?')+' total'
+        : 'Known CRM buyer · imports this product into '+esc(p.buyer.country||'?')+(p.buyer.email?' · ✉ '+esc(p.buyer.email):''))+'</div>'
+    : (p.source&&(p.source.subject||p.source.bodyPreview)
+        ? '<div class="lbl">What the buyer wrote</div><div class="box small"><b>'+esc(p.source.subject||'')+'</b>'+(p.source.bodyPreview?'\n'+esc((p.source.bodyPreview||'').slice(0,400)):'')+'</div>'
+        : '');
+  const unknowns = (p.unknowns&&p.unknowns.length)?'<div class="small" style="margin-top:8px;color:var(--warn)">⚠ Setu did not have: '+esc(p.unknowns.join(', '))+'</div>':'';
+  const qaIssues = (p.qa&&p.qa.issues&&p.qa.issues.length)?'<div class="lbl">Why Setu flagged it</div><div class="box small">'+esc(p.qa.issues.join(' • '))+'</div>':'';
+  const draftBlock = d
+    ? '<div class="lbl">Setu draft — <span style="color:var(--warn)">not sent, for your review</span></div>'+
+      '<div class="muted small" style="margin-bottom:4px">To: '+esc(d.to)+'  ·  Subject: '+esc(d.subject)+'</div>'+
+      '<textarea id="body-'+p._id+'">'+esc(d.body)+'</textarea>'
+    : '<div class="box small muted">No draft — '+esc((p.qa&&p.qa.notes)||(p.decision&&p.decision.reason)||'needs human triage')+'</div>';
+  const acts = d
+    ? '<div class="acts">'+
+      '<button class="ok sm" onclick="sendLive(\''+p._id+'\',\''+esc(d.to)+'\')">✓ Approve &amp; Send</button>'+
+      '<button class="ghost sm" onclick="review(\''+p._id+'\',\'approve\')">Approve (no send)</button>'+
+      '<button class="warn sm" onclick="review(\''+p._id+'\',\'edit\')">✎ Save edits</button>'+
+      '<button class="bad sm" onclick="review(\''+p._id+'\',\'reject\')">✕ Reject</button>'+
+      '<span class="muted small">🔒 Send only goes to allow-listed addresses</span></div>'
+    : '';
+  return '<div class="card">'+
+    '<div class="row"><div><b>'+esc(p.buyer.name||p.buyer.email)+'</b> <span class="muted small">&lt;'+esc(p.buyer.email||'')+'&gt;</span><br>'+
+      '<span class="muted small">'+esc(p.buyer.country||'country?')+'</span></div>'+
+      '<div style="text-align:right;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+
+      '<span class="tag ac">'+typeLabel(p)+'</span>'+qaBadge(p)+'<span class="tag mut">'+esc(p.status)+'</span>'+
+      '<button class="ghost sm" title="remove" onclick="del(\''+p._id+'\')">✕</button></div></div>'+
+    whatBox+intelBox(p.contextSummary)+unknowns+reasonBox(p)+draftBlock+qaIssues+acts+
+    '<details style="margin-top:10px"><summary>What real data Setu used</summary><div class="box small">'+esc(p.contextSummary||'')+'</div></details>'+
+  '</div>';
+}
+function matchFilter(p, f){
+  if(f==='all') return true;
+  if(f==='drafts') return !!p.draft;
+  if(f==='ready') return p.draft && p.qa && p.qa.verdict==='PASS';
+  if(f==='attention') return p.draft && p.qa && p.qa.verdict==='BLOCK';
+  if(f==='triage') return !p.draft;
+  return true;
+}
+async function loadPipeline(){
+  try{
+    const p=await api('/api/pipeline'); const s=p.byStatus||{}, t=p.byType||{};
+    const chip=(lbl,n,cls)=>'<span class="tag '+(cls||'mut')+'" style="margin-right:8px;margin-bottom:4px;display:inline-block">'+lbl+' '+(n||0)+'</span>';
+    $('#pipeline').style.display='block';
+    $('#pipeline').innerHTML='<div class="lbl" style="margin:0 0 8px">📊 Pipeline — '+(p.total||0)+' total</div>'+
+      chip('⏳ Pending',s.pending,'warn')+chip('✓ Approved',(s.approved||0)+(s.edited||0),'ok')+chip('✉ Sent',s.sent,'ac')+chip('✕ Rejected',s.rejected,'bad')+chip('📋 Triage',s.triage,'mut')+
+      '<div class="muted small" style="margin-top:6px">by type — reply: '+(t.reply||0)+' · outreach: '+(t.outreach||0)+' · mail-loop: '+(t.demo_reply||0)+'</div>';
+  }catch(e){}
+}
+async function loadSourcing(){
+  try{
+    const list=await api('/api/sourcing?limit=15');
+    if(!list.length){ $('#sourcingCard').style.display='none'; return; }
+    $('#sourcingCard').style.display='block';
+    $('#sourcing').innerHTML = list.map(s=>{
+      const req=s.requirement||{};
+      const sup=(s.suppliers||[]).map(x=>esc(x.name)+'('+esc(x.score)+')').slice(0,3).join(' · ');
+      const landed=(s.landed&&s.landed.landed!=null)?(' · landed '+esc(s.landed.currency||'')+' '+esc(s.landed.landed)+' '+esc(s.landed.unit||'')+' CIF'):'';
+      const resp=(s.response&&s.response.verdict)?(' · buyer: <b>'+esc(s.response.verdict)+'</b>'):'';
+      return '<div class="prow"><div class="small"><b>'+esc(req.product||'(requirement)')+'</b>'+(req.quantity?' · '+esc(req.quantity):'')+(req.destination?' → '+esc(req.destination):'')+' <span class="tag mut">'+esc(s.stage||'')+'</span><br>'+
+        '<span class="muted">HS '+esc(s.hs||'?')+' · suppliers: '+(sup||'—')+landed+resp+'</span></div></div>';
+    }).join('');
+  }catch(e){ $('#sourcingCard').style.display='none'; }
+}
+async function runAuto(){
+  const body=$('#autoBody').value.trim(); if(!body){ setStatus('paste a buyer email first'); return; }
+  const btn=$('#runAutoBtn'); btn.disabled=true; const o=btn.textContent; btn.textContent='running…';
+  $('#autoResult').innerHTML='<span class="muted">⚙️ Setu running the loop — requirement → suppliers → RFQs → quote → landed → quotation… (~1–2 min)</span>';
+  setStatus('auto-loop running…');
+  try{
+    const r=await api('/api/autoloop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ fromEmail:$('#autoFrom').value.trim(), subject:$('#autoSubj').value.trim(), bodyText:body, buyerResponse:$('#autoResp').value.trim()||null })});
+    const x=r.result||{};
+    if(x.stage==='not_a_requirement'){ $('#autoResult').innerHTML='<span style="color:var(--warn)">Not a product requirement — '+esc((x.requirement&&x.requirement.notes)||'')+'</span>'; }
+    else if(x.stage==='no_suppliers'){ $('#autoResult').innerHTML='<div class="box small"><b>Requirement understood:</b> '+esc((x.requirement&&x.requirement.product)||'?')+' (HS '+esc(x.hs||'?')+')<br><span style="color:var(--warn)">⚠ No Indian suppliers in our data for this product</span> — our supplier dataset doesn\'t cover it yet (e.g. spices / agri-commodities). No RFQ/quotation drafted. Fix = broaden supplier data or source manually.</div>'; }
+    else {
+      const req=x.requirement||{}; const sup=(x.suppliers||[]).map(s=>esc(s.name)+' ['+esc(s.score)+']').join(' · ');
+      const landed=(x.landed&&x.landed.landed!=null)?(esc(x.landed.currency||'')+' '+esc(x.landed.landed)+' '+esc(x.landed.unit||'')+' CIF'):'—';
+      $('#autoResult').innerHTML =
+        '<div class="box small"><b>✅ Loop done.</b><br>'+
+        '<b>Requirement:</b> '+esc(req.product||'?')+(req.quantity?' · '+esc(req.quantity):'')+(req.destination?' → '+esc(req.destination):'')+' · HS '+esc(x.hs||'?')+'<br>'+
+        '<b>Suppliers:</b> '+(sup||'—')+'<br>'+
+        '<b>Quote:</b> '+(x.quote?((x.quote._simulated?'[simulated] ':'')+esc(x.quote.currency||'')+' '+esc(String(x.quote.unit_price))+' '+esc(x.quote.unit||'')):'—')+'<br>'+
+        '<b>Landed:</b> '+landed+'<br>'+
+        '<b>RFQ drafts:</b> '+((x.rfqIds||[]).length)+' · <b>Quotation:</b> '+((x.quotation&&x.quotation.quotationId)?'drafted':'—')+(x.response?(' · <b>Buyer:</b> '+esc(x.response.verdict)+' → '+esc((x.outcome&&x.outcome.action)||'')):'')+'<br>'+
+        '<span class="muted">All drafts are in the review queue below (SHADOW — nothing sent).</span></div>';
+    }
+    await load();
+    setStatus('✅ auto-loop done',1);
+  }catch(e){ $('#autoResult').innerHTML='<span style="color:var(--bad)">error: '+esc(e.message)+'</span>'; setStatus('error: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+}
+async function load(){
+  loadPipeline(); loadSourcing();
+  let items = await api('/api/pending');
+  const f=$('#filter').value;
+  items = items.filter(p=>matchFilter(p,f));
+  $('#count').textContent = items.length+' in view';
+  $('#list').innerHTML = items.length ? items.map(card).join('')
+    : '<div class="empty">Nothing here yet.<br><span class="small">Use <b>“Reply to buyer emails”</b> or <b>“Reach new buyers”</b> above to create a draft.</span></div>';
+}
+async function review(id, action){
+  const ta = $('#body-'+id);
+  // Approve & Edit both keep whatever is currently in the textarea
+  const body = (action!=='reject' && ta) ? ta.value : undefined;
+  setStatus('saving…');
+  try{ await api('/api/review/'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,body,reviewer:'tester'})}); setStatus(action==='approve'?'approved ✓':action==='edit'?'edits saved ✓':'rejected',1); await load(); }
+  catch(e){ setStatus('error: '+e.message); }
+}
+async function del(id){ try{ await api('/api/pending/'+id,{method:'DELETE'}); await load(); }catch(e){ setStatus('error: '+e.message); } }
+async function loadFollowups(){
+  const c=$('#followCard'); c.style.display='block'; c.innerHTML='<div class="lbl" style="margin-top:0">⏳ Follow-up candidates</div><div class="small muted">checking…</div>';
+  try{
+    const r=await api('/api/followups?days=0');
+    c.innerHTML='<div class="lbl" style="margin-top:0">⏳ Follow-up candidates ('+r.count+') <span class="muted small">— actioned, no reply yet</span></div>'+
+      (r.candidates.length ? r.candidates.map(x=>'<div class="prow"><div class="small"><b>'+esc(x.name||x.email)+'</b> <span class="muted">'+esc(x.email)+'</span><br><span class="muted">'+esc(x.type)+' · "'+esc((x.subject||'').slice(0,55))+'"</span></div><button class="sm" onclick="doFollowup(\''+x.id+'\',this)">Draft follow-up</button></div>').join('')
+        : '<div class="muted small" style="padding:8px">No follow-up candidates yet. (A buyer appears here once an Approved/Sent outreach gets no reply.)</div>');
+  }catch(e){ c.innerHTML='error: '+esc(e.message); }
+}
+async function doFollowup(id,btn){ if(btn){btn.disabled=true;btn.textContent='…';} setStatus('drafting follow-up (AI)…'); try{ await api('/api/followup/'+id,{method:'POST'}); $('#followCard').style.display='none'; await load(); setStatus('✅ follow-up draft ready',1); }catch(e){ setStatus('error: '+e.message); if(btn){btn.disabled=false;btn.textContent='Draft follow-up';} } }
+async function sendLive(id, to){
+  const ta=$('#body-'+id);
+  if(!confirm('Send a REAL email'+(to?(' to '+to):'')+'?\n\nOnly allow-listed addresses actually go out — everything else is blocked.')) return;
+  setStatus('sending…');
+  try{
+    const r=await api('/api/send/'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({body: ta?ta.value:undefined})});
+    if(r.sent) setStatus('✅ SENT to '+((r.engine&&r.engine.to)||to),1);
+    else setStatus('⛔ blocked: '+(r.reason||'not allowed'));
+    await load();
+  }catch(e){ setStatus('error: '+e.message); }
+}
+
+/* ---------- wires ---------- */
+$('#pickBtn').onclick = () => { const c=$('#pickerCard'); const show=c.style.display==='none'; c.style.display=show?'block':'none'; $('#targetCard').style.display='none'; if(show) loadInbound(); };
+$('#targetBtn').onclick = () => { const c=$('#targetCard'); const show=c.style.display==='none'; c.style.display=show?'block':'none'; $('#pickerCard').style.display='none'; $('#purchaseCard').style.display='none'; if(show) $('#hsInput').focus(); };
+$('#rfqBtn').onclick = () => { const c=$('#purchaseCard'); const show=c.style.display==='none'; c.style.display=show?'block':'none'; $('#pickerCard').style.display='none'; $('#targetCard').style.display='none'; $('#autoCard').style.display='none'; if(show) $('#rfqHs').focus(); };
+$('#autoBtn').onclick = () => { const c=$('#autoCard'); const show=c.style.display==='none'; c.style.display=show?'block':'none'; $('#pickerCard').style.display='none'; $('#targetCard').style.display='none'; $('#purchaseCard').style.display='none'; if(show) $('#autoBody').focus(); };
+$('#runAutoBtn').onclick = runAuto;
+$('#findExpBtn').onclick = findExporters;
+$('#showAll').onchange = renderPicker;
+$('#filter').onchange = load;
+$('#refreshBtn').onclick = load;
+$('#followBtn').onclick = loadFollowups;
+$('#findBtn').onclick = findTargets;
+$('#rankBtn').onclick = rankTargets;
+$('#hsInput').addEventListener('keydown', e=>{ if(e.key==='Enter') findTargets(); });
+$('#resolveBtn').onclick = resolveKw;
+$('#kwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') resolveKw(); });
+$('#clearBtn').onclick = async () => { if(!confirm('Clear ALL review items? (practice data only — nothing was sent)')) return; try{ const r=await api('/api/clear',{method:'POST'}); setStatus('cleared '+r.deleted,1); await load(); }catch(e){ setStatus('error: '+e.message); } };
+
+health(); load();
+</script>
+</body>
+</html>

@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buyer Intelligence Console — Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#f4f6f8;--surface:#fff;--surface-2:#eef1f5;--surface-3:#e3e8ee;
+    --ink:#0e151d;--ink-2:#293643;--muted:#556472;--faint:#6c7a89;
+    --line:#d5dce3;--line-strong:#bcc7d1;
+    --accent:#0d6e78;--accent-2:#0a565f;--accent-soft:#dbeef0;
+    --stamp:#a4610f;--stamp-soft:#f3e6d2;
+    --good:#237a4b;--good-soft:#dcefe2;--warn:#8f5c0d;--warn-soft:#f4e8d3;--crit:#b23a35;--crit-soft:#f6dedc;
+    --good-ink:#175c36;--warn-ink:#734809;--crit-ink:#94221d;   /* label text on the *-soft grounds (>=4.5:1) */
+    --c-fit:#0d6e78;--c-freq:#3f6fb0;--c-vol:#a4610f;--c-supp:#237a4b;--c-india:#8595a2;
+    --live:#1f9d55;
+    --shadow:0 1px 2px rgba(16,24,33,.05),0 8px 24px rgba(16,24,33,.07);
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--display:"Archivo","IBM Plex Sans",system-ui,sans-serif;--radius:14px;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --ground:#0a0f14;--surface:#131d26;--surface-2:#1a2732;--surface-3:#22323f;
+    --ink:#eef3f7;--ink-2:#c7d1da;--muted:#9fb0bd;--faint:#7e909e;--line:#283947;--line-strong:#375061;
+    --accent:#4ecad7;--accent-2:#7ad9e2;--accent-soft:#123840;--stamp:#e0a457;--stamp-soft:#332818;
+    --good:#63cd90;--good-soft:#12281c;--warn:#e0aa4d;--warn-soft:#312817;--crit:#e87b74;--crit-soft:#331b19;
+    --c-fit:#4ecad7;--c-freq:#84acdf;--c-vol:#e0a457;--c-supp:#63cd90;--c-india:#8fa0ad;--live:#63cd90;
+    --good-ink:var(--good);--warn-ink:var(--warn);--crit-ink:var(--crit);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);}}
+  :root[data-theme="dark"]{
+    --ground:#0a0f14;--surface:#131d26;--surface-2:#1a2732;--surface-3:#22323f;
+    --ink:#eef3f7;--ink-2:#c7d1da;--muted:#9fb0bd;--faint:#7e909e;--line:#283947;--line-strong:#375061;
+    --accent:#4ecad7;--accent-2:#7ad9e2;--accent-soft:#123840;--stamp:#e0a457;--stamp-soft:#332818;
+    --good:#63cd90;--good-soft:#12281c;--warn:#e0aa4d;--warn-soft:#312817;--crit:#e87b74;--crit-soft:#331b19;
+    --c-fit:#4ecad7;--c-freq:#84acdf;--c-vol:#e0a457;--c-supp:#63cd90;--c-india:#8fa0ad;--live:#63cd90;
+    --good-ink:var(--good);--warn-ink:var(--warn);--crit-ink:var(--crit);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--display);letter-spacing:-.01em}
+  .wrap{max-width:1640px;margin:0 auto;padding:0 clamp(16px,2.5vw,40px) 110px}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .top-in{max-width:1640px;margin:0 auto;padding:14px clamp(16px,2.5vw,40px);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .mark{width:36px;height:36px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:16px;flex:none}
+  .top h1{font-size:19px;font-weight:700;margin:0;line-height:1.1}
+  .top .sub{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:2px}
+  .spacer{flex:1}
+  .livebadge{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:22px;padding:7px 13px}
+  .ldot{width:9px;height:9px;border-radius:50%;background:var(--live);box-shadow:0 0 0 0 var(--live);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--live) 60%,transparent)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  @media (prefers-reduced-motion:reduce){.ldot{animation:none}}
+  .btn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);font-family:var(--mono);font-size:13px;padding:8px 13px;border-radius:9px;cursor:pointer}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12.5px;padding:3px 11px;border-radius:20px;border:1px solid var(--line);white-space:nowrap;line-height:1.7}
+  .chip.src{background:var(--stamp-soft);border-color:transparent;color:var(--stamp)}
+  .chip.fv{background:var(--accent-soft);border-color:transparent;color:var(--accent-2)}
+  .chip.good{background:var(--good-soft);border-color:transparent;color:var(--good)}
+  .chip.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+  .chip.crit{background:var(--crit-soft);border-color:transparent;color:var(--crit)}
+  .chip.mut{background:var(--surface-2);color:var(--muted)}
+  .eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.14em;font-size:13px;color:var(--accent);margin:36px 0 16px;display:flex;align-items:center;gap:12px}
+  .eyebrow::after{content:"";height:1px;background:var(--line);flex:1}
+  .metabar{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;font-family:var(--mono);font-size:13px;color:var(--muted);margin:16px 0 2px}
+  .metabar b{color:var(--ink-2);font-weight:600}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+  .kpi .big{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .lab{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:11px;text-transform:uppercase;letter-spacing:.05em}
+  .kpi .sub{font-size:13px;color:var(--faint);margin-top:5px}
+  .kpi.flag{background:var(--warn-soft);border-color:transparent}.kpi.flag .big{font-size:22px;color:var(--warn);padding-top:4px}.kpi.flag .lab{color:var(--warn)}
+  .buyers{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px}
+  .bcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px}
+  .bcard.new{animation:flash 1.1s ease}
+  @keyframes flash{0%{box-shadow:0 0 0 2px var(--accent)}100%{box-shadow:var(--shadow)}}
+  .bhead{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+  .bhead .nm{font-family:var(--display);font-weight:700;font-size:21px;line-height:1.15}
+  .bhead .key{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-top:5px}
+  .gauge{flex:none;width:88px;height:88px;position:relative}
+  .gauge .val{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:27px}
+  .gauge .val small{font-size:11px;color:var(--muted);font-weight:500}
+  .pillrow,.behav{display:flex;flex-wrap:wrap;gap:7px}.behav .chip{background:var(--surface-2);color:var(--ink-2)}
+  .block{border-top:1px solid var(--line);padding-top:14px}
+  .block .h{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:10px}
+  .spark{width:100%;height:74px;display:block}
+  .axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:5px}
+  .contrib{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line)}
+  .contrib i{display:block;height:100%}
+  .contrib-legend{display:flex;flex-wrap:wrap;gap:9px 16px;margin-top:11px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .contrib-legend b{color:var(--ink);font-weight:600}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+  .contact{font-size:14px;color:var(--ink-2);background:var(--surface-2);border-radius:9px;padding:12px 14px;border-left:4px solid var(--faint);line-height:1.5}
+  .contact.lapsed{border-left-color:var(--warn)}.contact.upcoming{border-left-color:var(--good)}
+  .contact .st{font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:block;margin-bottom:3px}
+  .prov{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--mono);font-size:12.5px;color:var(--faint)}.prov .v{color:var(--ink-2)}
+  .note{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:15px 19px;font-size:14.5px;color:var(--ink-2);margin:16px 0}
+  .note.warn{border-left-color:var(--warn)}.note b{color:var(--ink)}
+  .note .k{font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:block;margin-bottom:4px}
+  .tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;font-size:15px;min-width:640px}
+  th,td{text-align:left;padding:14px 18px;border-bottom:1px solid var(--line);white-space:nowrap}
+  thead th{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface-2)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:color-mix(in srgb,var(--accent-soft) 40%,transparent)}
+  td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .duty-bar{display:inline-block;height:9px;border-radius:5px;background:var(--accent);vertical-align:middle;margin-left:10px}
+  .findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .finding{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+  .finding h3{font-size:15.5px;margin:0 0 8px;display:flex;align-items:center;gap:9px}.finding p{font-size:14px;color:var(--muted);margin:0;line-height:1.5}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--faint);line-height:1.7}
+  #err{background:var(--crit-soft);color:var(--crit);border-radius:var(--radius);padding:13px 17px;margin:16px 0;font-family:var(--mono);font-size:13.5px}
+  .loading{color:var(--muted);font-family:var(--mono);font-size:14px;padding:48px 0;text-align:center}
+  .comp{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+  .compcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:13px}
+  .compcard .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .compcard .cty{font-family:var(--display);font-weight:700;font-size:18px}
+  .compcard .tot{font-family:var(--mono);font-size:12.5px;color:var(--warn);background:var(--warn-soft);padding:4px 11px;border-radius:20px;white-space:nowrap}
+  .compcard .steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:7px 16px}
+  .compcard .steps li{display:flex;gap:8px;font-size:13.5px;color:var(--ink-2);align-items:flex-start}
+  .compcard .steps li::before{content:"✓";color:var(--good);font-weight:700;flex:none}
+  .compcard .legis{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:11px;line-height:1.5}
+  .compcard .legis b{color:var(--ink-2);font-weight:600}
+  .compcard .legis .st{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:block;margin-bottom:6px}
+  .bcard{cursor:pointer;transition:transform .09s ease,box-shadow .14s ease,border-color .14s ease}
+  .bcard:hover{transform:translateY(-2px);box-shadow:0 3px 6px rgba(16,24,33,.09),0 16px 38px rgba(16,24,33,.13);border-color:var(--accent)}
+  .open-hint{font-family:var(--mono);font-size:11.5px;color:var(--accent);margin-left:auto;opacity:.55}
+  .bcard:hover .open-hint{opacity:1}
+  #detail{background:var(--ground);min-height:100vh}
+  .dbar{position:sticky;top:0;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin-bottom:26px}
+  .dbar-in{max-width:1400px;margin:0 auto;padding:14px clamp(16px,3vw,36px);display:flex;align-items:center;gap:14px}
+  .backbtn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);font-family:var(--mono);font-size:13px;padding:9px 15px;border-radius:9px;cursor:pointer}
+  .backbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .dwrap{max-width:1400px;margin:0 auto;padding:0 clamp(16px,3vw,36px) 100px}
+  .dhero{display:flex;justify-content:space-between;gap:26px;align-items:flex-start;flex-wrap:wrap;margin-bottom:6px}
+  .dhero h2{font-size:clamp(24px,3.4vw,34px);margin:0 0 8px;font-weight:800}
+  .dhero .dkey{font-family:var(--mono);font-size:13px;color:var(--faint);margin-bottom:14px}
+  .dgauge{width:124px;height:124px;position:relative;flex:none}
+  .dgauge .val{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:40px}
+  .dgauge .val small{font-size:14px;color:var(--muted);font-weight:500}
+  .dstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin:22px 0}
+  .dstat{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:15px 17px}
+  .dstat .v{font-family:var(--display);font-weight:700;font-size:21px;font-variant-numeric:tabular-nums;line-height:1.1}
+  .dstat .l{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:7px}
+  .dsec{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;margin:16px 0;box-shadow:var(--shadow)}
+  .dsec h3{font-size:12.5px;margin:0 0 15px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+  .srow{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+  .srow:last-child{border-bottom:none}
+  .dspark{height:120px}
+  .tline{display:flex;align-items:flex-end;gap:0;overflow-x:auto;padding:14px 0 6px}
+  .tnode{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:74px;flex:none}
+  .tbar{width:28px;background:var(--accent);border-radius:5px 5px 0 0}
+  .tdate{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);white-space:nowrap;font-weight:600}
+  .tval{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+  .tgap{align-self:flex-end;font-family:var(--mono);font-size:11px;color:var(--accent-2);background:var(--accent-soft);border-radius:20px;padding:3px 9px;margin:0 3px 30px;white-space:nowrap;flex:none}
+  .dsec.brief{border-left:4px solid var(--accent)}
+  .brief-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+  .brief-list li{display:flex;gap:14px;font-size:14.5px;line-height:1.5;color:var(--ink-2)}
+  .brief-list .bk{flex:none;width:96px;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent-2);padding-top:3px}
+  .brief-list b{color:var(--ink)}
+  .brief-note{font-size:12px;color:var(--faint);margin-top:13px;font-style:italic}
+  .pblock{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0;background:var(--surface-2)}
+  .phead{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:4px}
+  .phead .pttl{font-family:var(--mono);font-weight:600;color:var(--ink)}
+  .phead .pdesc{font-size:12.5px;color:var(--muted);flex:1;min-width:140px}
+  .paxis{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:6px}
+  .prodsel{font-family:var(--mono);font-size:13.5px;padding:9px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);max-width:100%;min-width:min(520px,90%);cursor:pointer}
+  .prodsel:hover{border-color:var(--accent)}
+  .ptabs{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+  .ptab{display:flex;flex-direction:column;gap:3px;padding:8px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);cursor:pointer;font-family:inherit;text-align:left;min-width:158px;max-width:240px}
+  .ptab:hover{border-color:var(--accent)}
+  .ptab.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,var(--surface));box-shadow:inset 0 0 0 1px var(--accent)}
+  .pt-hs{font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:.03em}
+  .pt-desc{font-size:11.5px;color:var(--muted);line-height:1.32;overflow:hidden}
+  .ptab.on .pt-desc{color:var(--ink)}
+  .pt-meta{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+  .ptab-more{align-items:center;justify-content:center;min-width:auto;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .pfilter{font-family:var(--mono);font-size:12.5px;padding:8px 11px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);min-width:260px}
+  .pfilter:focus{outline:none;border-color:var(--accent)}
+  .ptabbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+  .pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:12px 0 6px}
+  .relgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:9px;margin-top:11px}
+  .alertbox{border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;padding:13px 16px;background:color-mix(in srgb,var(--warn) 6%,var(--surface));margin-bottom:14px}
+  .bhere{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:20px;background:var(--good-soft);color:var(--good-ink);border:1px solid color-mix(in srgb,var(--good) 40%,var(--line));white-space:nowrap;margin-left:7px}
+  .refrow td{opacity:.62}
+  .cover{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:-4px 0 10px}
+  .cover b{color:var(--ink-2)}
+  .alertbox.ok{border-left-color:var(--good);background:color-mix(in srgb,var(--good) 6%,var(--surface))}
+  .alertbox .at{font-size:13.5px;font-weight:680;margin-bottom:5px}
+  .alertbox .ad{font-size:12.5px;color:var(--muted);line-height:1.65}
+  .alertbox .ad b{color:var(--ink-2)}
+  .wrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+  .wpill{font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+  .wpill.on{border-color:color-mix(in srgb,var(--good) 45%,var(--line));color:var(--good-ink);background:var(--good-soft)}
+  .wpill.off{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));color:var(--warn-ink);background:var(--warn-soft)}
+  .relcard{border:1px solid var(--line);border-left-width:3px;border-radius:9px;padding:9px 12px;background:var(--surface)}
+  .relcard.g-strong{border-left-color:var(--good)}
+  .relcard.g-weak{border-left-color:var(--warn)}
+  .relcard.g-none{border-left-color:var(--crit)}
+  .relcard .rn{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;font-weight:650}
+  .relcard .rg{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px;white-space:nowrap}
+  .g-strong .rg{background:var(--good-soft);color:var(--good-ink)}
+  .g-weak .rg{background:var(--warn-soft);color:var(--warn-ink)}
+  .g-none .rg{background:var(--crit-soft);color:var(--crit-ink)}
+  .relcard .rw{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:4px}
+  .relcard .rq{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:4px}
+  .pstep{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  /* status dots — token-driven so they stay legible in both themes */
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:middle;flex:none}
+  .dot.s{background:var(--good)} .dot.w{background:var(--warn)} .dot.n{background:var(--crit)}
+
+  /* keyboard focus: one visible ring everywhere, not just on two controls */
+  :where(a,button,input,select,summary,[tabindex]):focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+  .bcard:focus-visible,.ptab:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+  /* dense tables: hover the whole row. thead is sticky within its own .tw scroll box
+     (.tw is overflow:auto, so it pins there, not against the page's sticky top bar). */
+  .tw table tbody tr{transition:background .12s ease}
+  .tw table tbody tr:hover{background:var(--surface-2)}
+  .tw thead th{position:sticky;top:0;z-index:2;background:var(--surface-3)}
+
+  [hidden]{display:none!important}   /* .pipe/.relgrid set display:grid, which beats the bare hidden attribute */
+  .pipesum{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);margin-top:11px}
+  .pipesum b{color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .pipetgl{font-size:11.5px;padding:5px 10px}
+  .pstep .n{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.08em;font-weight:700}
+  .pstep .t{font-size:13px;font-weight:650;margin:3px 0 4px}
+  .pstep .d{font-size:11.5px;color:var(--muted);line-height:1.5}
+  .pstep .d b{color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .noai{display:inline-flex;align-items:center;gap:7px;background:color-mix(in srgb,var(--ok,var(--good)) 11%,var(--surface));border:1px solid color-mix(in srgb,var(--ok,var(--good)) 35%,var(--line));border-radius:8px;padding:7px 12px;font-size:12.5px;color:var(--ink)}
+  .srow-in{display:flex;gap:10px;align-items:center;margin:8px 0 4px;flex-wrap:wrap}
+  .qbox{flex:1;min-width:260px;max-width:560px;font-family:var(--mono);font-size:14px;padding:11px 14px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink)}
+  .qbox:focus{outline:none;border-color:var(--accent)}
+  .qrow{display:flex;align-items:center;gap:14px;padding:11px 15px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:8px 0;cursor:pointer;flex-wrap:wrap}
+  .qrow:hover{border-color:var(--accent);background:var(--surface-2)}
+  .qname{font-weight:600;flex:1;min-width:220px}
+  .qmeta{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+  .chg{border-left:3px solid var(--stamp);background:var(--surface-2);border-radius:0 8px 8px 0;padding:10px 13px;margin:9px 0}
+  .chgline{font-size:14.5px;color:var(--ink)}
+  .chgmeta{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:4px}
+  .spcard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0;background:var(--surface-2)}
+  .spline{font-size:13.5px;color:var(--ink-2);margin:4px 0;line-height:1.5}
+  .mstrip{display:flex;align-items:flex-end;gap:6px;overflow-x:auto;padding:10px 0 4px}
+  .mcol{display:flex;flex-direction:column;align-items:center;min-width:66px;flex:none}
+  .mbar{width:30px;background:var(--accent);border-radius:5px 5px 0 0}
+  .mbar.idle{background:var(--line-strong)}
+  .mlab{font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:5px;white-space:nowrap;font-weight:600}
+  .mval{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
+  .mcell{line-height:1.25;padding:8px 10px!important}
+  /* wide-desktop down: let the KPI/buyer grids reflow before things get cramped */
+  @media (max-width:1280px){
+    .kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+    .buyers{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+  }
+  @media (max-width:1024px){
+    .wrap{padding-left:18px;padding-right:18px}
+    .buyers{grid-template-columns:1fr 1fr}
+    .relgrid,.pipe{grid-template-columns:1fr 1fr}
+    .tw{overflow-x:auto}
+    .tw table{min-width:760px}
+  }
+  @media (max-width:768px){
+    .buyers{grid-template-columns:1fr}
+    .relgrid,.pipe{grid-template-columns:1fr}
+    .ptab{min-width:0;flex:1 1 44%}
+    .srow-in{flex-wrap:wrap}
+    .qbox{min-width:0;flex:1 1 100%}
+  }
+  @media (max-width:640px){.top h1{font-size:16px}.buyers{grid-template-columns:1fr}.compcard .steps{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <span class="mark">TI</span>
+    <div><h1>Buyer Intelligence Console</h1><div class="sub" id="runsub">connecting…</div></div>
+    <span class="spacer"></span>
+    <span class="livebadge"><span class="ldot"></span><span id="livetxt">live</span></span>
+    <button class="btn" id="refresh" type="button">↻ Refresh now</button>
+    <button class="btn" id="themebtn" type="button">◐ Theme</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="err" hidden></div>
+  <div class="metabar" id="metabar"></div>
+
+  <div id="healthbox"></div>
+
+  <div class="eyebrow">Run summary</div>
+  <div class="kpis" id="kpis"><div class="loading">Loading live data from standard_port_data…</div></div>
+
+  <div class="eyebrow">Search any company <span style="font-family:var(--mono);text-transform:none;letter-spacing:0;color:var(--muted)">· across all 222M shipment rows</span></div>
+  <div class="note"><span class="k">Name-prefix search</span>Type the <b>beginning</b> of the importer's name — e.g. <code>CERAMICA</code>, <code>AL ZAIN</code>, <code>COSENTINO</code>. A prefix uses the database index (~2s). A mid-name search would have to walk all 222M index keys (&gt;2 min), so it isn't offered.</div>
+  <div class="srow-in"><input id="q" class="qbox" placeholder="Company name starts with…" autocomplete="off" spellcheck="false"><button class="btn" id="qbtn">Search</button></div>
+  <div id="qres"></div>
+
+  <div class="eyebrow">Buyer profiles <span id="buyer-scope" style="font-family:var(--mono);text-transform:none;letter-spacing:0;color:var(--muted)"></span></div>
+  <div class="buyers" id="buyers"></div>
+
+  <div class="eyebrow">Tariff &amp; landed-cost lanes</div>
+  <div class="note"><span class="k">Duty parser · live</span>Real MFN/FTA rates from <code>macmap_tariff</code>, parsed from raw strings. Duty computed on a sample shipment (<span id="samplev">—</span>, the live median). Verdicts are <b>UNKNOWN</b> until a freight-rate source is wired.</div>
+  <div id="tariffcover"></div>
+  <div class="tw"><table id="tariff"><thead><tr><th>Lane</th><th>Regime</th><th class="num">Duty %</th><th class="num">Duty on sample</th><th>Flags</th><th class="num">Compliance</th><th>India adv.</th></tr></thead><tbody></tbody></table></div>
+
+  <div class="eyebrow">Compliance &amp; regulatory requirements <span style="font-family:var(--mono);text-transform:none;letter-spacing:0;color:var(--muted)">· India → destination · non-tariff measures</span></div>
+  <div class="note"><span class="k">Source · macmap_regulatory (6.23M NTMs)</span>The certifications, standards, tests and licences an India-origin shipment of this HS code must satisfy at each destination. Counts are distinct measures; the checklist shows the actual required actions.</div>
+  <div id="compcover"></div>
+  <div class="comp" id="compliance"></div>
+
+  <div class="eyebrow">Indian supply candidates <span style="font-family:var(--mono);text-transform:none;letter-spacing:0;color:var(--muted)">· §9 · matched from indiaProduct by product name</span></div>
+  <div class="note"><span class="k">Source · product-service.indiaProduct (5.2M)</span>Indian products matching this HS product family, with price &amp; MOQ. <code>indiaProduct</code> has no HS code, so matching is by product name (not HS); seller name/location shown where the record has them.</div>
+  <div id="supplycover"></div>
+  <div class="tw"><table id="supply"><thead><tr><th>Product</th><th>Supplier</th><th>Location</th><th class="num">Price (₹)</th><th class="num">MOQ</th><th class="num">Match</th></tr></thead><tbody></tbody></table></div>
+
+  <div class="eyebrow">Ocean freight · India origin <span style="font-family:var(--mono);text-transform:none;letter-spacing:0;color:var(--muted)">· §10 · live from ocean-rates</span></div>
+  <div class="note"><span class="k">Source · aaziko_MASTER_ocean_rates_UPLOAD.xlsx (4,260 rows)</span>Real India-origin port-to-port ocean freight (all-in USD) and transit time — the freight input for the landed-cost engine. The India-vs-source <em>verdict</em> still needs a matching source-lane (e.g. China-origin) rate to compare against.</div>
+  <div id="freightcover"></div>
+  <div class="tw"><table id="freight"><thead><tr><th>Lane</th><th>Line / service</th><th>Container</th><th class="num">All-in</th><th class="num">Transit</th></tr></thead><tbody></tbody></table></div>
+
+  <div class="eyebrow">Data-integrity findings — computed live</div>
+  <div class="findings" id="findings"></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<div id="detail" hidden></div>
+
+<script>
+const COMP_META=[["product_fit","Product fit",.30,"--c-fit"],["frequency","Frequency",.20,"--c-freq"],["volume","Volume",.20,"--c-vol"],["supplier","Supplier",.15,"--c-supp"],["india_adv","India adv",.15,"--c-india"]];
+const $=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const usd=n=>"$"+Math.round(n||0).toLocaleString("en-US");
+const usdK=n=>n>=1e6?"$"+(n/1e6).toFixed(2)+"M":n>=1e3?"$"+(n/1e3).toFixed(0)+"K":"$"+Math.round(n||0);
+const bandClass=b=>({High:"good",Medium:"warn",Low:"crit"}[b]||"mut");
+const freqClass=f=>({Regular:"good",Seasonal:"fv",Project:"warn",Irregular:"warn",Unknown:"crit"}[f]||"mut");
+const daysBetween=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5);
+let lastGeneratedAt=null, lastComputedIso=null, SNAP=null, PRODUCTS=[];
+
+function gauge(score,band){
+  const bc=bandClass(band);const col=`var(--${bc==='good'?'good':bc==='warn'?'warn':bc==='crit'?'crit':'accent'})`;
+  const rr=36,c=2*Math.PI*rr,dash=(score/100)*c;
+  const g=$("div","gauge");
+  g.innerHTML=`<svg viewBox="0 0 88 88" role="img" aria-label="Opportunity score ${score} of 100"><circle cx="44" cy="44" r="${rr}" fill="none" stroke="var(--surface-3)" stroke-width="9"/><circle cx="44" cy="44" r="${rr}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${dash} ${c-dash}" transform="rotate(-90 44 44)"/></svg><div class="val">${score}<small>/100</small></div>`;
+  return g;
+}
+function spark(events){
+  const W=340,H=74,pad=8,base=H-18;
+  if(!events||!events.length) return `<svg class="spark" viewBox="0 0 ${W} ${H}"></svg>`;
+  const ts=events.map(e=>Date.parse(e[0])),vs=events.map(e=>e[1]);
+  const t0=Math.min(...ts),t1=Math.max(...ts),vmax=Math.max(...vs,1),span=(t1-t0)||1;
+  const x=t=>pad+((t-t0)/span)*(W-2*pad);
+  let bars="";events.forEach((e,i)=>{const px=x(ts[i]),h=Math.max(3,(vs[i]/vmax)*(base-8));bars+=`<rect x="${(px-3).toFixed(1)}" y="${(base-h).toFixed(1)}" width="6" height="${h.toFixed(1)}" rx="2" fill="var(--accent)"/>`;});
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${events.length} shipments over time"><line x1="${pad}" y1="${base}" x2="${W-pad}" y2="${base}" stroke="var(--line-strong)" stroke-width="1.4"/>${bars}</svg>`;
+}
+// Two things the console must not hide: how OLD the underlying data is, and how much of the
+// opportunity score actually separates one buyer from another. Both computed server-side.
+function renderHealth(s){
+  const box=document.getElementById("healthbox"); if(!box) return;
+  const f=(s.meta||{}).freshness, sd=(s.meta||{}).score_discrimination;
+  let html="";
+  if(f&&f.newest_shipment){
+    const stale=f.stale;
+    html+=`<div class="alertbox ${stale?"":"ok"}">
+      <div class="at">${stale?"Data is older than the dashboard date":"Data is current"} — newest shipment <b>${fmtDate(f.newest_shipment)}</b>, <b>${f.age_days} days</b> before as_of ${fmtDate(f.as_of)}</div>
+      <div class="ad">The page recomputes live, but that refreshes the <b>maths, not the shipments</b> — the feed itself ends ${f.age_days} days ago.
+      Everything measured against today is therefore shifted by that gap: <b>${(f.affects||[]).join("</b>, <b>")}</b>.
+      ${stale?`That is why the frequency component reads <b>0</b> for every buyer and windows show as lapsed — they are ${f.age_days} days past a cycle, not inactive buyers.`:""}</div></div>`;
+  }
+  if(sd&&sd.components){
+    const pct=Math.round(sd.ranking_weight*100), cpct=Math.round(sd.constant_weight*100);
+    html+=`<div class="alertbox${sd.constant_weight>=0.5?"":" ok"}">
+      <div class="at">Only <b>${pct}%</b> of the opportunity score separates these buyers</div>
+      <div class="ad"><b>${cpct}%</b> of the weight is identical for every buyer right now (${(sd.constant_components||[]).map(c=>c.replace(/_/g," ")).join(", ")}), so it lifts all scores equally and never changes the ranking.
+      The order you see is driven by the components that actually vary.</div>
+      <div class="wrow">${sd.components.map(c=>`<span class="wpill ${c.constant?"off":"on"}">${c.component.replace(/_/g," ")} \u00d7${c.weight} \u2014 ${c.constant?"same for all ("+c.values+")":"varies, spread "+c.spread}</span>`).join("")}</div></div>`;
+  }
+  box.innerHTML=html;
+}
+function renderKPIs(s){
+  const m=s.meta,kw=document.getElementById("kpis");kw.innerHTML="";
+  const lapsed=s.buyers.filter(b=>daysBetween(b.span[1],s.as_of)>180).length;
+  const kpis=[
+    {big:m.buyers_scored,lab:"Buyers scored",sub:s.watch.map(w=>w.label).join(", ")},
+    {big:usdK(m.total_value_usd),lab:"Trade value",sub:"observed in scope"},
+    {big:m.shipment_events,lab:"Shipment events",sub:"post-dedup"},
+    {big:m.avg_confidence,lab:"Avg confidence",sub:"deterministic"},
+    {big:m.tariff_lanes,lab:"Tariff lanes",sub:s.tariff_exporter+" → dest"},
+    {big:m.supplier_matches||0,lab:"India matches",sub:"indiaProduct §9"},
+    {big:m.freight_lanes||0,lab:"Freight lanes",sub:"ocean-rates §10"},
+  ];
+  if(lapsed) kpis.push({flag:true,big:lapsed+" of "+m.buyers_scored,lab:"Lapsed >180d",sub:"vs as_of "+s.as_of});
+  kpis.forEach(k=>{const e=$("div","kpi"+(k.flag?" flag":""));e.append($("div","big",String(k.big)),$("div","lab",k.lab),$("div","sub",k.sub||""));kw.append(e);});
+}
+function renderBuyers(s,isNew){
+  const bw=document.getElementById("buyers");bw.innerHTML="";
+  document.getElementById("buyer-scope").textContent="· top "+s.buyers.length+" by opportunity score";
+  s.buyers.forEach(b=>{
+    const card=$("div","bcard"+(isNew?" new":""));
+    const head=$("div","bhead"),left=$("div");
+    left.append($("div","nm",b.name),$("div","key",b.buyer_key+(b.country?" · "+b.country:"")+" · "+b.orders+" orders · "+usd(b.value)));
+    head.append(left,gauge(b.score,b.band));card.append(head);
+    const pills=$("div","pillrow");
+    pills.append($("span","chip "+freqClass(b.freq),b.freq),$("span","chip warn",b.dependency+" · HHI "+b.hhi),$("span","chip "+bandClass(b.band),"conf "+b.conf+" ("+b.band+")"));
+    // thin evidence must be visible on the card — a 2-order buyer should not read like a 33-order one
+    if(b.orders<3||b.median==null)pills.append($("span","chip crit","thin evidence · "+b.orders+" order"+(b.orders===1?"":"s")+(b.median==null?" · no cadence":"")));
+    card.append(pills);
+    const beh=$("div","behav");b.behaviour.forEach(x=>beh.append($("span","chip",x.replace(/_/g," "))));if(b.supplier_changes&&b.supplier_changes.length)beh.append($("span","chip crit","⇄ "+b.supplier_changes.length+" supplier change"));card.append(beh);
+    const tl=$("div","block");tl.append($("div","h",`<span>Order cadence</span><span>median ${b.median==null?"—":b.median+"d"} · ${b.unit}</span>`));
+    tl.insertAdjacentHTML("beforeend",spark(b.events));
+    tl.append($("div","axis",`<span>${b.span[0]||""}</span><span>${b.span[1]||""}</span>`));card.append(tl);
+    const cb=$("div","block");cb.append($("div","h",`<span>Opportunity drivers</span><span>score ${b.score}</span>`));
+    const bar=$("div","contrib");
+    COMP_META.forEach(([k,,w,col])=>{const contrib=w*b.comps[k];if(contrib>0){const seg=$("i");seg.style.width=contrib+"%";seg.style.background=`var(${col})`;seg.title=`${k}: ${b.comps[k]}×${w}`;bar.append(seg);}});
+    cb.append(bar);
+    const leg=$("div","contrib-legend");
+    COMP_META.forEach(([k,label,w,col])=>leg.insertAdjacentHTML("beforeend",`<span><span class="sw" style="background:var(${col})"></span>${label} <b>${b.comps[k]}</b>×${w}</span>`));
+    cb.append(leg);card.append(cb);
+    const up=b.contact&&b.contact.status==="upcoming";
+    const ct=$("div","contact"+(b.contact&&b.contact.emitted?(up?" upcoming":" lapsed"):""));
+    ct.innerHTML=`<span class="st">Contact window</span>${b.contact&&b.contact.emitted?b.contact.statement:(b.contact?b.contact.reason:"—")}`;
+    card.append(ct);
+    card.append($("div","prov",`<span class="chip src">src standard_port_data</span><span class="chip fv">fv freq.v1</span><span>annualized <span class="v">${usd(b.annualized)}</span></span><span class="open-hint">view detail →</span>`));
+    card.addEventListener("click",()=>{location.hash="#/buyer/"+encodeURIComponent(b.buyer_key);});
+    bw.append(card);
+  });
+}
+// Lanes/compliance/freight are now ordered so the markets our scored buyers actually import into
+// come first; everything after that is reference. Badge the rows that matter.
+function buyerBadge(n){return n>0?`<span class="bhere">${n} buyer${n===1?"":"s"} here</span>`:"";}
+function coverLine(s,kind){
+  const lc=(s.meta||{}).lane_coverage; if(!lc) return "";
+  const n=kind==="tariff"?lc.tariff_matched:(kind==="compliance"?lc.compliance_matched:lc.freight_matched);
+  const un=(kind==="tariff"?lc.uncovered_tariff:(kind==="compliance"?lc.uncovered_compliance:lc.uncovered_freight))||[];
+  return `<div class="cover">Ordered by where your buyers are \u2014 <b>${n}</b> of these rows cover a market with scored buyers in it (${lc.buyer_countries} buyer countries total)${un.length?`; no data for <b>${un.join(", ")}</b>`:""}. The rest are reference lanes.</div>`;
+}
+function renderTariff(s){
+  const tb=document.querySelector("#tariff tbody");tb.innerHTML="";
+  document.getElementById("samplev").textContent=usd(s.sample_shipment_usd);
+  const dmax=Math.max(...s.cost_analysis_results.map(t=>t.duty_pct_applied||0),1);
+  const tc=document.getElementById("tariffcover"); if(tc)tc.innerHTML=coverLine(s,"tariff");
+  s.cost_analysis_results.forEach(t=>{
+    const tr=$("tr");
+    const reg=t.fta_available?`<span class="chip good">FTA: ${t.fta_name}</span>`:`<span class="chip mut">MFN</span>`;
+    const flags=(t.notes&&t.notes.length)?t.notes.map(f=>`<span class="chip warn">${f}</span>`).join(" "):"—";
+    // blank duty means macmap publishes no rate for that lane/year — say so, don't imply 0%
+    const dp=t.duty_pct_applied==null?'<span style="color:var(--faint);font-size:11.5px">no rate published</span>':t.duty_pct_applied+"%";
+    const bh=(s.tariff_lanes.find(l=>t.lane&&t.lane.endsWith(l.importing_country))||{}).buyers_here||0;
+    if(!bh)tr.className="refrow";
+    tr.innerHTML=`<td><b>${t.lane}</b>${buyerBadge(bh)}</td><td>${reg}</td><td class="num">${dp}<span class="duty-bar" style="width:${8+((t.duty_pct_applied||0)/dmax)*60}px"></span></td><td class="num">${t.duty_on_sample_shipment_usd==null?'<span style="color:var(--faint)">—</span>':usd(t.duty_on_sample_shipment_usd)}</td><td>${flags}</td><td class="num">${t.compliance_count?('<span class="chip warn">'+t.compliance_count+' NTMs</span>'):'<span style="color:var(--faint)">—</span>'}</td><td><span class="chip mut" title="${t.india_advantage==="UNKNOWN"?"Needs a source-country freight rate to compare against; only India-origin rates are loaded":""}">${t.india_advantage}</span></td>`;
+    tb.append(tr);
+  });
+}
+function renderCompliance(s){
+  const cw=document.getElementById("compliance");cw.innerHTML="";
+  const cc=document.getElementById("compcover"); if(cc)cc.innerHTML=coverLine(s,"compliance");
+  if(!s.compliance||!s.compliance.length){cw.innerHTML='<div class="loading">No non-tariff measures on record for these India-origin lanes.</div>';return;}
+  s.compliance.forEach(c=>{
+    const card=$("div","compcard");
+    const cats=c.categories.map(x=>`<span class="chip warn">${x.key} ×${x.count}</span>`).join(" ");
+    const steps=c.steps.slice(0,8).map(t=>`<li>${t}</li>`).join("");
+    const legis=(c.legislation||[]).map(l=>`<div><b>${l.title}</b>${l.authority?" — "+l.authority:""}</div>`).join("")||"—";
+    if(!c.buyers_here)card.style.opacity=".72";
+    card.innerHTML=`<div class="top"><span class="cty">India → ${c.country}${buyerBadge(c.buyers_here||0)}</span><span class="tot">${c.total} measures</span></div>
+      <div class="pillrow">${cats}</div>
+      <ul class="steps">${steps}</ul>
+      <div class="legis"><span class="st">Key legislation &amp; authority</span>${legis}</div>`;
+    cw.append(card);
+  });
+}
+function renderSupply(s){
+  const tb=document.querySelector("#supply tbody");if(!tb)return;tb.innerHTML="";
+  const m=s.supplier_matches||[];
+  if(!m.length){tb.innerHTML='<tr><td colspan="6" style="color:var(--faint)">No Indian product matches found for this family.</td></tr>';return;}
+  // Be honest about columns that carry no information in this run rather than showing dead cells.
+  const empty=k=>m.every(x=>x[k]==null||String(x[k]).trim()==="");
+  const constant=k=>new Set(m.map(x=>x[k])).size===1;
+  const dead=[];
+  if(empty("supplier"))dead.push("Supplier");
+  if(empty("location"))dead.push("Location");
+  if(constant("match_pct"))dead.push("Match % (identical "+m[0].match_pct+"% for every row — it is a name-overlap score, not a ranking)");
+  if(constant("moq"))dead.push("MOQ (all "+m[0].moq+")");
+  const sc=document.getElementById("supplycover");
+  if(sc)sc.innerHTML=dead.length?`<div class="cover">Matched by product NAME against indiaProduct (no HS code in that collection). Carrying no information this run: <b>${dead.join("</b>; <b>")}</b> \u2014 shown greyed so the price column is not mistaken for a ranked shortlist.</div>`:"";
+  m.forEach(x=>{const tr=$("tr");tr.innerHTML=`<td>${x.product||"—"}</td><td${empty("supplier")?' style="opacity:.45"':''}>${x.supplier||'<span style="color:var(--faint)">not in indiaProduct</span>'}</td><td${empty("location")?' style="opacity:.45"':''}>${x.location||'<span style="color:var(--faint)">—</span>'}</td><td class="num">${x.price!=null?"₹"+Number(x.price).toLocaleString():"—"}</td><td class="num"${constant("moq")?' style="opacity:.45"':''}>${x.moq!=null?x.moq:"—"}</td><td class="num"${constant("match_pct")?' style="opacity:.45"':''}><span class="chip mut">${x.match_pct}%</span></td>`;tb.append(tr);});
+}
+function renderFreight(s){
+  const tb=document.querySelector("#freight tbody");if(!tb)return;tb.innerHTML="";
+  const f=s.freight||[];
+  if(!f.length){tb.innerHTML='<tr><td colspan="5" style="color:var(--faint)">No freight rows loaded.</td></tr>';return;}
+  const fc=document.getElementById("freightcover"); if(fc)fc.innerHTML=coverLine(s,"freight");
+  f.forEach(x=>{const tr=$("tr");if(!x.has_buyers)tr.className="refrow";tr.innerHTML=`<td><b>${x.pol} → ${x.pod}</b>${x.pod_country?`<span style="color:var(--faint)"> · ${x.pod_country}</span>`:""}${x.has_buyers?'<span class="bhere">buyer market</span>':""}</td><td>${x.line||"—"}${x.service?" · "+x.service:""}</td><td>${x.container||"—"}</td><td class="num">${x.allin!=null?"$"+Number(x.allin).toLocaleString(undefined,{maximumFractionDigits:0}):"—"}</td><td class="num">${x.transit!=null?x.transit+"d":"—"}</td>`;tb.append(tr);});
+}
+function renderFindings(s){
+  const single=s.buyers.filter(b=>b.top1_share>=1||b.hhi>=10000).length;
+  const lapsed=s.buyers.filter(b=>daysBetween(b.span[1],s.as_of)>180).length;
+  const f=[
+    {c:"warn",t:`${single} of ${s.buyers.length} show single supplier`,p:"Rows are per-exporter uploads, so a buyer often shows one supplier (HHI 10000). Flagged in confidence_basis, not asserted as sole-sourcing. True dependency needs full cross-supplier history."},
+    {c:lapsed?"warn":"good",t:`${lapsed} lapsed (>180d quiet)`,p:`Frequency score (stability × recency) decays as buyers go quiet vs as_of ${s.as_of}. Fresh shipments move them back up automatically on the next recompute.`},
+    {c:"good",t:"Junk consignees filtered",p:"Bill-of-lading tokens (TO THE ORDER / NULL) are excluded before scoring, so real importers surface."},
+    {c:"accent",t:"Deterministic & auditable",p:`Same input + versions → same output. Formula versions: ${s.versions}. Data fingerprint tracks row-count + latest shipment date.`},
+  ];
+  const fw=document.getElementById("findings");fw.innerHTML="";
+  f.forEach(x=>{const e=$("div","finding");e.innerHTML=`<h3><span class="dot" style="background:var(--${x.c})"></span>${x.t}</h3><p>${x.p}</p>`;fw.append(e);});
+}
+function renderMeta(s,srv){
+  document.getElementById("runsub").textContent=`${s.run_id} · as_of ${s.as_of} · ${s.versions}`;
+  const fp=(s.meta.data_fingerprint||"").slice(0,46);
+  document.getElementById("metabar").innerHTML=
+    `<span>refresh trigger: <b>${s.reason}</b></span><span>compute <b>${s.meta.compute_ms}ms</b></span>`+
+    `<span>daily recompute <b>${srv.daily_hour_utc}:00 UTC</b></span><span>movement poll <b>${srv.poll_seconds}s</b></span>`+
+    `<span>runs <b>${srv.runs}</b></span><span>fingerprint <b>${fp}…</b></span>`;
+  document.getElementById("foot").innerHTML=`Aaziko Trade Intelligence Engine v1.0 · live service · sources: common-service.standard_port_data · Dhruval2.macmap_tariff · read-only · deterministic · cached to local disk (never written to Mongo)`;
+}
+function gaugeBig(score,band){
+  const bc=bandClass(band);const col=`var(--${bc==='good'?'good':bc==='warn'?'warn':bc==='crit'?'crit':'accent'})`;
+  const rr=50,c=2*Math.PI*rr,dash=(score/100)*c;
+  return `<div class="dgauge"><svg viewBox="0 0 120 120" role="img" aria-label="Score ${score}"><circle cx="60" cy="60" r="${rr}" fill="none" stroke="var(--surface-3)" stroke-width="11"/><circle cx="60" cy="60" r="${rr}" fill="none" stroke="${col}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${dash} ${c-dash}" transform="rotate(-90 60 60)"/></svg><div class="val">${score}<small>/100</small></div></div>`;
+}
+function fmtDate(s){if(!s)return"—";const M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];const d=new Date(s+"T00:00:00Z");return d.getUTCDate()+" "+M[d.getUTCMonth()]+" "+String(d.getUTCFullYear()).slice(2);}
+function renderProduct(p){
+  if(!p) return '<span style="color:var(--faint)">No product.</span>';
+  const gap={};const ef=p.events_full||[];for(let i=1;i<ef.length;i++){gap[ef[i].date]=daysBetween(ef[i-1].date,ef[i].date);}
+  const evAll=ef.slice().reverse();
+  const evRows=evAll.map((e,i)=>`<tr${i>=25?' class="morerow" hidden':''}><td>${fmtDate(e.date)}</td><td class="num">${gap[e.date]!=null?"+"+gap[e.date]+"d":"first"}</td><td>${supLabel(e.supplier)}</td><td class="num">${usd(e.value)}</td><td class="num">${e.qty!=null?Math.round(e.qty).toLocaleString():"—"}</td><td>${e.unit||""}</td><td class="num">${e.unit_price!=null?"$"+e.unit_price:"—"}</td><td class="num">${e.conf}</td></tr>`).join("");
+  const moreBtn=evAll.length>25?`<button class="btn" style="margin-top:10px" onclick="this.closest('.block').querySelectorAll('.morerow').forEach(r=>r.hidden=false);this.remove()">Show all ${evAll.length} shipments</button>`:"";
+  const supDetail=(p.suppliers_detail||[]).map(s=>`<tr><td>${supLabel(s.supplier)}</td><td class="num">${s.shipments}</td><td class="num">${usd(s.value)}</td><td class="num">${(s.share*100).toFixed(1)}%</td><td class="num">${s.avg_unit_price!=null?"$"+s.avg_unit_price:"—"}</td><td>${fmtDate(s.first)} → ${fmtDate(s.last)}</td></tr>`).join("");
+  const chg=(p.supplier_changes||[]);
+  const chgShown=chg.slice(-12).reverse();   // most recent 12 switches
+  const changeHTML=chgShown.length?chgShown.map(c=>{
+    const pr=c.price_change_pct!=null?((c.price_change_pct<=0?"":"+")+c.price_change_pct+"% price"):"price n/a";
+    const q=c.qty_change_pct!=null?((c.qty_change_pct<=0?"":"+")+c.qty_change_pct+"% qty"):"qty n/a";
+    const sig=c.supported_reasons.length?c.supported_reasons.join(", "):"no strong signal in data";
+    return `<div class="chg"><div class="chgline"><b>${c.from}</b> → <b>${c.to}</b> · ${fmtDate(c.date)} · gap ${c.gap_days}d</div><div class="chgmeta">${pr} · ${q} · unit ${c.from_unit_price!=null?"$"+c.from_unit_price:"?"} → ${c.to_unit_price!=null?"$"+c.to_unit_price:"?"}</div><div class="chgmeta">why (data signals): <b style="color:var(--stamp)">${sig}</b> · candidates: ${c.candidate_reasons.join(", ")}</div></div>`;
+  }).join("")+(chg.length>12?`<div style="font-size:12px;color:var(--faint);margin-top:6px">…showing the 12 most recent of ${chg.length} switches</div>`:""):'<div style="font-size:13px;color:var(--muted)">No supplier change on this product — one supplier throughout the observed history.</div>';
+  const cw=p.contact&&p.contact.emitted?p.contact.statement:(p.contact?p.contact.reason:"—");
+  const sp=p.supplier_patterns||[],sw=p.switching_pattern||{};
+  const roleChip=r=>r.role==="primary"?'<span class="chip good">primary</span>':r.role==="secondary"?'<span class="chip fv">secondary</span>':'<span class="chip mut">minor</span>';
+  const statusChip=r=>r.status==="dropped"?'<span class="chip crit">dropped</span>':r.status==="new"?'<span class="chip warn">new / trial</span>':'<span class="chip good">active</span>';
+  const trendTxt=(lbl,t,pct)=>t==="n/a"?lbl+" n/a":lbl+" <b>"+t+"</b>"+(pct!=null?" ("+(pct>0?"+":"")+pct+"%)":"");
+  const spCards=sp.slice(0,8).map(r=>`<div class="spcard"><div class="phead"><span class="pttl">${supLabel(r.supplier)}</span>${roleChip(r)}${statusChip(r)}<span class="chip mut">${(r.share*100).toFixed(0)}% · ${r.shipments} shp · ${usd(r.value)}</span></div><div class="spline">Buys every <b>~${r.median_gap==null?"—":r.median_gap+"d"}</b> (${(r.cadence_class||"").toLowerCase()}) · avg <b>${r.avg_qty!=null?Number(r.avg_qty).toLocaleString():"—"} ${p.unit}</b>/order · avg <b>${usd(r.avg_value)}</b>/order · <b>${r.avg_unit_price!=null?"$"+r.avg_unit_price:"—"}</b>/${(p.unit||"unit").toLowerCase()}</div><div class="spline">Active <b>${fmtDate(r.first)} → ${fmtDate(r.last)}</b> (${r.days_since_last}d since last) · ${trendTxt("order size",r.qty_trend,r.qty_trend_pct)} · ${trendTxt("unit price",r.price_trend,r.price_trend_pct)}</div>${cadenceTimeline(r.events)}</div>`).join("");
+  const spMore=sp.length>8?`<div style="font-size:12px;color:var(--faint);margin-top:6px">…top 8 of ${sp.length} suppliers by value</div>`:"";
+  const swChip=sw.type==="sole_source"?'<span class="chip mut">sole source</span>':sw.type==="migration"?'<span class="chip warn">migration</span>':sw.type==="alternating"?'<span class="chip fv">alternating / parallel</span>':'<span class="chip good">primary + secondary</span>';
+  const prim=sp[0];
+  const cmpRows=sp.slice(0,8).map(r=>{
+    const dp=(r!==prim&&r.avg_unit_price!=null&&prim&&prim.avg_unit_price)?((r.avg_unit_price-prim.avg_unit_price)/prim.avg_unit_price*100):null;
+    const vs=r===prim?'<span class="chip good">primary (baseline)</span>':dp==null?"—":`<span class="chip ${dp<=-3?"good":dp>=3?"crit":"mut"}">${dp>0?"+":""}${dp.toFixed(1)}% ${dp<=-3?"cheaper":dp>=3?"pricier":"≈ same price"}</span>`;
+    return `<tr><td><b>${supLabel(r.supplier)}</b></td><td class="num">${vs}</td><td class="num">${r.avg_unit_price!=null?"$"+r.avg_unit_price:"—"}</td><td class="num">${r.shipments}</td><td class="num">${r.total_qty!=null?Number(r.total_qty).toLocaleString()+" "+p.unit:"—"}</td><td class="num">${usd(r.value)} <span style="color:var(--muted)">(${(r.share*100).toFixed(0)}%)</span></td><td>${statusChip(r)}</td></tr>`;
+  }).join("");
+  const supplierBlocks = sp.length>1 ? `
+    <div class="block"><div class="h"><span>Supplier comparison — what the buyer buys from each supplier (same product)</span><span>${sp.length} suppliers · baseline = primary</span></div><div class="tw" style="box-shadow:none;border:none"><table><thead><tr><th>Supplier</th><th class="num">Price vs primary</th><th class="num">Unit price</th><th class="num">Orders</th><th class="num">Total qty</th><th class="num">Value (share)</th><th>Status</th></tr></thead><tbody>${cmpRows}</tbody></table></div>${sp.length>8?'<div style="font-size:12px;color:var(--faint);margin-top:6px">…top 8 of '+sp.length+' suppliers by value</div>':''}</div>
+    <div class="block"><div class="h"><span>Sourcing pattern</span><span>${sw.n_suppliers!=null?sw.n_suppliers:sp.length} supplier${(sw.n_suppliers!=null?sw.n_suppliers:sp.length)===1?"":"s"}</span></div><div style="font-size:14px;color:var(--ink-2);display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">${swChip}<span>${sw.summary||""}</span></div></div>
+    <div class="block"><div class="h"><span>Supplier patterns — how the buyer buys from each supplier</span></div>${spCards||'<span style="color:var(--faint)">—</span>'}${spMore}</div>
+    <div class="block"><div class="h"><span>Switch log (§7)</span><span>${chg.length} switch${chg.length===1?"":"es"}</span></div>${chg.length?`<button class="btn" onclick="this.nextElementSibling.hidden=false;this.remove()">Show switch log (${chg.length})</button><div hidden>${changeHTML}</div>`:changeHTML}<div style="font-size:11.5px;color:var(--faint);margin-top:8px;font-style:italic">From raw standard_port_data. Signals only — never a decided cause.</div></div>` : `<div class="block"><div class="h"><span>Supplier</span></div><div style="font-size:13px;color:var(--muted)">Single supplier for this product — <b>${prim?supLabel(prim.supplier):"—"}</b> (100%). No supplier comparison to show.${prim&&isUnnamedSup(prim.supplier)?" The source feed carries no shipper name on these rows, so this is <b>not evidence of a sole source</b> — only that the supplier is unrecorded.":""}</div></div>`;
+  const mo=p.monthly;
+  const fmtM=m=>{const [y,mm]=m.split("-");return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mm-1]+" "+y.slice(2);};
+  let monthlyBlock="";
+  if(mo&&mo.months.length){
+    const vmax=Math.max(...mo.totals.map(t=>t.value),1);
+    const bars=mo.totals.map(t=>`<div class="mcol"><div class="mbar${t.orders?"":" idle"}" style="height:${t.orders?Math.max(4,Math.round(t.value/vmax*72)):3}px" title="${fmtM(t.month)}: ${t.orders} orders · ${usd(t.value)}"></div><div class="mlab">${fmtM(t.month)}</div><div class="mval">${t.orders?usdK(t.value):"—"}</div><div class="mval">${t.orders?t.orders+" ord":"no order"}</div></div>`).join("");
+    const head=`<tr><th>Supplier</th>${mo.months.map(m=>`<th class="num">${fmtM(m)}</th>`).join("")}<th class="num">Total</th></tr>`;
+    const cell=c=>c.orders?`<td class="num mcell" style="background:color-mix(in srgb,var(--accent) ${Math.round(12+50*c.value/vmax)}%,transparent)"><b>${usdK(c.value)}</b><br><span class="mval">${c.orders} ord</span></td>`:'<td class="num mcell" style="color:var(--faint)">·</td>';
+    const rows=mo.by_supplier.map(r=>{const tv=r.cells.reduce((a,c)=>a+c.value,0);return `<tr><td><b>${supLabel(r.supplier)}</b></td>${r.cells.map(cell).join("")}<td class="num"><b>${usdK(tv)}</b></td></tr>`;}).join("");
+    const totRow=`<tr style="font-weight:700;background:var(--surface-2)"><td>Buyer total</td>${mo.totals.map(t=>`<td class="num">${t.orders?usdK(t.value):"·"}</td>`).join("")}<td class="num">${usdK(mo.totals.reduce((a,t)=>a+t.value,0))}</td></tr>`;
+    const s=mo.summary;
+    monthlyBlock=`<div class="block"><div class="h"><span>Monthly pattern — buyer &amp; suppliers</span><span>${s.active_months}/${s.total_months} months active · peak ${s.peak_month?fmtM(s.peak_month)+" "+usdK(s.peak_value):"—"} · avg ${s.avg_orders_per_active_month} orders / ${usdK(s.avg_value_per_active_month)} per active month</span></div>
+    <div class="mstrip">${bars}</div>
+    <div class="tw" style="box-shadow:none;border:none;margin-top:12px"><table><thead>${head}</thead><tbody>${rows}${totRow}</tbody></table></div>
+    <div style="font-size:11.5px;color:var(--faint);margin-top:6px">Each cell = value bought from that supplier in that month (shade = intensity, with order count); "·" = no order from that supplier that month. Idle months show as flat marks in the strip.</div></div>`;
+  }
+  const stat=(v,l)=>`<div class="dstat"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  return `<div class="phead" style="margin-bottom:12px"><span class="pttl">HS ${p.hs6}</span><span class="pdesc" title="${(p.desc||"").replace(/"/g,"&quot;")}">${prettyDesc(p.desc,110)||"(no description in feed)"}</span><span class="chip ${freqClass(p.frequency_class)}">${p.frequency_class}</span><span class="chip warn">${p.dependency} · HHI ${p.hhi}</span>${(p.behaviour||[]).map(x=>`<span class="chip mut">${x.replace(/_/g," ")}</span>`).join("")}</div>
+    <div class="dstats">${stat(p.orders,"Orders")}${stat(usd(p.value),"Total value")}${stat(usd(p.annualized),"Annualized")}${stat(p.median==null?"—":p.median+"d","Median gap")}${stat(p.mean_interval==null?"—":p.mean_interval+"d","Mean gap")}${stat(p.stability==null?"—":p.stability,"Stability")}${stat(fmtDate(p.span[0]),"First")}${stat(fmtDate(p.span[1]),"Last")}</div>
+    ${reliabilityHTML(p)}
+    <div class="block"><div class="h"><span>Order cadence — when &amp; how far apart</span><span>median ${p.median==null?"—":p.median+"d"}</span></div>${cadenceTimeline(p.events)}${gapNote(p)}</div>
+    ${monthlyBlock}
+    <div class="block"><div class="h"><span>Order history · ${p.orders} shipments</span></div><div class="tw" style="box-shadow:none;border:none"><table><thead><tr><th>Date</th><th class="num">Gap</th><th>Supplier</th><th class="num">Value</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit price</th><th class="num">Evt conf</th></tr></thead><tbody>${evRows}</tbody></table></div>${moreBtn}</div>
+    ${supplierBlocks}
+    <div class="contact ${p.contact&&p.contact.emitted?(p.contact.status==="upcoming"?"upcoming":"lapsed"):""}" style="margin-top:14px"><span class="st">Contact window · this product</span>${cw}</div>`;
+}
+// HS_CODE_DESCRIPTION from the feed is often a duplicated qualifier + the real product
+// ("WITH A WATER ABSORPTION COEFFICIENT GREATER THAN 10% BY WEIGHT. WITH A WATER ... . CERAMIC
+// PLATES AND TILES FOR PAVEMENT..."). Dedupe the repeats and prefer the clause that names the
+// goods over the leading qualifier, so the pitch line reads like a product, not a fragment.
+const QUALIFIER=/^(WITH|WITHOUT|OF A|OTHER THAN|HAVING|IN|FOR USE|NOT |EXCEEDING|WEIGHING)\b/i;
+function clampWords(t,max){
+  t=String(t||"");
+  if(t.length<=max) return t;
+  const cut=t.slice(0,max);
+  return cut.slice(0,Math.max(cut.lastIndexOf(" "),Math.floor(max*0.6))).replace(/[ ,;-]+$/,"")+"\u2026";
+}
+function prettyDesc(d,max){
+  max=max||70;
+  const t=String(d||"").replace(/\s+/g," ").trim();
+  if(!t) return "";
+  // split sentences on "." but NOT on a decimal point ("0.5%" must stay intact),
+  // and drop stub fragments that carry no product meaning
+  const parts=t.split(/\.(?!\d)/).map(x=>x.trim()).filter(x=>x.length>3);
+  const seen=new Set(),uniq=[];
+  for(const x of parts){const k=x.toUpperCase();if(!seen.has(k)){seen.add(k);uniq.push(x);}}
+  const named=uniq.filter(x=>!QUALIFIER.test(x));
+  let best=(named.length?named:uniq).sort((a,b)=>b.length-a.length)[0]||uniq[0]||t;
+  if(best.length<12) best=t;   // nothing meaningful survived the split — show the raw text
+  // within the chosen sentence the head clause names the goods; ";" introduces the "also includes" tail
+  const head=best.split(";")[0].trim();
+  if(head.length>=18) best=head;
+  best=best.replace(/,\s*(AND|OR)?\s*$/i,"").trim();
+  best=best.charAt(0).toUpperCase()+best.slice(1).toLowerCase();
+  return clampWords(best,max);
+}
+// supplier_std is "ORIGIN: X" when the feed ships no shipper name (~9.7% of rows carry the
+// literal string "NULL"). Label that honestly instead of printing a company called UNKNOWN.
+function isUnnamedSup(x){return !x||x==="UNKNOWN"||/^ORIGIN: /.test(x);}
+function supLabel(x){
+  if(!x) return "\u2014";
+  if(x==="UNKNOWN") return "Supplier not named in source";
+  const m=/^ORIGIN: (.+)$/.exec(x);
+  if(m) return m[1].charAt(0)+m[1].slice(1).toLowerCase()+" (shipper unnamed)";
+  return x;
+}
+function shortSup(x){
+  if(!x) return "\u2014";
+  if(x==="UNKNOWN") return "unnamed supplier";
+  const m=/^ORIGIN: (.+)$/.exec(x);
+  if(m) return m[1].charAt(0)+m[1].slice(1).toLowerCase();
+  return x.split(" ").slice(0,2).join(" ");
+}
+// "Median gap" vs "Mean gap", explained with this product's own numbers.
+// median = the middle wait between consecutive orders (typical); mean = the plain average
+// (dragged around by one unusually long or short wait). Planning uses the median.
+// never round a share up to 100% or down to 0% — that contradicts the rest of the brief
+function sharePct(x){
+  const v=x*100;
+  if(v>0&&v<1) return "<1%";
+  if(v<100&&v>99) return ">99%";
+  return Math.round(v)+"%";
+}
+// Which of THIS product's patterns the data actually supports (engine.patternReliability).
+function reliabilityHTML(p){
+  const r=p.reliability;
+  if(!r||!r.items) return "";
+  const cls=g=>g==="Strong"?"g-strong":(g==="Weak"?"g-weak":"g-none");
+  const cards=r.items.map(i=>`<div class="relcard ${cls(i.grade)}">
+      <div class="rn"><span>${i.pattern}</span><span class="rg">${i.grade}</span></div>
+      <div class="rw">${i.why}</div>
+      ${i.need?`<div class="rq">needs: ${i.need}</div>`:""}</div>`).join("");
+  return `<div class="block"><div class="h"><span>Pattern reliability — which of these patterns you can trust</span><span>${r.verdict}</span></div>
+    <div class="relgrid">${cards}</div>
+    <div style="font-size:11.5px;color:var(--faint);margin-top:9px;line-height:1.6"><b>Strong</b> = enough evidence, use it. <b>Weak</b> = directional only, treat as a hint. <b>Not usable</b> = the number is displayed but the data does not support it — do not pitch on it. Graded by fixed thresholds on order count, gaps, supplier naming, quantity and date precision — not by AI.</div></div>`;
+}
+function gapNote(p){
+  const ev=(p.events||[]).map(e=>e.date).filter(Boolean).sort();
+  const gaps=[]; for(let i=1;i<ev.length;i++) gaps.push(Math.round((new Date(ev[i])-new Date(ev[i-1]))/864e5));
+  if(gaps.length<2) return "";
+  const sorted=[...gaps].sort((a,b)=>a-b);
+  const med=p.median==null?"—":p.median+"d", mean=p.mean_interval==null?"—":p.mean_interval+"d";
+  const skew=(p.median!=null&&p.mean_interval!=null)
+    ? (p.mean_interval<p.median
+        ? `Mean (<b>${mean}</b>) is <b>below</b> the median because a few unusually short gaps (${sorted.slice(0,2).join("d, ")}d) pull the average down — those are back-to-back shipments, not the real reorder rhythm.`
+        : p.mean_interval>p.median
+          ? `Mean (<b>${mean}</b>) is <b>above</b> the median because a few long gaps (${sorted.slice(-2).join("d, ")}d) pull the average up.`
+          : `Mean and median agree — the cadence is even.`)
+    : "";
+  return `<div style="font-size:11.5px;color:var(--faint);margin-top:10px;line-height:1.6">
+    <b>Median gap ${med}</b> = the middle wait between two consecutive orders (half the gaps are shorter, half longer) — this is the <b>typical</b> reorder interval, so plan outreach on it.
+    <b>Mean gap ${mean}</b> = the plain average of all ${gaps.length} gaps (${sorted.join("d · ")}d). ${skew}</div>`;
+}
+function approachAnalysis(products,b){
+  if(!products.length) return '<div style="color:var(--muted)">No product history.</div>';
+  // Lead with the biggest product whose patterns the data actually supports; if that is not the
+  // top-value one, say so rather than silently pitching a product with no evidence behind it.
+  const pitchable=p=>p.orders>=3&&p.value>=10&&p.reliability&&p.reliability.strong>=2;
+  const recIdx=Math.max(0,products.findIndex(pitchable));
+  const rec=products[recIdx];
+  const skipped=products.slice(0,recIdx).filter(p=>p.value>=10);
+  const skipNote=recIdx>0?` <span style="color:var(--muted)">(higher-value ${skipped.map(p=>"HS "+p.hs6+" "+usdK(p.value)).join(", ")} skipped \u2014 too little data to pitch on)</span>`:"";
+  const angles=[];const topsup=(rec.supplier_split&&rec.supplier_split[0])?rec.supplier_split[0]:null;
+  const split=rec.supplier_split||[];
+  const unnamed=topsup&&isUnnamedSup(topsup.supplier);
+  const pct=topsup?sharePct(topsup.share):"—";
+  if(rec.dependency==="High dependency"){
+    if(unnamed) angles.push(`concentrated: <b>${pct} of value from ${shortSup(topsup.supplier)}</b> — the feed does not name the shipper, so this is <b>origin-level</b>, not one supplier → lead with <b>a named, accountable India source</b>`);
+    else angles.push(`sole-sources (${pct} ${shortSup(topsup.supplier)}) → lead with <b>diversification / a reliable alternate India source</b>`);
+  }
+  const indiaShare=split.filter(x=>/INDIA/i.test(x.supplier)).reduce((a,x)=>a+x.share,0);
+  const indiaOrders=(rec.suppliers_detail||[]).filter(x=>/INDIA/i.test(x.supplier)).reduce((a,x)=>a+(x.shipments||0),0);
+  if(indiaOrders>0){
+    const pv=sharePct(indiaShare);
+    angles.push(`<b>already sourced from India on this HS</b> — ${indiaOrders} of ${rec.orders} orders (${pv} of value) → the lane is <b>already accepted</b>; pitch <b>growing that share</b>, not a first trial`);
+  }
+  const origins=split.filter(x=>/^ORIGIN: /.test(x.supplier));
+  if(origins.length>1) angles.push(`sources across <b>${origins.length} countries</b> (${origins.slice(0,3).map(x=>shortSup(x.supplier)).join(", ")}) → already multi-origin, so compete on <b>price / lead time</b>, not on “second source”`);
+  if((rec.behaviour||[]).includes("capacity_seeking")) angles.push(`order sizes <b>growing</b> → offer to <b>scale supply</b>`);
+  if(rec.frequency_class==="Project") angles.push(`<b>project bursts</b> → time outreach to their project cycle`);
+  if(!angles.length) angles.push(`lead with <b>reliable, consistent India supply</b>`);
+  const when=rec.contact&&rec.contact.emitted&&rec.contact.status==="upcoming"?`best window <b>${rec.contact.from} → ${rec.contact.to}</b>`:`cadence ${rec.frequency_class.toLowerCase()}; last order ${fmtDate(rec.span[1])} — reach out on their next shipment`;
+  const m=((SNAP||{}).supplier_matches||[]).find(x=>x.price!=null);
+  const india=(rec.hs6==="690721"&&m)?`India supplies e.g. <b>${(m.product||"").slice(0,44)}</b> at <b>₹${Number(m.price).toLocaleString()}</b>; their unit price ≈ <b>$${rec.avg_unit_price!=null?rec.avg_unit_price:"—"}/${(rec.unit||"unit").toLowerCase()}</b>`:`India-supply match not yet computed for HS ${rec.hs6} (only the tracked HS is matched today)`;
+  // keep junk out of the brief: $0/$1 rows and single-shipment codes are noise, not a second pitch
+  const real=products.filter((p,i)=>i!==recIdx&&p.value>=1000&&p.orders>=2);
+  const minor=products.length-1-real.length;
+  const others=real.length?` Also trades ${real.slice(0,3).map(p=>"<b>HS "+p.hs6+"</b> "+(prettyDesc(p.desc,34)||"<i>unnamed in feed</i>")+" ("+usdK(p.value)+")").join("; ")}${real.length>3?"; … "+(real.length-3)+" more":""}.`:"";
+  const minorNote=minor>0?` <span style="color:var(--faint)">${minor} further HS code${minor===1?"":"s"} sit under $1K or are a single shipment \u2014 kept out of the brief (no repeat pattern to pitch on); they are still in the tabs.</span>`:"";
+  return `<div style="font-size:16px;color:var(--ink);margin:2px 0 6px">Pitch <b>${b.name}</b> on → <b>HS ${rec.hs6} · ${prettyDesc(rec.desc,90)||"product not described in feed"}</b>${skipNote}</div>
+    <div style="font-size:12px;color:var(--faint);margin:0 0 14px">Full customs description: ${clampWords((rec.desc||"—").replace(/\s+/g," "),190)}</div>
+    <ul class="brief-list">
+      <li><span class="bk">Why this</span><span>Their <b>biggest product by value</b>: ${usd(rec.value)} across ${rec.orders} orders (~${usd(rec.annualized)}/yr), ${rec.frequency_class.toLowerCase()} cadence (median ${rec.median==null?"—":rec.median+"d"}).${others}${minorNote}</span></li>
+      <li><span class="bk">Angle</span><span>${angles.join("; ")}.</span></li>
+      <li><span class="bk">When</span><span>${when}.</span></li>
+      <li><span class="bk">India value</span><span>${india}.</span></li>
+      <li><span class="bk">Contact</span><span>No buyer email/phone in the dataset (foreign importer${b.country?", "+b.country:""}). Enrich from company name “${b.name}”. Indian supplier contacts are in indiaProduct.</span></li>
+    <li><span class="bk">Evidence</span><span>${rec.reliability?`<b>${rec.reliability.verdict}</b> for this product \u2014 see Pattern reliability below before you lean on any number.`:"\u2014"}</span></li>
+    </ul>
+    <div class="brief-note">Signals only — recommends the lead product by value from shipment history + rules. Not a generated sales message and not a prediction the buyer will order. Use the product tabs below to inspect any HS code.</div>`;
+}
+// ---- product tabs (every HS the buyer trades, shown as tabs not a dropdown) ----
+// A buyer can trade 200+ HS codes, so the strip shows the top TAB_LIMIT by value with an
+// expander, plus a filter once the list is long enough that scanning it stops being useful.
+const TAB_LIMIT=12;
+let PRODSEL_IDX=0,PRODSEL_NAME=null,PRODTABS_OPEN=false,PRODFILTER="";
+function matchProduct(p,q){
+  if(!q) return true;
+  q=q.toLowerCase();
+  return String(p.hs6).includes(q)||String(p.desc||"").toLowerCase().includes(q);
+}
+// full=true rebuilds the whole strip (incl. the filter input); the filter's own keystrokes
+// pass full=false so the input keeps focus and caret instead of being re-created each char.
+// at-a-glance evidence quality per HS, so you can see which tabs hold a real pattern
+function relGrade(p){
+  const r=p.reliability;
+  if(!r) return "none";
+  if(r.unusable>=4||r.strong<=1) return "none";
+  if(r.unusable===0&&r.weak<=1) return "strong";
+  return "weak";
+}
+function relDot(p){
+  const g=relGrade(p);
+  return `<span class="dot ${g==="strong"?"s":(g==="weak"?"w":"n")}"></span>`;
+}
+function relTitle(p){
+  const r=p.reliability; return r?` — ${r.verdict}`:"";
+}
+function renderProductTabs(full){
+  const box=document.getElementById("prodtabsbox");
+  if(!box) return;
+  const vis=PRODUCTS.map((p,i)=>({p,i})).filter(x=>matchProduct(x.p,PRODFILTER));
+  if(vis.findIndex(x=>x.i===PRODSEL_IDX)>=TAB_LIMIT) PRODTABS_OPEN=true;   // keep the active tab on screen
+  const shown=PRODTABS_OPEN?vis:vis.slice(0,TAB_LIMIT);
+  const tabs=shown.map(({p,i})=>`<button type="button" class="ptab${i===PRODSEL_IDX?" on":""}" data-i="${i}" title="HS ${p.hs6} — ${String(p.desc||"no description").replace(/"/g,"&quot;")}${relTitle(p)}">
+      <span class="pt-hs">${relDot(p)}HS ${p.hs6}</span>
+      <span class="pt-desc">${prettyDesc(p.desc,38)||"(no description in feed)"}</span>
+      <span class="pt-meta">${p.orders} ord · ${usdK(p.value)}</span></button>`).join("");
+  const hidden=vis.length-shown.length;
+  const more=(hidden>0||(PRODTABS_OPEN&&vis.length>TAB_LIMIT))
+    ? `<button type="button" class="ptab ptab-more" data-more="1">${hidden>0?"+ "+hidden+" more":"− Show fewer"}</button>` : "";
+  const tabsHTML=`${tabs||'<span style="color:var(--faint);font-size:13px">No HS code matches that filter.</span>'}${more}`;
+  const countTxt=`${vis.length} of ${PRODUCTS.length} shown${PRODFILTER?" · filtered":""}`;
+  if(full!==false||!box.querySelector(".ptabs")){
+    const bar=PRODUCTS.length>TAB_LIMIT
+      ? `<div class="ptabbar"><input id="pfilter" class="pfilter" type="search" placeholder="Filter ${PRODUCTS.length} HS codes — code or product…" value="${PRODFILTER.replace(/"/g,"&quot;")}">
+         <span id="pcount" style="font-family:var(--mono);font-size:11.5px;color:var(--faint)">${countTxt}</span></div>` : "";
+    const legend=`<div style="font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:9px">
+      <span class="dot s"></span>patterns supported
+      <span class="dot w" style="margin-left:14px"></span>partly supported
+      <span class="dot n" style="margin-left:14px"></span>too little data</div>`;
+  box.innerHTML=bar+`<div class="ptabs">${tabsHTML}</div>`+legend;
+  }else{
+    box.querySelector(".ptabs").innerHTML=tabsHTML;
+    const c=box.querySelector("#pcount"); if(c) c.textContent=countTxt;
+  }
+}
+function selectProduct(i){
+  PRODSEL_IDX=i;
+  const pd=document.getElementById("proddetail");
+  if(pd) pd.innerHTML=renderProduct(PRODUCTS[i]||PRODUCTS[0]);
+  renderProductTabs();
+}
+// Plain-language account of how THIS company's numbers were produced. Every figure is the
+// real per-company count returned by /api/buyer_full — nothing here is a fixed example.
+function renderPipeline(pl,name){
+  const box=document.getElementById("pipelinebox");
+  if(!box) return;
+  if(!pl){box.innerHTML='<h3>How this company\u2019s data is processed</h3><div style="color:var(--faint)">Processing detail unavailable.</div>';return;}
+  const n=x=>x==null?"\u2014":Number(x).toLocaleString();
+  const supTotal=(pl.supplier_named||0)+(pl.supplier_origin_only||0)+(pl.supplier_unknown||0);
+  const supPct=x=>supTotal?Math.round(x/supTotal*100)+"%":"\u2014";
+  const steps=[
+    ["01","Read from MongoDB",`<b>${n(pl.db_rows)}</b> raw shipment rows for <b>${name}</b> from <b>${(pl.source_collections||[]).join(", ")}</b>, matched on the <b>${pl.read_path}</b>, in <b>${n(pl.read_ms)}ms</b>. ${pl.capped?`<b style="color:var(--warn,var(--warn))">Capped at ${n(pl.row_cap)} rows.</b>`:"Read is complete \u2014 no cap hit."}`],
+    ["02","Normalise fields",`Value, quantity, unit, date, supplier and country are each read from a <b>priority list of field names</b> (feeds spell them differently), falling back to <code>raw_data</code>. Placeholders like the literal string \u201CNULL\u201D are rejected. <b>${n(pl.dropped_rows)}</b> rows dropped for having no usable date or amount \u2192 <b>${n(pl.usable_rows)}</b> kept.`],
+    ["03","De-duplicate shipments",`The same consignment often appears on several customs lines. Rows with the <b>same supplier + same date</b> whose value AND quantity agree within <b>\u00b12%</b> are merged into one order. <b>${n(pl.duplicates_merged)}</b> duplicate rows merged \u2192 <b>${n(pl.shipment_events)}</b> distinct orders.`],
+    ["04","Group by product",`Orders are grouped into <b>${n(pl.hs_codes)}</b> HS codes (one tab each). Supplier spellings are canonicalised first, so \u201CLAMINAM SPA\u201D and \u201CLAMINAM S P A\u201D count as one supplier.`],
+    ["05","Identify the supplier",`Of ${n(supTotal)} usable rows: <b>${n(pl.supplier_named)}</b> (${supPct(pl.supplier_named)}) name the shipper, <b>${n(pl.supplier_origin_only)}</b> (${supPct(pl.supplier_origin_only)}) name only the <b>origin country</b>, <b>${n(pl.supplier_unknown)}</b> (${supPct(pl.supplier_unknown)}) name neither. Unnamed ones are bucketed by origin, never merged into one fake supplier.`],
+    ["06","Compute the metrics",`Fixed formulas, no model: gaps between consecutive orders \u2192 <b>median / mean / stability</b> and the frequency class; supplier value shares \u2192 <b>HHI</b> = \u03a3(share\u00b2)\u00d710000 \u2192 dependency class; weighted sum \u2192 <b>opportunity score</b> (product fit 30% \u00b7 frequency 20% \u00b7 volume 20% \u00b7 supplier 15% \u00b7 India advantage 15%).`],
+    ["07","Enrich",`Duty, compliance and India-supply lookups join on the <b>6-digit HS</b> against <b>${(pl.enrichment_collections||[]).join(", ")}</b>.`],
+  ];
+  // The 7 step cards were taking over the page, so they are collapsed by default: the summary
+  // line below carries the same figures in one row, and the detail is one click away.
+  box.innerHTML=`<h3>How this company\u2019s data is processed</h3>
+    <div class="noai"><b>No AI.</b> No LLM, no model, no prediction \u2014 this page is database rows put through fixed arithmetic and written rules. Same input always gives the same output, and every number traces back to shipment rows.</div>
+    <div class="pipesum"><b>${n(pl.db_rows)}</b> rows read \u00b7 <b>${n(pl.dropped_rows)}</b> dropped \u00b7 <b>${n(pl.duplicates_merged)}</b> duplicates merged \u2192 <b>${n(pl.shipment_events)}</b> orders across <b>${n(pl.hs_codes)}</b> HS codes \u00b7 supplier named on <b>${supPct(pl.supplier_named)}</b> of rows
+      <button type="button" class="btn pipetgl" onclick="const p=this.closest('.dsec').querySelector('.pipe');p.hidden=!p.hidden;this.textContent=p.hidden?'Show processing steps':'Hide processing steps'">Show processing steps</button></div>
+    <div class="pipe" hidden>${steps.map(([i,t,d])=>`<div class="pstep"><div class="n">STEP ${i}</div><div class="t">${t}</div><div class="d">${d}</div></div>`).join("")}</div>
+    <div style="font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:1.9;margin-top:8px">
+      covers <b style="color:var(--ink-2)">${pl.span?fmtDate(pl.span[0])+" \u2192 "+fmtDate(pl.span[1]):"\u2014"}</b> \u00b7 formula versions <b style="color:var(--ink-2)">${pl.formula_versions||"\u2014"}</b> \u00b7 computed in <b style="color:var(--ink-2)">${n(pl.compute_ms)}ms</b> at ${new Date(pl.computed_at).toLocaleString()}<br>
+      ${pl.write_policy} \u00b7 what the engine cannot know it prints as UNKNOWN rather than guessing.
+    </div>`;
+}
+async function loadAllProducts(b,prefetched){
+  const ab=document.getElementById("approachbox"),box=document.getElementById("prodtabsbox"),pd=document.getElementById("proddetail");
+  if(!box||!pd)return;
+  const name=b.importer_name||b.name;
+  if(PRODSEL_NAME!==name){PRODSEL_NAME=name;PRODSEL_IDX=0;PRODTABS_OPEN=false;PRODFILTER="";}   // new company → reset
+  try{
+    const d=prefetched||await(await fetch("/api/buyer_full?name="+encodeURIComponent(name),{cache:"no-store"})).json();PRODUCTS=d.products||[];
+    if(!PRODUCTS.length){if(ab)ab.innerHTML='<h3>Approach analysis</h3><div style="color:var(--muted)">No product history found under this importer name.</div>';box.innerHTML="";pd.innerHTML='<span style="color:var(--faint)">No products.</span>';renderPipeline(d.pipeline,name);return;}
+    renderPipeline(d.pipeline,name);
+    if(PRODSEL_IDX>=PRODUCTS.length) PRODSEL_IDX=0;
+    if(ab)ab.innerHTML='<h3>Approach analysis — who to pitch, which product, why</h3>'+approachAnalysis(PRODUCTS,b);
+    renderProductTabs();
+    pd.innerHTML=renderProduct(PRODUCTS[PRODSEL_IDX]);
+    if(box.dataset.bound!=="1"){ box.dataset.bound="1";      // detailHTML re-creates this node, but guard re-entry anyway
+    box.addEventListener("click",ev=>{
+      const t=ev.target.closest(".ptab"); if(!t) return;
+      if(t.dataset.more){PRODTABS_OPEN=!PRODTABS_OPEN;renderProductTabs();return;}
+      selectProduct(+t.dataset.i);
+    });
+    box.addEventListener("input",ev=>{
+      if(ev.target.id!=="pfilter") return;
+      PRODFILTER=ev.target.value.trim();PRODTABS_OPEN=false;renderProductTabs(false);
+    }); }
+  }catch(e){pd.innerHTML='<span style="color:var(--crit)">Load failed: '+e.message+'</span>';}
+}
+function approachBrief(b){
+  const topSup=(b.supplier_split&&b.supplier_split[0])?supLabel(b.supplier_split[0].supplier):"—";
+  let when;
+  if(b.contact&&b.contact.emitted&&b.contact.status==="upcoming") when=`Best window: <b>${b.contact.from} → ${b.contact.to}</b> (before the expected reorder around ${b.contact.expected_next}).`;
+  else if(b.contact&&b.contact.emitted&&b.contact.status==="lapsed") when=`Lapsed ~<b>${b.contact.cycles_since_last} cycles</b> since ${fmtDate(b.span[1])} — re-engage now.`;
+  else when=`Cadence is <b>${b.freq.toLowerCase()}</b> (no fixed cycle). Last order ${fmtDate(b.span[1])} — watch for the next shipment and reach out when one lands.`;
+  const angles=[];
+  if(b.dependency==="High dependency") angles.push(`Sole-sources from <b>${topSup}</b> (${Math.round((b.top1_share||1)*100)}%) → lead with <b>supply diversification / a reliable alternate India source</b>.`);
+  if(b.behaviour.includes("capacity_seeking")) angles.push(`Order sizes are <b>growing</b> → offer to <b>scale supply</b> with volume pricing.`);
+  if(b.behaviour.includes("price_sensitive_candidate")) angles.push(`Uses several suppliers → lead with a <b>competitive quote</b>.`);
+  if(b.freq==="Project") angles.push(`Buys in <b>project bursts</b> → time outreach to their project cycle.`);
+  if(!angles.length) angles.push(`Steady buyer → lead with <b>reliability and consistent India supply</b>.`);
+  const up=(b.events_full||[]).map(e=>e.unit_price).filter(x=>x!=null);
+  const avgUp=up.length?+(up.reduce((a,c)=>a+c,0)/up.length).toFixed(4):null;
+  const m=((SNAP||{}).supplier_matches||[]).find(x=>x.price!=null);
+  const india=m?`India supplies e.g. <b>${(m.product||"").slice(0,52)}</b> at <b>₹${Number(m.price).toLocaleString()}</b> (MOQ ${m.moq}). Their landed unit price ≈ <b>$${avgUp!=null?avgUp:"—"}/${(b.unit||"unit").toLowerCase()}</b>.`:`India supply candidates are listed in the matches section.`;
+  const lead=`Main product: <b>${b.family}</b> (HS ${b.hs}). Typical order <b>${b.avgQty!=null?Number(b.avgQty).toLocaleString():"—"} ${b.unit}</b> · ${b.orders} orders · ${usd(b.value)} total (~${usd(b.annualized)}/yr).`;
+  return `<div class="dsec brief"><h3>Approach brief — on what basis to reach out</h3>
+    <ul class="brief-list">
+      <li><span class="bk">When</span><span>${when}</span></li>
+      <li><span class="bk">Lead with</span><span>${lead}</span></li>
+      <li><span class="bk">Angle</span><span>${angles.join(" ")}</span></li>
+      <li><span class="bk">India value</span><span>${india}</span></li>
+      <li><span class="bk">Contact</span><span>No buyer email/phone in this dataset (foreign importer). Enrich from the company name <b>“${b.name}”</b> (web / LinkedIn / their customs record). Indian supplier contacts are available via indiaProduct.</span></li>
+    </ul>
+    <div class="brief-note">Signals only — assembled from this buyer's shipment history + rules. Not a generated sales message, and not a prediction that the buyer will order.</div>
+  </div>`;
+}
+function cadenceTimeline(ef){
+  if(!ef||!ef.length)return"";
+  const vmax=Math.max(...ef.map(e=>e.value),1);
+  let h='<div class="tline">';
+  ef.forEach((e,i)=>{if(i>0){h+=`<div class="tgap">+${daysBetween(ef[i-1].date,e.date)}d</div>`;}const bh=Math.max(8,Math.round((e.value/vmax)*72));h+=`<div class="tnode"><div class="tbar" style="height:${bh}px" title="${usd(e.value)}"></div><div class="tdate">${fmtDate(e.date)}</div><div class="tval">${usdK(e.value)}</div></div>`;});
+  return h+'</div>';
+}
+function detailHTML(b){
+  const compRows=COMP_META.map(([k,label,w,col])=>`<tr><td><span class="sw" style="background:var(${col})"></span>${label}</td><td class="num">${b.comps[k]}</td><td class="num">${w}</td><td class="num">${(w*b.comps[k]).toFixed(1)}</td></tr>`).join("");
+  const pr=b._provenance||{};
+  return `<div class="dbar"><div class="dbar-in"><button class="backbtn" onclick="location.hash=''">← Back to console</button><span style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">company detail · live</span></div></div>
+  <div class="dwrap">
+    <div class="dhero"><div>
+      <h2>${b.name}</h2>
+      <div class="dkey">${b.buyer_key} · importer${b.country?" · "+b.country:""}</div>
+      <div class="pillrow"><span class="chip ${freqClass(b.freq)}">${b.freq}</span><span class="chip warn">${b.dependency} · HHI ${b.hhi}</span><span class="chip ${bandClass(b.band)}">conf ${b.conf} (${b.band})</span></div>
+    </div>${gaugeBig(b.score,b.band)}</div>
+
+    <div id="approachbox" class="dsec brief"><h3>Approach analysis — who to pitch, which product, why</h3><div style="color:var(--muted)">Analyzing all products…</div></div>
+
+    <div id="pipelinebox" class="dsec"><h3>How this company&rsquo;s data is processed</h3><div style="color:var(--muted)">Loading…</div></div>
+
+    <div class="dsec"><h3>Product view</h3>
+      <div id="prodtabsbox" style="margin-bottom:14px"></div>
+      <div id="proddetail" style="color:var(--muted)">Loading…</div>
+    </div>
+
+    <div class="dsec"><h3>Opportunity score (primary product) · ${b.score}/100</h3><div class="tw" style="box-shadow:none;border:none"><table><thead><tr><th>Component</th><th class="num">Value (0–100)</th><th class="num">Weight</th><th class="num">Contribution</th></tr></thead><tbody>${compRows}<tr style="font-weight:700"><td>Total</td><td></td><td></td><td class="num">${b.score}</td></tr></tbody></table></div></div>
+
+    <div class="dsec"><h3>Provenance &amp; evidence</h3><div style="font-family:var(--mono);font-size:12.5px;color:var(--muted);line-height:1.95">source: <b style="color:var(--ink-2)">${(pr.source_collections||[]).join(", ")}</b><br>formula versions: <b style="color:var(--ink-2)">${(SNAP||{}).versions||"freq.v1 · supplier.v1 · score.v1"}</b><br>run: <b style="color:var(--ink-2)">${(SNAP||{}).run_id||"on-demand"}</b> · as_of ${(SNAP||{}).as_of||""}<br>confidence basis: ${b.conf_basis||"—"}</div></div>
+  </div>`;
+}
+function openDetail(key){
+  const b=SNAP&&SNAP.buyers.find(x=>x.buyer_key===key);const d=document.getElementById("detail");if(!b||!d)return;
+  const wasOpen=!d.hidden&&d.dataset.key===key,sc=window.scrollY;
+  // The 45s poll re-runs route()->openDetail. If nothing changed, leave the DOM alone —
+  // re-rendering would reset the async blocks to "Loading…" and lose the selected product.
+  if(wasOpen&&d.dataset.gen===String(SNAP.generated_at))return;
+  d.dataset.key=key;d.dataset.gen=String(SNAP.generated_at);d.innerHTML=detailHTML(b);d.hidden=false;
+  document.querySelector(".wrap").hidden=true;const h=document.querySelector("header.top");if(h)h.style.display="none";
+  window.scrollTo(0,wasOpen?sc:0);
+  loadAllProducts(b);   // always: innerHTML was just reset, so the async blocks must reload
+}
+function closeDetail(){
+  const d=document.getElementById("detail");if(!d||d.hidden)return;
+  d.hidden=true;d.innerHTML="";d.dataset.key="";d.dataset.gen="";
+  document.querySelector(".wrap").hidden=false;const h=document.querySelector("header.top");if(h)h.style.display="";
+}
+async function openCompany(name){
+  const d=document.getElementById("detail");if(!d)return;
+  const key="name:"+name;
+  if(!d.hidden&&d.dataset.key===key)return;                 // already open — the 45s poll must not reload it
+  d.dataset.key=key;d.dataset.gen="";d.hidden=false;
+  document.querySelector(".wrap").hidden=true;const hh=document.querySelector("header.top");if(hh)hh.style.display="none";
+  d.innerHTML='<div class="dbar"><div class="dbar-in"><button class="backbtn" onclick="location.hash=\'\'">← Back to console</button><span style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">company detail · live</span></div></div><div class="dwrap"><div class="loading">Loading '+name+'…</div></div>';
+  window.scrollTo(0,0);
+  try{
+    const data=await(await fetch("/api/buyer_full?name="+encodeURIComponent(name),{cache:"no-store"})).json();
+    if(!data.buyer){d.querySelector(".dwrap").innerHTML='<div class="note warn">No usable shipment history for <b>'+name+'</b>.</div>';return;}
+    d.innerHTML=detailHTML(data.buyer);
+    loadAllProducts(data.buyer,data);
+  }catch(e){const w=d.querySelector(".dwrap");if(w)w.innerHTML='<div class="note warn">Load failed: '+e.message+'</div>';}
+}
+async function doSearch(){
+  const q=(document.getElementById("q").value||"").trim(),box=document.getElementById("qres");
+  if(q.length<2){box.innerHTML='<div style="color:var(--faint);font-size:13px">Type at least 2 characters.</div>';return;}
+  box.innerHTML='<div class="loading">Searching company names…</div>';
+  try{
+    const d=await(await fetch("/api/search?q="+encodeURIComponent(q),{cache:"no-store"})).json();
+    if(d.error){box.innerHTML='<div style="color:var(--crit)">'+d.error+'</div>';return;}
+    if(!d.results||!d.results.length){box.innerHTML='<div style="color:var(--faint);font-size:13px">No company name starts with “'+q+'”.</div>';return;}
+    box.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin:8px 0 2px">'+d.results.length+' compan'+(d.results.length===1?'y':'ies')+' — click to open the full profile</div>'+
+      d.results.map((r,i)=>'<div class="qrow" data-i="'+i+'"><span class="qname">'+r.name+'</span><span class="qmeta">'+r.rows+' shipments</span><span class="qmeta">'+usd(r.value)+'</span><span class="qmeta">'+r.products+' products</span><span class="qmeta">'+((r.countries||[]).join(", ")||"—")+'</span><span class="qmeta" style="color:var(--accent)">open →</span></div>').join("");
+    box.querySelectorAll(".qrow").forEach(el=>el.addEventListener("click",()=>{location.hash="#/company/"+encodeURIComponent(d.results[+el.dataset.i].name);}));
+  }catch(e){box.innerHTML='<div style="color:var(--crit)">Search failed: '+e.message+'</div>';}
+}
+function route(){
+  const h=location.hash||"";
+  const m=h.match(/^#\/buyer\/(.+)$/),c=h.match(/^#\/company\/(.+)$/);
+  if(m&&SNAP){openDetail(decodeURIComponent(m[1]));}
+  else if(c){openCompany(decodeURIComponent(c[1]));}
+  else{closeDetail();}
+}
+window.addEventListener("hashchange",route);
+function render(data){
+  const s=data.snapshot,srv=data.server;
+  if(!s){document.getElementById("kpis").innerHTML='<div class="loading">First compute running… reload shortly.</div>';return;}
+  SNAP=s;
+  const isNew=s.generated_at!==lastGeneratedAt;lastGeneratedAt=s.generated_at;lastComputedIso=srv.lastComputed;
+  renderMeta(s,srv);renderHealth(s);renderKPIs(s);renderBuyers(s,isNew&&!!document.querySelector(".bcard"));renderTariff(s);renderCompliance(s);renderSupply(s);renderFreight(s);renderFindings(s);
+  route();
+}
+async function load(){
+  try{
+    const r=await fetch("/api/state",{cache:"no-store"});const data=await r.json();
+    document.getElementById("err").hidden=true;
+    if(data.server&&data.server.lastError){const e=document.getElementById("err");e.hidden=false;e.textContent="compute error: "+data.server.lastError+" (showing last good snapshot)";}
+    render(data);
+  }catch(e){const el=document.getElementById("err");el.hidden=false;el.textContent="cannot reach service: "+e.message;}
+}
+function tick(){
+  if(!lastComputedIso){document.getElementById("livetxt").textContent="starting…";return;}
+  const secs=Math.round((Date.now()-Date.parse(lastComputedIso))/1000);
+  document.getElementById("livetxt").textContent="updated "+(secs<60?secs+"s":Math.round(secs/60)+"m")+" ago";
+}
+document.getElementById("refresh").addEventListener("click",async e=>{
+  e.target.disabled=true;e.target.textContent="↻ working…";
+  try{await fetch("/api/refresh",{cache:"no-store"});await load();}catch(_){}
+  e.target.disabled=false;e.target.textContent="↻ Refresh now";
+});
+(function(){const b=document.getElementById("themebtn"),r=document.documentElement;
+  try{const st=localStorage.getItem("tie-theme");if(st)r.setAttribute("data-theme",st);}catch(_){}
+  b.addEventListener("click",()=>{const c=r.getAttribute("data-theme");const n=c==="dark"?"light":c==="light"?"dark":(matchMedia("(prefers-color-scheme: dark)").matches?"light":"dark");r.setAttribute("data-theme",n);try{localStorage.setItem("tie-theme",n);}catch(_){}});
+})();
+document.getElementById("qbtn").addEventListener("click",doSearch);
+document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")doSearch();});
+load();setInterval(load,45000);setInterval(tick,1000);
+</script>
+</body>
+</html>

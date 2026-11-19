@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auto Sourcing Loop — Aaziko Jarvis</title>
+<style>
+  :root{--bg:#f4f6fb;--ink:#141a24;--mut:#667085;--line:#e4e9f2;--card:#fff;
+    --in:#7c3aed;--src:#2563eb;--quote:#b4740b;--close:#15803d;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(1200px 400px at 50% -140px,#eae9ff 0,rgba(255,255,255,0) 70%),var(--bg);color:var(--ink);font:15px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 18px 70px;}
+  .hero{text-align:center;padding:12px 0 6px;}
+  .hero h1{margin:0 0 6px;font-size:27px;letter-spacing:-.3px;}
+  .hero p{margin:0 auto;max-width:600px;color:var(--mut);}
+  .stats{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:16px 0;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 16px;min-width:110px;box-shadow:0 1px 2px rgba(20,26,36,.04);}
+  .stat b{display:block;font-size:19px;color:var(--src);}
+  .stat span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;}
+  .stat.g b{color:var(--close);}
+  .map{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 10px;margin:16px 0 26px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .map .mc{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:#eef2ff;border:1.5px solid #cdd9fb;}
+  .map .ar{color:#c3cde0;font-size:15px;padding:0 1px;}
+  .step{display:flex;gap:15px;position:relative;}
+  .spine{flex:0 0 44px;display:flex;flex-direction:column;align-items:center;}
+  .spine .dot{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;background:#fff;border:2px solid var(--line);z-index:1;}
+  .step.in .dot{border-color:var(--in);} .step.src .dot{border-color:var(--src);} .step.quote .dot{border-color:var(--quote);} .step.close .dot{border-color:var(--close);}
+  .step:not(:last-child) .spine::after{content:"";position:absolute;top:44px;bottom:-18px;width:3px;background:var(--line);border-radius:2px;}
+  .scard{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin-bottom:18px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .step.in .scard{border-left:4px solid var(--in);} .step.src .scard{border-left:4px solid var(--src);} .step.quote .scard{border-left:4px solid var(--quote);} .step.close .scard{border-left:4px solid var(--close);}
+  .shdr{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .sn{font-size:10.5px;font-weight:800;letter-spacing:.5px;color:var(--mut);background:#f1f4f9;border-radius:20px;padding:2px 9px;}
+  .shdr h2{margin:0;font-size:17px;flex:1;}
+  .tag{font-size:10.5px;font-weight:700;border-radius:20px;padding:2px 10px;white-space:nowrap;}
+  .tag.auto{color:var(--src);background:#eef4ff;border:1px solid #cfe0ff;}
+  .tag.warn{color:var(--quote);background:#fff7ea;border:1px solid #f0dcae;}
+  .who{font-size:12.5px;color:var(--mut);font-weight:700;margin:6px 0 2px;}
+  .detail{margin-top:7px;font-size:14px;color:#33405a;}
+  .pill{display:inline-block;background:#f1f4f9;border:1px solid var(--line);border-radius:20px;padding:2px 9px;font-size:12px;margin:2px 4px 2px 0;}
+  .pill.ok{background:#eafaf0;border-color:#bfe6cd;color:#15803d;font-weight:600;}
+  .muted{color:var(--mut);font-size:12.5px;}
+  .quote{margin-top:10px;background:#fffdf8;border:1px solid #f0dcae;border-radius:10px;padding:13px 15px;font-size:13.5px;color:#283245;}
+  .ok{color:var(--close);}
+  .foot{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .box.ok{border-top:4px solid var(--close);} .box.block{border-top:4px solid var(--quote);}
+  .box h4{margin:0 0 8px;font-size:14px;} .box ul{margin:0;padding-left:20px;font-size:13.5px;color:#39445a;} .box li{margin:4px 0;}
+  .note{text-align:center;color:var(--mut);font-size:12.5px;margin-top:22px;}
+  @media (max-width:640px){.foot{grid-template-columns:1fr;}}
+  @media print{body{background:#fff;}.scard,.box,.map{box-shadow:none;break-inside:avoid;}}
+</style></head>
+<body><div class="wrap">
+  <div class="hero">
+    <h1>⚙️ Automatic Sourcing-to-Close Loop</h1>
+    <p>One buyer email goes in — Jarvis runs all 11 steps by itself. Every output below is from a real run; a human only approves the sends.</p>
+    <div class="stats">
+      <div class="stat"><b>1</b><span>Email in</span></div>
+      <div class="stat"><b>11</b><span>Steps auto</span></div>
+      <div class="stat g"><b>0</b><span>Manual steps</span></div>
+      <div class="stat g"><b>SHADOW</b><span>nothing sent</span></div>
+    </div>
+  </div>
+  <div class="map"><div class="mc">📩</div><span class="ar">→</span><div class="mc">🧾</div><span class="ar">→</span><div class="mc">🏭</div><span class="ar">→</span><div class="mc">✉️</div><span class="ar">→</span><div class="mc">📊</div><span class="ar">→</span><div class="mc">💬</div><span class="ar">→</span><div class="mc">🧮</div><span class="ar">→</span><div class="mc">📝</div><span class="ar">→</span><div class="mc">📤</div><span class="ar">→</span><div class="mc">🔎</div><span class="ar">→</span><div class="mc">✅</div></div>
+  
+  <div class="step in">
+    <div class="spine"><div class="dot">📩</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 1</span><h2>Buyer email arrives</h2><span class="tag auto">TRIGGER</span></div>
+      <div class="who">Lumière Textiles</div>
+      <div class="detail">“We are looking to source cotton t-shirts, 180 GSM combed cotton, GOTS certified. ~10,000 pcs, delivered to Hamburg. Help us find Indian suppliers and share pricing.”</div>
+      
+    </div>
+  </div>
+
+  <div class="step src">
+    <div class="spine"><div class="dot">🧾</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 2</span><h2>Requirement extracted</h2><span class="tag auto">AUTO</span></div>
+      
+      <div class="detail"><b>product:</b> cotton t-shirts &nbsp;·&nbsp; <b>qty:</b> 10,000 &nbsp;·&nbsp; <b>specs:</b> 180 GSM combed, GOTS &nbsp;·&nbsp; <b>destination:</b> Hamburg &nbsp;·&nbsp; <b>HS:</b> 610910 (auto-resolved)</div>
+      
+    </div>
+  </div>
+
+  <div class="step src">
+    <div class="spine"><div class="dot">🏭</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 3</span><h2>Best Indian suppliers found &amp; scored</h2><span class="tag auto">AUTO</span></div>
+      
+      <div class="detail"><span class="pill ok">FAIR EXPORTS INDIA · 78</span> <span class="pill">SHAHI EXPORTS · 63</span> <span class="pill">BINDU FASHION · 29</span><br><span class="muted">scored by export volume + value (real shipment data)</span></div>
+      
+    </div>
+  </div>
+
+  <div class="step src">
+    <div class="spine"><div class="dot">✉️</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 4</span><h2>RFQs drafted to top suppliers</h2><span class="tag warn">SHADOW · review</span></div>
+      
+      <div class="detail">3 RFQs auto-drafted — each asks ex-works/FOB price, MOQ, lead-time, payment terms & samples. Sit in the review queue; nothing sent.</div>
+      
+    </div>
+  </div>
+
+  <div class="step src">
+    <div class="spine"><div class="dot">📊</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 5</span><h2>Outreach tracked</h2><span class="tag auto">AUTO</span></div>
+      
+      <div class="detail">Sourcing pipeline updated → stage: <b>rfqs_drafted</b> (requirement → RFQs → quotes → selected).</div>
+      
+    </div>
+  </div>
+
+  <div class="step quote">
+    <div class="spine"><div class="dot">💬</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 6</span><h2>Quotations collected</h2><span class="tag warn">SIMULATED</span></div>
+      
+      <div class="detail"><b>USD 3.20 / pc</b> (FOB) · MOQ 3,000 pcs · lead 30–35 days · 30% advance.<br><span class="muted">simulated for the demo — a real supplier reply is auto-parsed the same way</span></div>
+      
+    </div>
+  </div>
+
+  <div class="step quote">
+    <div class="spine"><div class="dot">🧮</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 7</span><h2>Logistics + tariff → landed cost</h2><span class="tag auto">COMPUTED</span></div>
+      
+      <div class="detail">supplier <b>3.20</b> + freight <b>0.26</b> (indicative ~8%) + import duty (auto-lookup) → <b>USD 3.46 / pc CIF Hamburg</b></div>
+      
+    </div>
+  </div>
+
+  <div class="step quote">
+    <div class="spine"><div class="dot">📝</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 8</span><h2>Final quotation prepared</h2><span class="tag warn">SHADOW · review</span></div>
+      
+      
+      <div class="quote">Dear Lumière Textiles,<br><br>We acknowledge your requirement for 10,000 cotton t-shirts with 180 GSM combed cotton and GOTS certified specs. We are pleased to offer you a landed-cost price of USD 3.46 per piece CIF Hamburg. This price includes the manufacturer price paid directly to the supplier (no commission), as well as estimated duty and freight as applicable. The supplier price is USD 3.20 per piece, with an estimated freight cost of USD 0.26 per piece. We will be sending samples for your evaluation within the next 25 days. This quotation is valid for 30 days.<br><br>To proceed, please confirm your acceptance of this offer, and we will generate a proforma invoice for your review.<br><br>— Sagar J, Export Executive · Aaziko Global LLP</div>
+    </div>
+  </div>
+
+  <div class="step close">
+    <div class="spine"><div class="dot">📤</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 9</span><h2>Quotation sent to buyer</h2><span class="tag warn">GATED</span></div>
+      
+      <div class="detail">Human approves in the panel → gated send (allow-listed addresses only). No buyer is emailed by mistake.</div>
+      
+    </div>
+  </div>
+
+  <div class="step close">
+    <div class="spine"><div class="dot">🔎</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 10</span><h2>Buyer response tracked</h2><span class="tag auto">AUTO</span></div>
+      
+      <div class="detail">“The landed price works for us. Please proceed and send the proforma invoice.” → classified <b class="ok">POSITIVE</b></div>
+      
+    </div>
+  </div>
+
+  <div class="step close">
+    <div class="spine"><div class="dot">✅</div></div>
+    <div class="scard">
+      <div class="shdr"><span class="sn">STEP 11</span><h2>Positive → CRM · Negative → newsletter</h2><span class="tag warn">STAGED</span></div>
+      
+      <div class="detail">Positive → CRM opportunity marked <b>won</b> (staged in our DB). Negative → buyer added to the newsletter list (staged). Real CRM/newsletter writes flip on with senior approval.</div>
+      
+    </div>
+  </div>
+  <div class="foot">
+    <div class="box ok"><h4>✅ Automatic & safe today (SHADOW)</h4><ul>
+      <li>Requirement → HS → scored suppliers, all auto</li>
+      <li>RFQs + quotation drafted, human-reviewed</li>
+      <li>Landed cost computed (supplier + duty + freight)</li>
+      <li>Response read; CRM/newsletter staged</li>
+      <li>Nothing emailed; our DB only</li>
+    </ul></div>
+    <div class="box block"><h4>⛔ Flips on with senior approval</h4><ul>
+      <li>Real supplier emails → send RFQs & get real quotes</li>
+      <li>Real buyer send (mailbox + domain auth)</li>
+      <li>Real freight rates + tariff country-match</li>
+      <li>Real CRM + newsletter writes</li>
+    </ul></div>
+  </div>
+  <div class="note">Aaziko Global LLP · Jarvis automatic sourcing loop — human-approved sends, allowlist-gated · 2026-10-03</div>
+</div></body></html>

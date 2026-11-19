@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aaziko Jarvis — Demo Pack</title>
+<style>
+  :root{--bg:#f4f6fb;--ink:#141a24;--mut:#667085;--line:#e4e9f2;--card:#fff;--ac:#2563eb;--ok:#15803d;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(1200px 420px at 50% -140px,#eae9ff 0,rgba(255,255,255,0) 70%),var(--bg);color:var(--ink);font:15px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+  .wrap{max-width:880px;margin:0 auto;padding:34px 18px 70px;}
+  .hero{text-align:center;margin-bottom:8px;}
+  .hero h1{margin:0 0 6px;font-size:28px;}
+  .hero p{margin:0 auto;max-width:560px;color:var(--mut);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:0 2px 10px rgba(20,26,36,.05);transition:transform .08s,box-shadow .08s;}
+  a.card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(20,26,36,.10);border-color:#cfe0ff;}
+  .card .ic{font-size:30px;}
+  .card h3{margin:8px 0 4px;font-size:17px;color:var(--ac);}
+  .card p{margin:0;color:#44506a;font-size:13.5px;}
+  .card .tag{display:inline-block;margin-top:10px;font-size:11px;font-weight:700;color:var(--mut);background:#f1f4f9;border-radius:20px;padding:2px 10px;}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-top:22px;color:#39445a;font-size:13.5px;box-shadow:0 2px 10px rgba(20,26,36,.05);}
+  .note b{color:var(--ink);}
+  .foot{text-align:center;color:var(--mut);font-size:12.5px;margin-top:22px;}
+  @media (max-width:640px){.grid{grid-template-columns:1fr;}}
+</style></head>
+<body><div class="wrap">
+  <div class="hero">
+    <h1>⚡ Aaziko Jarvis — Demo Pack</h1>
+    <p>Everything in one place: how the sales-automation is built, how it talks to buyers, and how it auto-sources an order end to end.</p>
+  </div>
+
+  <div class="grid">
+    <a class="card" href="explainer/How-Jarvis-Auto-Sourcing-Works.html">
+      <div class="ic">📚</div><h3>How It Works — Explainer</h3>
+      <p>Step-by-step teaching walkthrough: what each step does, how, and the real data — perfect to onboard a new person.</p>
+      <span class="tag">START HERE</span>
+    </a>
+    <a class="card" href="auto-loop/Aaziko-Jarvis-Auto-Loop.html">
+      <div class="ic">⚙️</div><h3>Automatic Sourcing Loop</h3>
+      <p>One buyer email → 11 steps run by themselves: requirement → suppliers → RFQ → quote → landed cost → quotation → CRM. Real run.</p>
+      <span class="tag">THE ENGINE</span>
+    </a>
+    <a class="card" href="mail-journey/Aaziko-Jarvis-Mail-Journey.html">
+      <div class="ic">📨</div><h3>One Buyer's Journey</h3>
+      <p>A full conversation: cold outreach → price ask → objection → samples → sourcing RFQ. Every reply is real AI output.</p>
+      <span class="tag">THE CONVERSATION</span>
+    </a>
+    <a class="card" href="n8n-walkthrough/Aaziko-Jarvis-n8n-Workflows.html">
+      <div class="ic">🧩</div><h3>n8n Workflows Walkthrough</h3>
+      <p>The 5 n8n workflows (screenshots + plain-English notes) — the send/scheduler/demo plumbing behind Jarvis.</p>
+      <span class="tag">THE PLUMBING</span>
+    </a>
+  </div>
+
+  <div class="note">
+    <b>How to use:</b> open any card above. To share one, open it and press <b>Ctrl+P → Save as PDF</b>.<br>
+    <b>Safety:</b> everything runs in <b>SHADOW mode</b> — every message is human-reviewed and real sending is allow-list gated; nothing reaches a real buyer by mistake.
+  </div>
+
+  <div class="foot">Aaziko Global LLP · Jarvis sales &amp; sourcing automation · generated 2026-10-05</div>
+</div></body></html>
