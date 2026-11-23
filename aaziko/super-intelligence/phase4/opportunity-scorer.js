@@ -71,8 +71,12 @@ function scoreFromBuyerSummary(buyer) {
 /** Find top emerging buyers for a given HS code, optionally filtered by destination country */
 async function findEmergingBuyers(hs6, { destCountry = null, limit = 100, minShipments = 3,
     statusFilter = null } = {}) {
-  // hs_codes is an array field — MongoDB matches if any element equals hs6
-  const filter = { hs_codes: hs6, total_shipments: { $gte: minShipments } };
+  // hs_codes is an array of 6-digit strings like ["520100","520110"] — use $elemMatch + prefix
+  const hs4 = String(hs6).slice(0, 4);
+  const filter = {
+    hs_codes: { $elemMatch: { $regex: `^${hs4}` } },
+    total_shipments: { $gte: minShipments },
+  };
   if (destCountry) filter.buyer_country = destCountry;
   if (statusFilter) filter.buyer_status = { $in: statusFilter };
 
@@ -121,14 +125,16 @@ async function findEmergingBuyers(hs6, { destCountry = null, limit = 100, minShi
 async function findVolumeGaps(originCountry, hsCodes, { limit = 50 } = {}) {
   const opportunities = [];
   for (const hs of hsCodes) {
+    const hs4p = String(hs).slice(0, 4);
+    const hsFilter = { $elemMatch: { $regex: `^${hs4p}` } };
     const [suppliers, buyers] = await Promise.all([
       db.query('common-service', 'supplier_summaries',
-        { hs_codes: hs, supplier_country: originCountry },
+        { hs_codes: hsFilter, supplier_country: originCountry },
         { projection: { supplier_name: 1, total_value_usd: 1 }, limit: 20 }),
       db.query('common-service', 'buyer_summaries',
-        { hs_codes: hs },
+        { hs_codes: hsFilter },
         { projection: { buyer_name: 1, buyer_country: 1, total_value_usd: 1,
-            'recommendation.priority_score': 1 }, limit: 50 }),
+            buyer_tier: 1 }, limit: 50 }),
     ]);
 
     if (!suppliers.length || !buyers.length) continue;

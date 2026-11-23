@@ -38,34 +38,38 @@ function iqrBounds(values) {
 
 /** Detect price anomalies for an HS code */
 async function detectPriceAnomalies(hs6, { limit = 2000, minRecords = 10 } = {}) {
+  // HS_CODE_4 (number) rows have PRICE_PER_UNIT_USD; HS_CODE (string) rows do not.
+  const hs4 = parseInt(String(hs6).slice(0, 4), 10);
   const records = await db.query('common-service', 'standard_port_data',
-    { HS_CODE: { $regex: `^${hs6}` }, VALUE_USD: { $gt: 0 }, QUANTITY: { $gt: 0 } },
-    { projection: { EXPORTER_NAME: 1, IMPORTER_NAME: 1, VALUE_USD: 1, QUANTITY: 1,
-        ORIGIN_COUNTRY: 1, DATE: 1 }, limit });
+    { HS_CODE_4: hs4, PRICE_PER_UNIT_USD: { $gt: 0 } },
+    { projection: { BUYER_NAME: 1, PRICE_PER_UNIT_USD: 1, FOB_VALUE_USD: 1,
+        QUANTITY: 1, ORIGIN_COUNTRY: 1, DESTINATION_COUNTRY: 1, DATE: 1 }, limit });
 
   if (records.length < minRecords) return [];
 
-  const prices = records.map(r => r.VALUE_USD / r.QUANTITY).filter(p => p > 0 && p < 1e9);
+  const prices = records.map(r => r.PRICE_PER_UNIT_USD).filter(p => p > 0 && p < 1e9);
   const { lower, upper, median } = iqrBounds(prices);
 
   const anomalies = [];
   for (const r of records) {
-    if (!r.VALUE_USD || !r.QUANTITY) continue;
-    const unitPrice = r.VALUE_USD / r.QUANTITY;
+    const unitPrice = r.PRICE_PER_UNIT_USD;
+    if (!unitPrice) continue;
     if (unitPrice < lower * 0.1 || unitPrice > upper * 10) {
       const deviation = median ? Math.abs(unitPrice - median) / median : null;
       anomalies.push({
-        anomalyId: `price_${er.canonicalKey(r.EXPORTER_NAME || '').slice(0, 8)}_${r.DATE || ''}`,
+        anomalyId: `price_${er.canonicalKey(r.BUYER_NAME || '').slice(0, 8)}_${r.DATE || ''}`,
         type: 'PRICE_ANOMALY',
         severity: deviation > 10 ? 'CRITICAL' : deviation > 5 ? 'HIGH' : 'MEDIUM',
         description: ANOMALY_TYPES.PRICE_ANOMALY,
-        entities: [r.EXPORTER_NAME, r.IMPORTER_NAME].filter(Boolean),
+        entities: [r.BUYER_NAME, r.ORIGIN_COUNTRY].filter(Boolean),
         evidence: {
           unitPrice: Math.round(unitPrice * 100) / 100,
           peerMedian: median ? Math.round(median * 100) / 100 : null,
           deviationFactor: deviation ? Math.round(deviation * 10) / 10 : null,
-          valueUsd: r.VALUE_USD,
+          fobValueUsd: r.FOB_VALUE_USD,
           quantity: r.QUANTITY,
+          originCountry: r.ORIGIN_COUNTRY,
+          destinationCountry: r.DESTINATION_COUNTRY,
           date: r.DATE,
           hsCodes: [hs6],
         },
@@ -77,44 +81,43 @@ async function detectPriceAnomalies(hs6, { limit = 2000, minRecords = 10 } = {})
   return anomalies.sort((a, b) => SEVERITY[b.severity] - SEVERITY[a.severity]);
 }
 
-/** Detect circular trading: entity appears in both exporter and importer columns with same counterpart */
-async function detectCircularTrade(entityName, { limit = 500 } = {}) {
-  const words = entityName.trim().split(/\s+/).slice(0, 3).join('.*');
+/** Detect circular trading: entity appears in BOTH buyer_summaries AND supplier_summaries
+ *  for the same HS codes — indicates it both imports and exports the same product. */
+async function detectCircularTrade(entityName, { limit = 100 } = {}) {
+  const prefix = entityName.trim().split(/\s+/)[0];
+  const regex = `^${prefix}`;
 
-  const [asExporter, asImporter] = await Promise.all([
-    db.query('common-service', 'standard_port_data',
-      { EXPORTER_NAME: { $regex: words, $options: 'i' } },
-      { projection: { IMPORTER_NAME: 1, HS_CODE: 1, VALUE_USD: 1, DATE: 1 }, limit }),
-    db.query('common-service', 'standard_port_data',
-      { IMPORTER_NAME: { $regex: words, $options: 'i' } },
-      { projection: { EXPORTER_NAME: 1, HS_CODE: 1, VALUE_USD: 1, DATE: 1 }, limit }),
+  const [buyerRows, supplierRows] = await Promise.all([
+    db.query('common-service', 'buyer_summaries',
+      { buyer_name: { $regex: regex, $options: 'i' } },
+      { projection: { buyer_name: 1, buyer_country: 1, hs_codes: 1, total_value_usd: 1 }, limit: 20 }),
+    db.query('common-service', 'supplier_summaries',
+      { supplier_name: { $regex: regex, $options: 'i' } },
+      { projection: { supplier_name: 1, supplier_country: 1, hs_codes: 1, total_value_usd: 1 }, limit: 20 }),
   ]);
 
-  const exportCounterparts = new Map();
-  for (const r of asExporter) {
-    const key = er.canonicalKey(r.IMPORTER_NAME || '');
-    if (!key || er.isJunk(r.IMPORTER_NAME)) continue;
-    if (!exportCounterparts.has(key)) exportCounterparts.set(key, { name: r.IMPORTER_NAME, hs: new Set(), value: 0 });
-    exportCounterparts.get(key).hs.add(String(r.HS_CODE || '').slice(0, 4));
-    exportCounterparts.get(key).value += r.VALUE_USD || 0;
-  }
+  if (!buyerRows.length || !supplierRows.length) return [];
 
   const anomalies = [];
-  for (const r of asImporter) {
-    const key = er.canonicalKey(r.EXPORTER_NAME || '');
-    if (exportCounterparts.has(key)) {
-      const cp = exportCounterparts.get(key);
+  for (const buyer of buyerRows) {
+    const buyHs4 = new Set((buyer.hs_codes || []).map(h => String(h).slice(0, 4)));
+    for (const supplier of supplierRows) {
+      if (er.canonicalKey(buyer.buyer_name) !== er.canonicalKey(supplier.supplier_name)) continue;
+      const suppHs4 = new Set((supplier.hs_codes || []).map(h => String(h).slice(0, 4)));
+      const overlapping = [...buyHs4].filter(h => suppHs4.has(h));
+      if (!overlapping.length) continue;
       anomalies.push({
-        anomalyId: `circular_${er.canonicalKey(entityName).slice(0, 10)}_${key.slice(0, 10)}`,
+        anomalyId: `circular_${er.canonicalKey(entityName).slice(0, 10)}_${Date.now()}`,
         type: 'CIRCULAR_TRADE',
         severity: 'HIGH',
         description: ANOMALY_TYPES.CIRCULAR_TRADE,
-        entities: [entityName, cp.name],
+        entities: [buyer.buyer_name],
         evidence: {
-          entityExportsTo: cp.name,
-          entityImportsFrom: cp.name,
-          exportHsCodes: [...cp.hs],
-          totalExportValueUsd: Math.round(cp.value),
+          appearsAsBuyer: buyer.buyer_country,
+          appearsAsSupplier: supplier.supplier_country,
+          overlappingHsCodes: overlapping,
+          buyerValueUsd: buyer.total_value_usd,
+          supplierValueUsd: supplier.total_value_usd,
         },
         requiresHumanReview: true,
         detectedAt: new Date().toISOString(),
@@ -124,17 +127,18 @@ async function detectCircularTrade(entityName, { limit = 500 } = {}) {
   return anomalies;
 }
 
-/** Detect split shipments: many small shipments from same pair in a short window */
+/** Detect split shipments: many small shipments from same buyer+origin in a short window */
 async function detectSplitShipments(hs6, { limit = 2000, windowDays = 30, minCount = 5 } = {}) {
+  const hs4 = parseInt(String(hs6).slice(0, 4), 10);
   const records = await db.query('common-service', 'standard_port_data',
-    { HS_CODE: { $regex: `^${hs6}` } },
-    { projection: { EXPORTER_NAME: 1, IMPORTER_NAME: 1, VALUE_USD: 1, DATE: 1 }, limit,
+    { HS_CODE_4: hs4 },
+    { projection: { BUYER_NAME: 1, ORIGIN_COUNTRY: 1, FOB_VALUE_USD: 1, DATE: 1 }, limit,
       sort: { DATE: -1 } });
 
   const pairBuckets = new Map();
   for (const r of records) {
-    if (!r.EXPORTER_NAME || !r.IMPORTER_NAME || !r.DATE) continue;
-    const pairKey = `${er.canonicalKey(r.EXPORTER_NAME)}|${er.canonicalKey(r.IMPORTER_NAME)}`;
+    if (!r.BUYER_NAME || !r.ORIGIN_COUNTRY || !r.DATE) continue;
+    const pairKey = `${er.canonicalKey(r.BUYER_NAME)}|${r.ORIGIN_COUNTRY}`;
     if (!pairBuckets.has(pairKey)) pairBuckets.set(pairKey, []);
     pairBuckets.get(pairKey).push(r);
   }
@@ -153,12 +157,13 @@ async function detectSplitShipments(hs6, { limit = 2000, windowDays = 30, minCou
       if (daySpan <= windowDays) {
         const totalValue = window.reduce((s, x) => s + (x.VALUE_USD || 0), 0);
         const avgValue = totalValue / window.length;
+        const [buyerKey, originKey] = pairKey.split('|');
         anomalies.push({
           anomalyId: `split_${pairKey.slice(0, 20)}_${window[0].DATE}`,
           type: 'SPLIT_SHIPMENT',
           severity: avgValue < 10000 ? 'HIGH' : 'MEDIUM',
           description: ANOMALY_TYPES.SPLIT_SHIPMENT,
-          entities: [window[0].EXPORTER_NAME, window[0].IMPORTER_NAME],
+          entities: [window[0].BUYER_NAME, window[0].ORIGIN_COUNTRY].filter(Boolean),
           evidence: {
             shipmentCount: window.length,
             windowDays: Math.round(daySpan),
@@ -176,55 +181,60 @@ async function detectSplitShipments(hs6, { limit = 2000, windowDays = 30, minCou
   return anomalies.sort((a, b) => SEVERITY[b.severity] - SEVERITY[a.severity]);
 }
 
-/** Detect supplier switches: entity's primary supplier changed */
+/** Detect supplier switches: buyer moved from COLD/WARM to HOT status recently,
+ *  or changed dominant origin country — proxy for switching supplier.
+ *  Uses buyer_summaries (indexed on buyer_name) + standard_port_data ORIGIN_COUNTRY. */
 async function detectSupplierSwitches(buyerName, { limit = 300 } = {}) {
-  const words = buyerName.trim().split(/\s+/).slice(0, 3).join('.*');
-  const records = await db.query('common-service', 'standard_port_data',
-    { IMPORTER_NAME: { $regex: words, $options: 'i' } },
-    { projection: { EXPORTER_NAME: 1, VALUE_USD: 1, DATE: 1, HS_CODE: 1 }, limit,
-      sort: { DATE: -1 } });
+  const prefix = buyerName.trim().split(/\s+/)[0];
+  const buyers = await db.query('common-service', 'buyer_summaries',
+    { buyer_name: { $regex: `^${prefix}`, $options: 'i' } },
+    { projection: { buyer_name: 1, buyer_country: 1, buyer_tier: 1, buyer_status: 1,
+        hs_codes: 1, total_shipments: 1, has_recent_activity: 1 }, limit: 20 });
 
-  if (records.length < 10) return [];
+  if (!buyers.length) return [];
 
-  const sorted = records.filter(r => r.DATE).sort((a, b) => a.DATE > b.DATE ? 1 : -1);
-  const mid = Math.floor(sorted.length / 2);
-  const older = sorted.slice(0, mid);
-  const newer = sorted.slice(mid);
+  const anomalies = [];
+  for (const buyer of buyers) {
+    if (!buyer.hs_codes?.length) continue;
+    // Check origin country distribution for this buyer's hs codes
+    const hs4 = parseInt(String(buyer.hs_codes[0]).slice(0, 4), 10);
+    const shipments = await db.query('common-service', 'standard_port_data',
+      { HS_CODE_4: hs4, BUYER_NAME: { $regex: `^${prefix}`, $options: 'i' } },
+      { projection: { ORIGIN_COUNTRY: 1, DATE: 1 }, limit: 200, sort: { DATE: -1 } });
 
-  const countBySupplier = (arr) => {
-    const m = new Map();
-    for (const r of arr) {
-      const key = er.canonicalKey(r.EXPORTER_NAME || '');
-      if (!key || er.isJunk(r.EXPORTER_NAME)) continue;
-      m.set(key, (m.get(key) || 0) + 1);
-    }
-    return m;
-  };
+    if (shipments.length < 10) continue;
+    const half = Math.floor(shipments.length / 2);
+    const older = shipments.slice(half);
+    const newer = shipments.slice(0, half);
 
-  const olderSuppliers = countBySupplier(older);
-  const newerSuppliers = countBySupplier(newer);
+    const topOrigin = (arr) => {
+      const m = new Map();
+      for (const r of arr) if (r.ORIGIN_COUNTRY) m.set(r.ORIGIN_COUNTRY, (m.get(r.ORIGIN_COUNTRY) || 0) + 1);
+      return [...m.entries()].sort((a, b) => b[1] - a[1])[0];
+    };
+    const oldTop = topOrigin(older);
+    const newTop = topOrigin(newer);
+    if (!oldTop || !newTop || oldTop[0] === newTop[0]) continue;
 
-  const oldPrimary = [...olderSuppliers.entries()].sort((a, b) => b[1] - a[1])[0];
-  const newPrimary = [...newerSuppliers.entries()].sort((a, b) => b[1] - a[1])[0];
-
-  if (!oldPrimary || !newPrimary) return [];
-  if (oldPrimary[0] === newPrimary[0]) return [];
-
-  return [{
-    anomalyId: `switch_${er.canonicalKey(buyerName).slice(0, 10)}_${Date.now()}`,
-    type: 'SUPPLIER_SWITCH',
-    severity: 'MEDIUM',
-    description: ANOMALY_TYPES.SUPPLIER_SWITCH,
-    entities: [buyerName],
-    evidence: {
-      previousPrimarySupplierKey: oldPrimary[0],
-      previousShipments: oldPrimary[1],
-      newPrimarySupplierKey: newPrimary[0],
-      newShipments: newPrimary[1],
-    },
-    requiresHumanReview: false,
-    detectedAt: new Date().toISOString(),
-  }];
+    anomalies.push({
+      anomalyId: `switch_${er.canonicalKey(buyerName).slice(0, 10)}_${Date.now()}`,
+      type: 'SUPPLIER_SWITCH',
+      severity: 'MEDIUM',
+      description: ANOMALY_TYPES.SUPPLIER_SWITCH,
+      entities: [buyer.buyer_name],
+      evidence: {
+        previousPrimaryOrigin: oldTop[0],
+        previousShipments: oldTop[1],
+        newPrimaryOrigin: newTop[0],
+        newShipments: newTop[1],
+        buyerTier: buyer.buyer_tier,
+        buyerStatus: buyer.buyer_status,
+      },
+      requiresHumanReview: false,
+      detectedAt: new Date().toISOString(),
+    });
+  }
+  return anomalies;
 }
 
 async function runAnomalyDetector({ hs, entityName, limit = 1000 } = {}) {
