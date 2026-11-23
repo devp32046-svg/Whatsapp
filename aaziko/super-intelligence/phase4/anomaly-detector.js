@@ -36,41 +36,92 @@ function iqrBounds(values) {
   return { lower: q1 - 1.5 * iqr, upper: q3 + 1.5 * iqr, median: s[Math.floor(s.length / 2)] };
 }
 
-/** Detect price anomalies for an HS code */
+/** Detect price anomalies for an HS code.
+ *  Strategy 1 (precise): PRICE_PER_UNIT_USD from standard_port_data — only some HS codes have this.
+ *  Strategy 2 (universal): avg shipment value from buyer_summaries — works for all HS codes.
+ *  Returns whichever strategy finds data; labels the source so callers know which was used. */
 async function detectPriceAnomalies(hs6, { limit = 2000, minRecords = 10 } = {}) {
-  // HS_CODE_4 (number) rows have PRICE_PER_UNIT_USD; HS_CODE (string) rows do not.
-  const hs4 = parseInt(String(hs6).slice(0, 4), 10);
-  const records = await db.query('common-service', 'standard_port_data',
-    { HS_CODE_4: hs4, PRICE_PER_UNIT_USD: { $gt: 0 } },
+  const hs4int = parseInt(String(hs6).slice(0, 4), 10);
+  const hs4str = String(hs6).slice(0, 4);
+
+  // Strategy 1: per-shipment unit prices (exists only for some HS codes like ceramics)
+  const unitRecords = await db.query('common-service', 'standard_port_data',
+    { HS_CODE_4: hs4int, PRICE_PER_UNIT_USD: { $gt: 0 } },
     { projection: { BUYER_NAME: 1, PRICE_PER_UNIT_USD: 1, FOB_VALUE_USD: 1,
         QUANTITY: 1, ORIGIN_COUNTRY: 1, DESTINATION_COUNTRY: 1, DATE: 1 }, limit });
 
-  if (records.length < minRecords) return [];
+  if (unitRecords.length >= minRecords) {
+    // Use per-shipment price — standard IQR outlier detection (1.5x IQR)
+    const prices = unitRecords.map(r => r.PRICE_PER_UNIT_USD).filter(p => p > 0 && p < 1e9);
+    const { lower, upper, median } = iqrBounds(prices);
+    const anomalies = [];
+    for (const r of unitRecords) {
+      const unitPrice = r.PRICE_PER_UNIT_USD;
+      if (!unitPrice || unitPrice < 0.0001) continue;
+      if (unitPrice < lower || unitPrice > upper) {
+        const deviation = median ? Math.abs(unitPrice - median) / median : null;
+        anomalies.push({
+          anomalyId: `price_${er.canonicalKey(r.BUYER_NAME || '').slice(0, 8)}_${r.DATE || ''}`,
+          type: 'PRICE_ANOMALY',
+          severity: deviation > 10 ? 'CRITICAL' : deviation > 3 ? 'HIGH' : 'MEDIUM',
+          description: ANOMALY_TYPES.PRICE_ANOMALY,
+          entities: [r.BUYER_NAME, r.ORIGIN_COUNTRY].filter(Boolean),
+          evidence: {
+            priceSource: 'unit_price',
+            unitPrice: Math.round(unitPrice * 100) / 100,
+            peerMedian: median ? Math.round(median * 100) / 100 : null,
+            deviationFactor: deviation ? Math.round(deviation * 10) / 10 : null,
+            fobValueUsd: r.FOB_VALUE_USD,
+            originCountry: r.ORIGIN_COUNTRY,
+            date: r.DATE,
+            hsCodes: [hs6],
+          },
+          requiresHumanReview: true,
+          detectedAt: new Date().toISOString(),
+        });
+      }
+    }
+    return anomalies.sort((a, b) => SEVERITY[b.severity] - SEVERITY[a.severity]);
+  }
 
-  const prices = records.map(r => r.PRICE_PER_UNIT_USD).filter(p => p > 0 && p < 1e9);
-  const { lower, upper, median } = iqrBounds(prices);
+  // Strategy 2: avg shipment value from buyer_summaries — universal fallback
+  const buyers = await db.query('common-service', 'buyer_summaries',
+    { hs_codes: { $elemMatch: { $regex: `^${hs4str}` } },
+      total_value_usd: { $gt: 0 }, total_shipments: { $gt: 0 } },
+    { projection: { buyer_name: 1, buyer_country: 1, total_value_usd: 1,
+        total_shipments: 1, buyer_tier: 1 }, limit });
+
+  if (buyers.length < minRecords) return [];
+
+  // Compute avg value per shipment for each buyer
+  const withAvg = buyers
+    .filter(b => !er.isJunk(b.buyer_name) && b.total_shipments > 2)
+    .map(b => ({ ...b, avgShipVal: b.total_value_usd / b.total_shipments }));
+
+  if (withAvg.length < minRecords) return [];
+
+  const avgs = withAvg.map(b => b.avgShipVal);
+  const { lower, upper, median } = iqrBounds(avgs);
 
   const anomalies = [];
-  for (const r of records) {
-    const unitPrice = r.PRICE_PER_UNIT_USD;
-    if (!unitPrice) continue;
-    if (unitPrice < lower * 0.1 || unitPrice > upper * 10) {
-      const deviation = median ? Math.abs(unitPrice - median) / median : null;
+  for (const b of withAvg) {
+    if (b.avgShipVal < lower || b.avgShipVal > upper) {
+      const deviation = median ? Math.abs(b.avgShipVal - median) / median : null;
       anomalies.push({
-        anomalyId: `price_${er.canonicalKey(r.BUYER_NAME || '').slice(0, 8)}_${r.DATE || ''}`,
+        anomalyId: `price_avg_${er.canonicalKey(b.buyer_name).slice(0, 10)}`,
         type: 'PRICE_ANOMALY',
-        severity: deviation > 10 ? 'CRITICAL' : deviation > 5 ? 'HIGH' : 'MEDIUM',
-        description: ANOMALY_TYPES.PRICE_ANOMALY,
-        entities: [r.BUYER_NAME, r.ORIGIN_COUNTRY].filter(Boolean),
+        severity: deviation > 10 ? 'CRITICAL' : deviation > 3 ? 'HIGH' : 'MEDIUM',
+        description: 'Avg shipment value deviates >1.5x IQR from peer group — possible under/over-invoicing',
+        entities: [b.buyer_name, b.buyer_country].filter(Boolean),
         evidence: {
-          unitPrice: Math.round(unitPrice * 100) / 100,
-          peerMedian: median ? Math.round(median * 100) / 100 : null,
+          priceSource: 'avg_shipment_value',
+          avgShipmentValueUsd: Math.round(b.avgShipVal),
+          peerMedianAvgUsd: Math.round(median),
           deviationFactor: deviation ? Math.round(deviation * 10) / 10 : null,
-          fobValueUsd: r.FOB_VALUE_USD,
-          quantity: r.QUANTITY,
-          originCountry: r.ORIGIN_COUNTRY,
-          destinationCountry: r.DESTINATION_COUNTRY,
-          date: r.DATE,
+          totalShipments: b.total_shipments,
+          totalValueUsd: b.total_value_usd,
+          buyerTier: b.buyer_tier,
+          buyerCountry: b.buyer_country,
           hsCodes: [hs6],
         },
         requiresHumanReview: true,
