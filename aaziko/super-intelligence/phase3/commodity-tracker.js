@@ -26,9 +26,16 @@ const COMMODITY_GROUPS = {
 
 /** Calculate implicit unit price from shipment records */
 function calcImplicitPrice(records) {
-  const withBoth = records.filter(r => r.VALUE_USD > 0 && r.QUANTITY > 0);
+  // Use PRICE_PER_UNIT_USD directly if available; fall back to FOB/CIF divided by quantity
+  const withBoth = records.filter(r => {
+    if (r.PRICE_PER_UNIT_USD > 0) return true;
+    return (r.FOB_VALUE_USD > 0 || r.CIF_VALUE_USD > 0) && r.QUANTITY > 0;
+  });
   if (!withBoth.length) return null;
-  const prices = withBoth.map(r => r.VALUE_USD / r.QUANTITY).filter(p => p > 0 && p < 1e9);
+  const prices = withBoth.map(r => {
+    if (r.PRICE_PER_UNIT_USD > 0) return r.PRICE_PER_UNIT_USD;
+    return (r.FOB_VALUE_USD || r.CIF_VALUE_USD) / r.QUANTITY;
+  }).filter(p => p > 0 && p < 1e9);
   if (!prices.length) return null;
   const sorted = prices.sort((a, b) => a - b);
   const q1 = sorted[Math.floor(sorted.length * 0.25)];
@@ -40,11 +47,15 @@ function calcImplicitPrice(records) {
 }
 
 async function trackHsCodePrice(hs6, { originCountry = null, limit = 1000 } = {}) {
-  const filter = { HS_CODE: { $regex: `^${hs6}`, $options: 'i' } };
+  // HS_CODE_4 (number) is the field that co-exists with FOB/price/country data.
+  // HS_CODE (string) rows lack those fields — using HS_CODE_4 gives real pricing data.
+  const hs4 = parseInt(String(hs6).slice(0, 4), 10);
+  const filter = { HS_CODE_4: hs4 };
   if (originCountry) filter.ORIGIN_COUNTRY = originCountry;
 
   const records = await db.query('common-service', 'standard_port_data', filter, {
-    projection: { VALUE_USD: 1, QUANTITY: 1, DATE: 1, ORIGIN_COUNTRY: 1, DESTINATION_COUNTRY: 1 },
+    projection: { FOB_VALUE_USD: 1, CIF_VALUE_USD: 1, PRICE_PER_UNIT_USD: 1, QUANTITY: 1,
+      DATE: 1, ORIGIN_COUNTRY: 1, DESTINATION_COUNTRY: 1 },
     limit,
     sort: { DATE: -1 },
   });
