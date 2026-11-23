@@ -14,28 +14,18 @@ const fs   = require('fs');
 const db   = require('../lib/db');
 const er   = require('../lib/entity-resolver');
 const { didBuyerShip, DEFAULT_THRESHOLD } = require('./backtester');
-const { SCORE_DIMENSIONS, computeScore }  = require('../phase4/opportunity-scorer');
+const { SCORE_DIMENSIONS, computeScore, scoreFromBuyerSummary } = require('../phase4/opportunity-scorer');
 
 const STEP_SIZE = 0.1;  // ±10% weight adjustment per step
 const MAX_ITERS = 20;   // max hill-climbing iterations
 
-/** Score buyers using a given weight override and check precision against shipment data */
-async function evalWeights(buyers, hsCodes, weights) {
+/** Score buyers using a given weight override, check precision via has_recent_activity */
+function evalWeights(buyers, _hsCodes, weights) {
   const scored = buyers.map(b => {
-    const rec = b.recommendation || {};
-    const priorityScore = rec.priority_score != null ? rec.priority_score / 100 : 0.5;
-    const totalValue = b.total_value_usd || 0;
-    const dims = {
-      commercial_value: Math.min(1, totalValue / 1_000_000),
-      probability:      priorityScore,
-      timing_urgency:   rec.priority_tier === 'A' ? 0.9 : rec.priority_tier === 'B' ? 0.6 : 0.3,
-      data_quality:     (b.total_shipments || 0) > 10 ? 0.8 : 0.4,
-      margin_potential: 0.5,
-      competitive_adv:  0.5,
-      execution_ease:   0.6,
-    };
+    // Use the same dimension values as scoreFromBuyerSummary, but apply custom weights
+    const dims = scoreFromBuyerSummary(b);
+    if (!dims) return { ...b, _score: 0 };
 
-    // Apply custom weights
     let total = 0, weightUsed = 0;
     for (const [dim, val] of Object.entries(dims)) {
       const w = weights[dim] != null ? weights[dim] : SCORE_DIMENSIONS[dim]?.weight || 0;
@@ -49,22 +39,20 @@ async function evalWeights(buyers, hsCodes, weights) {
   scored.sort((a, b) => b._score - a._score);
   const topN = scored.slice(0, Math.min(30, Math.floor(scored.length * 0.3)));
 
-  let hits = 0;
-  for (const b of topN.slice(0, 20)) { // limit checks for speed
-    const shipped = await didBuyerShip(b.buyer_name, hsCodes);
-    if (shipped) hits++;
-  }
+  const hits = topN.slice(0, 20).filter(b => didBuyerShip(b)).length;
   return topN.length ? hits / Math.min(topN.length, 20) : 0;
 }
 
 async function calibrate({ hs, maxIters = MAX_ITERS, cohortLimit = 200 } = {}) {
   console.log(`\nCalibrating scoring weights for HS ${hs}...`);
 
+  const hs4str = String(hs).slice(0, 4);
   const buyers = await db.query('common-service', 'buyer_summaries',
-    { hs_codes: hs, 'recommendation.priority_score': { $gt: 0 } },
-    { projection: { buyer_name: 1, total_value_usd: 1, total_shipments: 1,
-        'recommendation.priority_score': 1, 'recommendation.priority_tier': 1 },
-      limit: cohortLimit });
+    { hs_codes: { $elemMatch: { $regex: `^${hs4str}` } }, buyer_tier: { $exists: true } },
+    { projection: { buyer_name: 1, buyer_tier: 1, buyer_status: 1, has_recent_activity: 1,
+        total_value_usd: 1, total_shipments: 1 },
+      limit: cohortLimit,
+      sort: { buyer_tier: -1, total_shipments: -1 } });
 
   const valid = buyers.filter(b => !er.isJunk(b.buyer_name));
   if (valid.length < 20) {
@@ -79,7 +67,7 @@ async function calibrate({ hs, maxIters = MAX_ITERS, cohortLimit = 200 } = {}) {
   );
 
   let bestWeights = { ...currentWeights };
-  let bestPrecision = await evalWeights(valid, [hs], bestWeights);
+  let bestPrecision = evalWeights(valid, [hs], bestWeights);
   console.log(`  Baseline precision: ${(bestPrecision * 100).toFixed(1)}%`);
 
   const history = [{ iter: 0, precision: bestPrecision, weights: { ...bestWeights } }];
@@ -97,7 +85,7 @@ async function calibrate({ hs, maxIters = MAX_ITERS, cohortLimit = 200 } = {}) {
         const total = Object.values(candidate).reduce((s, v) => s + v, 0);
         for (const k of Object.keys(candidate)) candidate[k] = candidate[k] / total;
 
-        const precision = await evalWeights(valid, [hs], candidate);
+        const precision = evalWeights(valid, [hs], candidate);
         if (precision > bestPrecision + 0.01) {
           bestPrecision = precision;
           bestWeights = { ...candidate };

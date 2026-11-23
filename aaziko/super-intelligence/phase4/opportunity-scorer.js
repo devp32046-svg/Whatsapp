@@ -222,4 +222,5 @@ if (require.main === module) {
     .finally(() => db.close());
 }
 
-module.exports = { findEmergingBuyers, findVolumeGaps, runOpportunityScorer, computeScore, SCORE_DIMENSIONS };
+module.exports = { findEmergingBuyers, findVolumeGaps, runOpportunityScorer,
+  computeScore, scoreFromBuyerSummary, SCORE_DIMENSIONS };

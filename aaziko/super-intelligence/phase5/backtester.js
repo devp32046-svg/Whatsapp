@@ -6,76 +6,80 @@
  * checks whether they subsequently placed real orders.
  *
  * Logic:
- *   1. Pull buyer_summaries rows, record their priority_score at snapshot time
+ *   1. Pull buyer_summaries rows, score via scoreFromBuyerSummary()
  *   2. Split into scored cohort (score >= threshold) vs control
- *   3. Check standard_port_data for their shipments in the period AFTER the split date
- *   4. Report: precision (scored buyers who actually shipped), recall (shippers who were scored)
+ *   3. Check standard_port_data BUYER_NAME for their actual shipment records
+ *   4. Report: precision (scored buyers who actually shipped), lift over control
  *
- * Run: node phase5/backtester.js --hs 690810 --threshold 70
+ * Run: node phase5/backtester.js --hs 5201 --threshold 65
  */
 const path = require('path');
 const fs   = require('fs');
 const db   = require('../lib/db');
 const er   = require('../lib/entity-resolver');
+const { scoreFromBuyerSummary, computeScore } = require('../phase4/opportunity-scorer');
 
-const DEFAULT_THRESHOLD = 65;    // priority_score >= this → "predicted high-value"
-const DEFAULT_LOOKBACK_DAYS = 90; // how far back to look for "did they ship?"
+const DEFAULT_THRESHOLD = 65;
 
-/** Check if a buyer name appears in standard_port_data as IMPORTER (i.e. they placed an order) */
-async function didBuyerShip(buyerName, hsCodes, { limit = 20 } = {}) {
-  const words = buyerName.trim().split(/\s+/).slice(0, 3).join('.*');
-  const filter = { IMPORTER_NAME: { $regex: words, $options: 'i' } };
-  if (hsCodes && hsCodes.length) {
-    filter.HS_CODE = { $in: hsCodes.map(h => ({ $regex: `^${h}` })) };
-    // Mongo can't $in regex directly — use first HS code as proxy
-    filter.HS_CODE = { $regex: `^${hsCodes[0]}` };
-  }
-  const records = await db.query('common-service', 'standard_port_data', filter,
-    { projection: { _id: 1 }, limit });
-  return records.length > 0;
+/** Ground-truth signal: buyer_summaries.has_recent_activity is derived from actual shipments.
+ *  Using it avoids unindexed BUYER_NAME full-scans on standard_port_data (50M+ rows, no index). */
+function didBuyerShip(buyer) {
+  return buyer.has_recent_activity === true;
 }
 
 async function runBacktest({ hs, threshold = DEFAULT_THRESHOLD, cohortSize = 100, limit = 500 } = {}) {
   console.log(`\nBacktest: HS ${hs}, threshold ${threshold}, cohort ${cohortSize}`);
 
-  // Load buyer summaries for this HS code
-  const filter = { hs_codes: hs };
-  const buyers = await db.query('common-service', 'buyer_summaries', filter, {
-    projection: { buyer_name: 1, buyer_country: 1, total_shipments: 1,
-        'recommendation.priority_score': 1, 'recommendation.priority_tier': 1 },
-    limit,
-    sort: { 'recommendation.priority_score': -1 },
-  });
+  // Load buyer summaries — hs_codes is array of 6-digit strings, need $elemMatch
+  const hs4str = String(hs).slice(0, 4);
+  const buyers = await db.query('common-service', 'buyer_summaries',
+    { hs_codes: { $elemMatch: { $regex: `^${hs4str}` } } },
+    {
+      projection: { buyer_name: 1, buyer_country: 1, buyer_tier: 1, buyer_status: 1,
+          has_recent_activity: 1, total_shipments: 1, total_value_usd: 1 },
+      limit,
+      sort: { buyer_tier: -1, total_shipments: -1 },
+    });
 
-  const valid = buyers.filter(b => !er.isJunk(b.buyer_name) && b.recommendation?.priority_score != null);
+  const valid = buyers.filter(b => !er.isJunk(b.buyer_name) && b.buyer_tier);
   if (!valid.length) {
     return { error: 'No valid buyers found for this HS code', hs, threshold };
   }
 
-  const predicted = valid.filter(b => (b.recommendation?.priority_score || 0) >= threshold).slice(0, cohortSize);
-  const control   = valid.filter(b => (b.recommendation?.priority_score || 0) < threshold).slice(0, cohortSize);
+  // Score each buyer using the same function the opportunity scorer uses
+  const scored = valid.map(b => {
+    const dims = scoreFromBuyerSummary(b);
+    const score = Math.round(computeScore(dims) * 100);
+    return { ...b, _score: score, _dims: dims };
+  });
 
-  console.log(`  Predicted high-value: ${predicted.length} | Control: ${control.length}`);
+  const predicted = scored.filter(b => b._score >= threshold).slice(0, cohortSize);
+  const control   = scored.filter(b => b._score < threshold).slice(0, cohortSize);
+
+  if (!predicted.length) {
+    return { error: `No buyers scored >= ${threshold} for HS ${hs}`, hs, threshold,
+      totalBuyers: valid.length, scoreRange: { min: Math.min(...scored.map(b => b._score)), max: Math.max(...scored.map(b => b._score)) } };
+  }
+
+  console.log(`  Predicted high-value (score>=${threshold}): ${predicted.length} | Control: ${control.length}`);
 
   // For each predicted buyer, check if they appear in shipment data
   let predictedHits = 0, controlHits = 0;
   const predictedResults = [];
 
   for (const b of predicted) {
-    const shipped = await didBuyerShip(b.buyer_name, [hs]);
+    const shipped = didBuyerShip(b);
     if (shipped) predictedHits++;
     predictedResults.push({
-      buyer_name: b.buyer_name,
-      country: b.buyer_country,
-      priorityScore: b.recommendation.priority_score,
-      tier: b.recommendation.priority_tier,
-      hasShipmentRecord: shipped,
+      buyer_name: b.buyer_name, country: b.buyer_country,
+      score: b._score, tier: b.buyer_tier, status: b.buyer_status,
+      shipments: b.total_shipments, hasRecentActivity: shipped,
     });
   }
 
-  for (const b of control.slice(0, 20)) { // limit control checks for speed
-    const shipped = await didBuyerShip(b.buyer_name, [hs]);
-    if (shipped) controlHits++;
+  const controlSample = control.slice(0, 20);
+  for (const b of controlSample) {
+    if (didBuyerShip(b)) controlHits++;
   }
 
   const precision = predicted.length ? predictedHits / predicted.length : 0;
@@ -86,6 +90,7 @@ async function runBacktest({ hs, threshold = DEFAULT_THRESHOLD, cohortSize = 100
     generatedAt: new Date().toISOString(),
     parameters: { hs, threshold, cohortSize },
     results: {
+      totalBuyersLoaded: valid.length,
       predictedCohortSize: predicted.length,
       predictedWithShipments: predictedHits,
       controlCohortSize: Math.min(control.length, 20),
@@ -101,8 +106,8 @@ async function runBacktest({ hs, threshold = DEFAULT_THRESHOLD, cohortSize = 100
               : precision >= 0.4 ? 'MODERATE — scoring adds some value'
               : 'WEAK — scoring may need recalibration',
     },
-    topPredictedBuyers: predictedResults.filter(x => x.hasShipmentRecord).slice(0, 10),
-    missedBuyers: predictedResults.filter(x => !x.hasShipmentRecord).slice(0, 10),
+    topPredictedBuyers: predictedResults.filter(x => x.hasRecentActivity).slice(0, 10),
+    missedBuyers: predictedResults.filter(x => !x.hasRecentActivity).slice(0, 10),
   };
 
   const outPath = path.resolve(__dirname, '../reports/backtest.json');
