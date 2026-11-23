@@ -23,6 +23,13 @@ const SCORE_DIMENSIONS = {
   execution_ease:      { weight: 0.05, label: 'Execution ease' },
 };
 
+// India's established export corridors — ease of doing business proxy
+const COUNTRY_EASE = {
+  VN: 0.82, BD: 0.80, ID: 0.80, LK: 0.76, PK: 0.74, TH: 0.78, MY: 0.72,
+  PH: 0.70, AE: 0.75, SA: 0.70, QA: 0.68, US: 0.65, DE: 0.65, GB: 0.65,
+  FR: 0.62, IT: 0.62, NL: 0.62, CN: 0.60, JP: 0.60, AU: 0.58, ZA: 0.55,
+};
+
 const OPPORTUNITY_TYPES = {
   EMERGING_BUYER:      'A buyer showing rapid growth in imports for this product category',
   SUPPLIER_SWITCH:     'A buyer changing suppliers — opportunity to get listed',
@@ -47,24 +54,45 @@ function computeScore(dimensions) {
 function scoreFromBuyerSummary(buyer) {
   if (!buyer) return null;
 
-  // buyer_tier: B4=highest value, B3=medium, B2=moderate, B1=common
-  const tierScore = { B4: 0.90, B3: 0.65, B2: 0.45, B1: 0.20 }[buyer.buyer_tier] ?? 0.30;
-  // buyer_status: HOT=active buyer, WARM=warming, COLD=inactive
+  const tierScore   = { B4: 0.90, B3: 0.65, B2: 0.45, B1: 0.20 }[buyer.buyer_tier]   ?? 0.30;
   const statusScore = { HOT: 0.90, WARM: 0.65, COLD: 0.20 }[buyer.buyer_status] ?? 0.35;
+  const shipments   = Math.max(1, buyer.total_shipments || 0);
+  const totalValue  = buyer.total_value_usd || 0;
 
-  const totalValue = buyer.total_value_usd || 0;
-  // Cap at $500M to prevent corrupt trillion-dollar rows from skewing score
-  const cappedValue = Math.min(totalValue, 500_000_000);
-  const commercialValue = Math.min(1, cappedValue / 1_000_000); // $1M+ = max
+  // Cap at $500M; log scale so $10M and $500M aren't both capped at 1.0
+  const cappedValue    = Math.min(totalValue, 500_000_000);
+  const commercialValue = cappedValue > 0
+    ? Math.min(1, Math.log10(cappedValue + 1) / Math.log10(500_000_001))
+    : 0;
+
+  // Avg shipment value → proxy for unit margin potential
+  const avgShipVal = cappedValue / shipments;
+  const marginPotential = avgShipVal > 500_000 ? 0.90
+    : avgShipVal > 100_000 ? 0.75
+    : avgShipVal > 10_000  ? 0.55
+    : avgShipVal > 1_000   ? 0.40
+    : 0.25;
+
+  // HS code count → fewer = more focused buyer = clearer competitive pitch for a supplier
+  const hsCount = buyer.hs_codes?.length || 0;
+  const competitiveAdv = hsCount === 0 ? 0.50
+    : hsCount <= 2  ? 0.85
+    : hsCount <= 5  ? 0.65
+    : hsCount <= 10 ? 0.45
+    : 0.25;
+
+  // Country ease-of-export from India
+  const cc = (buyer.buyer_country || '').toUpperCase().slice(0, 2);
+  const executionEase = COUNTRY_EASE[cc] ?? 0.55;
 
   return {
     commercial_value: commercialValue,
     probability:      tierScore,
     timing_urgency:   buyer.has_recent_activity ? statusScore : statusScore * 0.4,
-    data_quality:     buyer.total_shipments > 20 ? 0.9 : buyer.total_shipments > 10 ? 0.7 : 0.4,
-    margin_potential: 0.5,
-    competitive_adv:  tierScore > 0.6 ? 0.6 : 0.4,
-    execution_ease:   0.6,
+    data_quality:     shipments > 50 ? 0.95 : shipments > 20 ? 0.85 : shipments > 10 ? 0.70 : 0.40,
+    margin_potential: marginPotential,
+    competitive_adv:  competitiveAdv,
+    execution_ease:   executionEase,
   };
 }
 
