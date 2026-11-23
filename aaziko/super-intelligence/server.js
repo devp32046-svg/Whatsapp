@@ -62,17 +62,18 @@ function sendJson(res, status, body) {
 }
 
 async function handleRequest(req, res) {
-  const url  = req.url || '/';
+  const rawUrl = req.url || '/';
   const method = req.method || 'GET';
+  const [pathname, queryString] = rawUrl.split('?');
 
   // Health check
-  if (method === 'GET' && url === '/health') {
+  if (method === 'GET' && pathname === '/health') {
     return sendJson(res, 200, { status: 'ok', ts: new Date().toISOString() });
   }
 
   // Report download
-  if (method === 'GET' && url.startsWith('/reports/')) {
-    const name = path.basename(url.replace('/reports/', ''));
+  if (method === 'GET' && pathname.startsWith('/reports/')) {
+    const name = path.basename(pathname.replace('/reports/', ''));
     if (!/^[\w-]+\.json$/.test(name)) return sendJson(res, 400, { error: 'Invalid report name' });
     const fPath = path.join(REPORTS_DIR, name);
     if (!fs.existsSync(fPath)) return sendJson(res, 404, { error: 'Report not found' });
@@ -82,13 +83,23 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // Phase routes
-  const routeKey = `${method} ${url.split('?')[0]}`;
-  const handler = ROUTES[routeKey];
-  if (!handler) return sendJson(res, 404, { error: `Route not found: ${routeKey}` });
+  // Phase routes — accept GET with query params OR POST with JSON body
+  // GET /phase4/alerts?hs=5201  ≡  POST /phase4/alerts  {"hs":"5201"}
+  const postKey  = `POST ${pathname}`;
+  const getKey   = `GET ${pathname}`;
+  const routeKey = postKey;           // used in error handler below
+  const handler  = ROUTES[postKey] || ROUTES[getKey];
+  if (!handler) return sendJson(res, 404, { error: `Route not found: ${method} ${pathname}` });
 
   let body;
-  try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { error: e.message }); }
+  if (method === 'GET') {
+    // Parse query string into body object
+    body = queryString
+      ? Object.fromEntries(new URLSearchParams(queryString).entries())
+      : {};
+  } else {
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { error: e.message }); }
+  }
 
   try {
     const fn = handler();
