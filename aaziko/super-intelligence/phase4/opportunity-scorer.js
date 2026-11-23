@@ -46,32 +46,42 @@ function computeScore(dimensions) {
 
 function scoreFromBuyerSummary(buyer) {
   if (!buyer) return null;
-  const rec = buyer.recommendation || {};
-  const priorityScore = rec.priority_score != null ? rec.priority_score / 100 : 0.5;
+
+  // buyer_tier: B4=highest value, B3=medium, B2=moderate, B1=common
+  const tierScore = { B4: 0.90, B3: 0.65, B2: 0.45, B1: 0.20 }[buyer.buyer_tier] ?? 0.30;
+  // buyer_status: HOT=active buyer, WARM=warming, COLD=inactive
+  const statusScore = { HOT: 0.90, WARM: 0.65, COLD: 0.20 }[buyer.buyer_status] ?? 0.35;
+
   const totalValue = buyer.total_value_usd || 0;
-  const commercialValue = Math.min(1, totalValue / 1_000_000); // $1M+ = max
+  // Cap at $500M to prevent corrupt trillion-dollar rows from skewing score
+  const cappedValue = Math.min(totalValue, 500_000_000);
+  const commercialValue = Math.min(1, cappedValue / 1_000_000); // $1M+ = max
 
   return {
     commercial_value: commercialValue,
-    probability:      priorityScore,
-    timing_urgency:   rec.priority_tier === 'A' ? 0.9 : rec.priority_tier === 'B' ? 0.6 : 0.3,
-    data_quality:     buyer.total_shipments > 10 ? 0.8 : 0.4,
-    margin_potential: 0.5, // unknown without price data
-    competitive_adv:  0.5,
+    probability:      tierScore,
+    timing_urgency:   buyer.has_recent_activity ? statusScore : statusScore * 0.4,
+    data_quality:     buyer.total_shipments > 20 ? 0.9 : buyer.total_shipments > 10 ? 0.7 : 0.4,
+    margin_potential: 0.5,
+    competitive_adv:  tierScore > 0.6 ? 0.6 : 0.4,
     execution_ease:   0.6,
   };
 }
 
 /** Find top emerging buyers for a given HS code, optionally filtered by destination country */
-async function findEmergingBuyers(hs6, { destCountry = null, limit = 100, minShipments = 3 } = {}) {
-  const filter = { hs_codes: hs6 };
+async function findEmergingBuyers(hs6, { destCountry = null, limit = 100, minShipments = 3,
+    statusFilter = null } = {}) {
+  // hs_codes is an array field — MongoDB matches if any element equals hs6
+  const filter = { hs_codes: hs6, total_shipments: { $gte: minShipments } };
   if (destCountry) filter.buyer_country = destCountry;
+  if (statusFilter) filter.buyer_status = { $in: statusFilter };
 
   const buyers = await db.query('common-service', 'buyer_summaries', filter, {
     projection: { buyer_name: 1, buyer_country: 1, total_shipments: 1, total_value_usd: 1,
-        annual_volume: 1, 'recommendation.priority_score': 1, 'recommendation.priority_tier': 1 },
+        annual_volume: 1, buyer_tier: 1, buyer_status: 1, has_recent_activity: 1,
+        recent_frequency: 1, product_descriptions: 1 },
     limit,
-    sort: { 'recommendation.priority_score': -1 },
+    sort: { buyer_tier: -1, total_shipments: -1 },
   });
 
   return buyers
@@ -89,8 +99,11 @@ async function findEmergingBuyers(hs6, { destCountry = null, limit = 100, minShi
         evidence: {
           totalShipments: b.total_shipments,
           totalValueUsd: b.total_value_usd,
-          priorityScore: b.recommendation?.priority_score,
-          priorityTier: b.recommendation?.priority_tier,
+          buyerTier: b.buyer_tier,
+          buyerStatus: b.buyer_status,
+          hasRecentActivity: b.has_recent_activity,
+          recentFrequency: b.recent_frequency,
+          products: b.product_descriptions?.slice(0, 5),
         },
         score,
         dimensionScores: dimScores,
