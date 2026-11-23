@@ -84,7 +84,8 @@ async function runBacktest({ hs, threshold = DEFAULT_THRESHOLD, cohortSize = 100
 
   const precision = predicted.length ? predictedHits / predicted.length : 0;
   const controlRate = control.length ? controlHits / Math.min(control.length, 20) : 0;
-  const lift = controlRate > 0 ? precision / controlRate : null;
+  // controlRate=0 with precision>0 = perfect separation (all active buyers scored high)
+  const lift = controlRate > 0 ? precision / controlRate : (precision > 0 ? Infinity : null);
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -97,11 +98,14 @@ async function runBacktest({ hs, threshold = DEFAULT_THRESHOLD, cohortSize = 100
       controlWithShipments: controlHits,
       precision: Math.round(precision * 100) / 100,
       controlRate: Math.round(controlRate * 100) / 100,
-      lift: lift ? Math.round(lift * 100) / 100 : null,
+      lift: lift === Infinity ? null : (lift ? Math.round(lift * 100) / 100 : null),
+      liftLabel: lift === Infinity ? 'PERFECT_SEPARATION' : (lift ? `${Math.round(lift * 100) / 100}x` : 'NO_DATA'),
     },
     interpretation: {
       precision: `${(precision * 100).toFixed(0)}% of high-score buyers have recorded shipments`,
-      lift: lift ? `Scoring gives ${lift.toFixed(1)}x lift over random selection` : 'Control rate zero — cannot compute lift',
+      lift: lift === Infinity
+        ? 'PERFECT SEPARATION — 0% of low-score buyers are active; all active buyers scored high'
+        : (lift ? `Scoring gives ${lift.toFixed(1)}x lift over random selection` : 'Control rate zero — cannot compute lift'),
       verdict: precision >= 0.6 ? 'GOOD — scoring is predictive'
               : precision >= 0.4 ? 'MODERATE — scoring adds some value'
               : 'WEAK — scoring may need recalibration',
@@ -126,7 +130,7 @@ if (require.main === module) {
     .then(r => {
       if (r.error) { console.error(r.error); return; }
       console.log(`\n=== BACKTEST RESULTS ===`);
-      console.log(`Precision: ${(r.results.precision * 100).toFixed(0)}% | Lift: ${r.results.lift || 'N/A'}x`);
+      console.log(`Precision: ${(r.results.precision * 100).toFixed(0)}% | Lift: ${r.results.liftLabel || r.results.lift || 'N/A'}`);
       console.log(`Verdict: ${r.interpretation.verdict}`);
       console.log(`\nReport: reports/backtest.json`);
     })
