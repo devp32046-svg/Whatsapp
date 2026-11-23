@@ -155,7 +155,7 @@ async function detectSplitShipments(hs6, { limit = 2000, windowDays = 30, minCou
       if (isNaN(firstDate) || isNaN(lastDate)) continue;
       const daySpan = (lastDate - firstDate) / 86400000;
       if (daySpan <= windowDays) {
-        const totalValue = window.reduce((s, x) => s + (x.VALUE_USD || 0), 0);
+        const totalValue = window.reduce((s, x) => s + (x.FOB_VALUE_USD || x.CIF_VALUE_USD || 0), 0);
         const avgValue = totalValue / window.length;
         const [buyerKey, originKey] = pairKey.split('|');
         anomalies.push({

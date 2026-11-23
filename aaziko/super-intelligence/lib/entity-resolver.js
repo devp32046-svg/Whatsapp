@@ -41,9 +41,21 @@ function bestName(variants) {
 
 function isJunk(name) {
   if (!name) return true;
-  const n = String(name).trim().toUpperCase().replace(/[^A-Z]/g, '');
+  const raw = String(name).trim();
+  if (!raw || raw.length < 3) return true;
+  // Long descriptive strings ("INDIVIDUALS OR ORGANIZATIONS DO NOT HAVE A TAX CODE") are never real entities
+  if (raw.length > 80) return true;
+  const n = raw.toUpperCase().replace(/[^A-Z]/g, '');
   if (!n || n.length < 3) return true;
-  const junks = ['NULL', 'NA', 'NONE', 'ORDER', 'TOTHEORDER', 'TOORDER', 'CONSIGNEE', 'APPLICANT', 'SHIPPER'];
+  // Exact matches and common prefix patterns for placeholder / routing names
+  const junks = [
+    'NULL', 'NA', 'NONE', 'ORDER',
+    'TOORDE', 'TOTHE', 'TOORDER', 'TOTHEORDER',  // "TO ORDE", "TO THE ...", "TO ORDER"
+    'SAMEAS',                                      // "SAME AS BUYER", "SAME AS ABOVE"
+    'CONSIGNEE', 'APPLICANT', 'SHIPPER',
+    'INDIVIDUAL',                                  // "INDIVIDUALS OR ORGANIZATIONS..."
+    'UNKNOWN', 'VARIOUS',
+  ];
   return junks.some(j => n === j || n.startsWith(j));
 }
 
