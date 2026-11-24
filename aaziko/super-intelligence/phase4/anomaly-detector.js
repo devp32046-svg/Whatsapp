@@ -178,57 +178,109 @@ async function detectCircularTrade(entityName, { limit = 100 } = {}) {
   return anomalies;
 }
 
-/** Detect split shipments: many small shipments from same buyer+origin in a short window */
-async function detectSplitShipments(hs6, { limit = 2000, windowDays = 30, minCount = 5 } = {}) {
-  const hs4 = parseInt(String(hs6).slice(0, 4), 10);
+/** Detect split shipments: many small shipments from same buyer in a short window.
+ *  Strategy 1 (precise): windowed analysis on standard_port_data — only where data exists.
+ *  Strategy 2 (universal): fragmentation ratio from buyer_summaries — works for all HS codes.
+ *    High total_shipments / total_value_usd ratio vs peers = deliberate fragmentation pattern. */
+async function detectSplitShipments(hs6, { limit = 2000, windowDays = 60, minCount = 3 } = {}) {
+  const hs4int = parseInt(String(hs6).slice(0, 4), 10);
+  const hs4str = String(hs6).slice(0, 4);
+
+  // Strategy 1: per-shipment window analysis where standard_port_data has records
   const records = await db.query('common-service', 'standard_port_data',
-    { HS_CODE_4: hs4 },
+    { HS_CODE_4: hs4int },
     { projection: { BUYER_NAME: 1, ORIGIN_COUNTRY: 1, FOB_VALUE_USD: 1, DATE: 1 }, limit,
       sort: { DATE: -1 } });
 
-  const pairBuckets = new Map();
-  for (const r of records) {
-    if (!r.BUYER_NAME || !r.ORIGIN_COUNTRY || !r.DATE) continue;
-    const pairKey = `${er.canonicalKey(r.BUYER_NAME)}|${r.ORIGIN_COUNTRY}`;
-    if (!pairBuckets.has(pairKey)) pairBuckets.set(pairKey, []);
-    pairBuckets.get(pairKey).push(r);
-  }
-
   const anomalies = [];
-  for (const [pairKey, shipments] of pairBuckets) {
-    if (shipments.length < minCount) continue;
-    // Check for clusters within windowDays
-    shipments.sort((a, b) => a.DATE > b.DATE ? 1 : -1);
-    for (let i = 0; i <= shipments.length - minCount; i++) {
-      const window = shipments.slice(i, i + minCount);
-      const firstDate = new Date(window[0].DATE);
-      const lastDate = new Date(window[window.length - 1].DATE);
-      if (isNaN(firstDate) || isNaN(lastDate)) continue;
-      const daySpan = (lastDate - firstDate) / 86400000;
-      if (daySpan <= windowDays) {
-        const totalValue = window.reduce((s, x) => s + (x.FOB_VALUE_USD || x.CIF_VALUE_USD || 0), 0);
-        const avgValue = totalValue / window.length;
-        const [buyerKey, originKey] = pairKey.split('|');
-        anomalies.push({
-          anomalyId: `split_${pairKey.slice(0, 20)}_${window[0].DATE}`,
-          type: 'SPLIT_SHIPMENT',
-          severity: avgValue < 10000 ? 'HIGH' : 'MEDIUM',
-          description: ANOMALY_TYPES.SPLIT_SHIPMENT,
-          entities: [window[0].BUYER_NAME, window[0].ORIGIN_COUNTRY].filter(Boolean),
-          evidence: {
-            shipmentCount: window.length,
-            windowDays: Math.round(daySpan),
-            totalValueUsd: Math.round(totalValue),
-            avgValueUsd: Math.round(avgValue),
-            dateRange: { from: window[0].DATE, to: window[window.length - 1].DATE },
-          },
-          requiresHumanReview: true,
-          detectedAt: new Date().toISOString(),
-        });
-        break; // One anomaly per pair
+
+  if (records.length >= minCount * 2) {
+    const pairBuckets = new Map();
+    for (const r of records) {
+      if (!r.BUYER_NAME || !r.DATE) continue;
+      const pairKey = `${er.canonicalKey(r.BUYER_NAME)}|${r.ORIGIN_COUNTRY || 'UNK'}`;
+      if (!pairBuckets.has(pairKey)) pairBuckets.set(pairKey, []);
+      pairBuckets.get(pairKey).push(r);
+    }
+
+    for (const [, shipments] of pairBuckets) {
+      if (shipments.length < minCount) continue;
+      shipments.sort((a, b) => a.DATE > b.DATE ? 1 : -1);
+      for (let i = 0; i <= shipments.length - minCount; i++) {
+        const win = shipments.slice(i, i + minCount);
+        const firstDate = new Date(win[0].DATE);
+        const lastDate  = new Date(win[win.length - 1].DATE);
+        if (isNaN(firstDate) || isNaN(lastDate)) continue;
+        const daySpan = (lastDate - firstDate) / 86400000;
+        if (daySpan <= windowDays) {
+          const totalValue = win.reduce((s, x) => s + (x.FOB_VALUE_USD || 0), 0);
+          anomalies.push({
+            anomalyId: `split_${er.canonicalKey(win[0].BUYER_NAME || '').slice(0, 12)}_${win[0].DATE}`,
+            type: 'SPLIT_SHIPMENT',
+            severity: totalValue / win.length < 10000 ? 'HIGH' : 'MEDIUM',
+            description: ANOMALY_TYPES.SPLIT_SHIPMENT,
+            entities: [win[0].BUYER_NAME, win[0].ORIGIN_COUNTRY].filter(Boolean),
+            evidence: {
+              splitSource: 'windowed_shipments',
+              shipmentCount: win.length,
+              windowDays: Math.round(daySpan),
+              totalValueUsd: Math.round(totalValue),
+              avgValueUsd: Math.round(totalValue / win.length),
+              dateRange: { from: win[0].DATE, to: win[win.length - 1].DATE },
+            },
+            requiresHumanReview: true,
+            detectedAt: new Date().toISOString(),
+          });
+          break;
+        }
       }
     }
   }
+
+  if (anomalies.length > 0) return anomalies.sort((a, b) => SEVERITY[b.severity] - SEVERITY[a.severity]);
+
+  // Strategy 2: fragmentation ratio from buyer_summaries (universal fallback)
+  // shipments_per_million_usd: high ratio = many small transactions = possible fragmentation
+  const buyers = await db.query('common-service', 'buyer_summaries',
+    { hs_codes: { $elemMatch: { $regex: `^${hs4str}` } },
+      total_value_usd: { $gt: 0 }, total_shipments: { $gt: minCount } },
+    { projection: { buyer_name: 1, buyer_country: 1, total_shipments: 1,
+        total_value_usd: 1, buyer_tier: 1 }, limit: 500 });
+
+  const valid = buyers
+    .filter(b => !er.isJunk(b.buyer_name))
+    .map(b => ({ ...b, ratio: (b.total_shipments / b.total_value_usd) * 1_000_000 }));
+
+  if (valid.length < 10) return [];
+
+  const ratios = valid.map(b => b.ratio);
+  const { upper, median } = iqrBounds(ratios);
+
+  for (const b of valid) {
+    if (b.ratio > upper) {
+      const deviation = median > 0 ? Math.round(b.ratio / median * 10) / 10 : null;
+      anomalies.push({
+        anomalyId: `split_ratio_${er.canonicalKey(b.buyer_name).slice(0, 12)}`,
+        type: 'SPLIT_SHIPMENT',
+        severity: deviation > 5 ? 'HIGH' : 'MEDIUM',
+        description: 'High shipment count relative to total value vs peers — possible deliberate fragmentation',
+        entities: [b.buyer_name, b.buyer_country].filter(Boolean),
+        evidence: {
+          splitSource: 'fragmentation_ratio',
+          totalShipments: b.total_shipments,
+          totalValueUsd: b.total_value_usd,
+          avgShipmentValueUsd: Math.round(b.total_value_usd / b.total_shipments),
+          fragilityRatio: Math.round(b.ratio),
+          peerMedianRatio: Math.round(median),
+          deviationFactor: deviation,
+          buyerTier: b.buyer_tier,
+        },
+        requiresHumanReview: true,
+        detectedAt: new Date().toISOString(),
+      });
+    }
+  }
+
   return anomalies.sort((a, b) => SEVERITY[b.severity] - SEVERITY[a.severity]);
 }
 
