@@ -17,6 +17,7 @@ const { runAnomalyDetector }   = require('./anomaly-detector');
 const { trackHsCodePrice }     = require('../phase3/commodity-tracker');
 const { screenTransaction }    = require('../phase3/sanctions-checker');
 const db                       = require('../lib/db');
+const er                       = require('../lib/entity-resolver');
 
 const ALERT_TYPES = {
   OPPORTUNITY:  'Trade opportunity identified',
@@ -132,17 +133,45 @@ function complianceToAlert(screening, context) {
   };
 }
 
-/** Deduplicate alerts — same type + same primary entity = keep highest priority */
+// Country names that should not be treated as "buyer entities" for dedup purposes
+const COUNTRY_TOKENS = new Set([
+  'INDIA','CHINA','VIETNAM','INDONESIA','BANGLADESH','MEXICO','TURKEY','BRAZIL',
+  'PAKISTAN','THAILAND','MALAYSIA','CAMBODIA','MYANMAR','SRILANKA','UNITEDSTATES',
+  'USA','GERMANY','ITALY','FRANCE','UNITEDKINGDOM','UK','JAPAN','SOUTHKOREA',
+  'ARGENTINA','UGANDA','DOMINICAN','PHILIPPINES','AUSTRALIA','SINGAPORE',
+]);
+
+function primaryBuyer(alert) {
+  const ents = alert.affectedEntities || [];
+  // Find first entity that is NOT a country name
+  for (const e of ents) {
+    if (!e) continue;
+    const k = er.canonicalKey(e);
+    if (k.length > 3 && !COUNTRY_TOKENS.has(k.slice(0, 15))) return e;
+  }
+  return ents[0] || '';
+}
+
+/** Deduplicate alerts — same type + canonically same primary entity = keep highest priority.
+ *  Uses isSameEntity() to catch typo variants (GUOHE/GOOHE) and legal prefix diffs (PT NIKOMAS/NIKOMAS). */
 function deduplicateAlerts(alerts) {
-  const seen = new Map();
+  const kept = [];
   for (const a of alerts) {
-    const key = `${a.type}|${(a.affectedEntities || []).sort().join('|')}|${(a.hsCodes || []).join(',')}`;
-    const existing = seen.get(key);
-    if (!existing || PRIORITY_ORDER[a.priority] > PRIORITY_ORDER[existing.priority]) {
-      seen.set(key, a);
+    const buyer = primaryBuyer(a);
+    // Find an existing alert with the same type and similar entity
+    const matchIdx = kept.findIndex(k =>
+      k.type === a.type &&
+      primaryBuyer(k) &&
+      buyer &&
+      er.isSameEntity(primaryBuyer(k), buyer)
+    );
+    if (matchIdx === -1) {
+      kept.push(a);
+    } else if (PRIORITY_ORDER[a.priority] > PRIORITY_ORDER[kept[matchIdx].priority]) {
+      kept[matchIdx] = a; // replace with higher-priority version
     }
   }
-  return [...seen.values()];
+  return kept;
 }
 
 async function generateAlerts({ hs, entityName, originCountry = 'IN', limit = 100 } = {}) {
