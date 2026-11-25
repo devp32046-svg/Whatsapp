@@ -36,7 +36,8 @@ if (!country && !hs) {
   return [{ json: { pipelineStr: '[]', country: '', hs: '', limit: 0, error: 'country ya hs_code zaroori hai' } }];
 }
 
-var matchFilter = { has_recent_activity: true };
+// supplier_summaries uses recent_shipments (not has_recent_activity)
+var matchFilter = { recent_shipments: { $gt: 0 } };
 if (country) matchFilter['supplier_country'] = { $regex: country, $options: 'i' };
 if (/^[0-9]{2,10}$/.test(hs)) {
   matchFilter['hs_codes'] = { $elemMatch: { $regex: '^' + hs.slice(0, 6) } };
@@ -85,7 +86,7 @@ var lines = rows.map(function(r, i) {
     ? ' · $' + (r.total_value_usd / 1000000).toFixed(1) + 'M'
     : '';
   var last  = r.last_shipment_date
-    ? ' · last: ' + String(r.last_shipment_date).slice(0, 7)
+    ? ' · last: ' + String(r.last_shipment_date).split(' ')[0]
     : '';
   return (i + 1) + '. ' + name + ' — ' + ships + ' shipments' + val + tier + last;
 });
